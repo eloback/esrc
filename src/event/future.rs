@@ -5,14 +5,14 @@ use std::future::Future;
 // being unable to confirm an inner Future is also Send. This trait works around
 // the issue, allowing the compiler to confirm the Future is actually Send.
 pub trait IntoSendFuture: Future + Send {
-	fn into_send_future(self) -> impl Future<Output = Self::Output> + Send;
+    fn into_send_future(self) -> impl Future<Output = Self::Output> + Send;
 }
 
 impl<T> IntoSendFuture for T
 where
-	T: Future + Send,
+    T: Future + Send,
 {
-	fn into_send_future(self) -> impl Future<Output = Self::Output> + Send {
-		self
-	}
+    fn into_send_future(self) -> impl Future<Output = Self::Output> + Send {
+        self
+    }
 }

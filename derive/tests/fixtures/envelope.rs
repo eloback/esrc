@@ -1,11 +1,10 @@
 use std::time::SystemTime;
 
-use uuid::Uuid;
-
 use esrc::envelope::Envelope;
 use esrc::error;
 use esrc::event::Sequence;
 use esrc::version::DeserializeVersion;
+use uuid::Uuid;
 
 use super::version::unit_deserializer;
 
@@ -41,7 +40,6 @@ impl Envelope for EmptyEnvelope {
     where
         E: DeserializeVersion<'de>,
     {
-        E::deserialize_version(unit_deserializer(), 1)
-            .map_err(|_| error::Error::Invalid)
+        E::deserialize_version(unit_deserializer(), 1).map_err(|_| error::Error::Invalid)
     }
 }

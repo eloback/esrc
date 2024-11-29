@@ -3,14 +3,12 @@ use async_nats::HeaderMap;
 use futures::{Stream, StreamExt};
 use uuid::Uuid;
 
-use crate::error::{self, Error};
-use crate::event::{Event, EventGroup, Sequence};
-use crate::event::{Publish, Replay, ReplayOne, Subscribe, Truncate};
-use crate::version::SerializeVersion;
-
 use super::header::VERSION_KEY;
 use super::subject::NatsSubject;
 use super::{NatsEnvelope, NatsStore};
+use crate::error::{self, Error};
+use crate::event::{Event, EventGroup, Publish, Replay, ReplayOne, Sequence, Subscribe, Truncate};
+use crate::version::SerializeVersion;
 
 impl Publish for NatsStore {
     async fn publish<E>(

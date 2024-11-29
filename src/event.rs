@@ -1,5 +1,9 @@
 use std::iter;
 
+#[cfg(feature = "derive")]
+#[doc(inline)]
+pub use esrc_derive::{Event, EventGroup};
+
 /// Publish events to an event store.
 pub mod publish;
 /// Replay existing events in an event store.
@@ -13,10 +17,6 @@ pub use publish::{Publish, PublishExt};
 pub use replay::{Replay, ReplayExt, ReplayOne, ReplayOneExt};
 pub use subscribe::{Subscribe, SubscribeExt};
 pub use truncate::Truncate;
-
-#[cfg(feature = "derive")]
-#[doc(inline)]
-pub use esrc_derive::{Event, EventGroup};
 
 mod future;
 

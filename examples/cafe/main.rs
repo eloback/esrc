@@ -2,14 +2,12 @@
 #![allow(unused)]
 
 use async_nats::jetstream;
-use uuid::Uuid;
-
 use esrc::aggregate::Root;
 use esrc::event::{PublishExt, ReplayOneExt, SubscribeExt};
 use esrc::nats::NatsStore;
-
 use tab::{Tab, TabCommand};
 use table::ActiveTables;
+use uuid::Uuid;
 
 mod error;
 mod tab;
@@ -40,7 +38,10 @@ async fn on_open(table_number: u64, waiter: String) -> anyhow::Result<Uuid> {
     let id = Uuid::now_v7();
     let tab = Root::<Tab>::new(id);
 
-    let command = TabCommand::Open { table_number, waiter };
+    let command = TabCommand::Open {
+        table_number,
+        waiter,
+    };
     shared_store.unwrap().try_write(tab, command).await?;
 
     Ok(id)

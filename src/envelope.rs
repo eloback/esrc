@@ -1,14 +1,13 @@
 use std::time::SystemTime;
 
+#[cfg(feature = "derive")]
+#[doc(inline)]
+pub use esrc_derive::TryFromEnvelope;
 use uuid::Uuid;
 
 use crate::error;
 use crate::event::{Event, Sequence};
 use crate::version::DeserializeVersion;
-
-#[cfg(feature = "derive")]
-#[doc(inline)]
-pub use esrc_derive::TryFromEnvelope;
 
 /// Data associated with a single event in a stream.
 ///
@@ -56,7 +55,7 @@ pub trait Envelope: Send {
 /// # use esrc::version::{DeserializeVersion, SerializeVersion};
 /// # use esrc::{Envelope, Error, Event};
 /// #
-/// use serde::{Serialize, Deserialize};
+/// use serde::{Deserialize, Serialize};
 ///
 /// #[derive(Event, Deserialize, DeserializeVersion, Serialize, SerializeVersion)]
 /// struct FooEvent;

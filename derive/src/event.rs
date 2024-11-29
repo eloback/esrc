@@ -57,7 +57,7 @@ pub fn derive_event_group(input: DeriveInput) -> Result<TokenStream, Error> {
         .into_iter()
         .map(variant::try_into_inner_type)
         .collect::<Result<Vec<_>, Error>>()?;
-    
+
     let name = input.ident;
     let (impl_generics, ty_generics, clause) = input.generics.split_for_impl();
 

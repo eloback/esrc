@@ -1,11 +1,10 @@
 use async_nats::jetstream;
-use serde::{Deserialize, Serialize};
-
 use esrc::event::SubscribeExt;
 use esrc::nats::NatsStore;
 use esrc::project::{Context, Project};
 use esrc::version::{DeserializeVersion, SerializeVersion};
 use esrc::{Envelope, Event};
+use serde::{Deserialize, Serialize};
 
 // Events can take advantage of serde's zero-copy deserialization, where
 // lifetimes in an event will be tied to the lifetime of the source Envelope.

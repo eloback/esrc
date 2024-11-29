@@ -52,7 +52,10 @@ impl<'a> Event for LifetimeEvent<'a> {
 impl<'a, 'de: 'a> DeserializeVersion<'de> for LifetimeEvent<'a> {
     fn deserialize_version<D>(_deserializer: D, _version: usize) -> Result<Self, D::Error>
     where
-        D: Deserializer<'de> {
-        Ok(LifetimeEvent { local_name: "LocalLifetime" })
+        D: Deserializer<'de>,
+    {
+        Ok(LifetimeEvent {
+            local_name: "LocalLifetime",
+        })
     }
 }

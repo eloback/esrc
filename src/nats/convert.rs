@@ -1,6 +1,11 @@
 use async_nats::jetstream::consumer::pull::{MessagesError, OrderedError};
 use async_nats::jetstream::consumer::StreamError;
-use async_nats::jetstream::context::{CreateStreamError, GetStreamError, PublishError, PublishErrorKind};
+use async_nats::jetstream::context::{
+    CreateStreamError,
+    GetStreamError,
+    PublishError,
+    PublishErrorKind,
+};
 use async_nats::jetstream::stream::{ConsumerError, PurgeError};
 
 use crate::error::Error;

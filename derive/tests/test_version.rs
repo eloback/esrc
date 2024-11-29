@@ -1,9 +1,8 @@
 use std::marker::PhantomData;
 
-use serde::{Deserialize, Serialize};
-
 use esrc::version::{DeserializeVersion, SerializeVersion};
 use esrc_derive::{DeserializeVersion, SerializeVersion};
+use serde::{Deserialize, Serialize};
 
 mod fixtures;
 use fixtures::version::unit_deserializer;
@@ -86,7 +85,8 @@ fn deserialize_version_previous() {
     impl<'a, 'de: 'a> Deserialize<'de> for TestEvent2<'a> {
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where
-            D: serde::Deserializer<'de> {
+            D: serde::Deserializer<'de>,
+        {
             Ok(TestEvent2(22, PhantomData::default()))
         }
     }

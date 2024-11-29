@@ -1,8 +1,7 @@
 use uuid::Uuid;
 
-use crate::error;
-
 use super::{Event, Sequence};
+use crate::error;
 
 /// Truncate/delete old messages from an event stream.
 #[trait_variant::make(Send)]

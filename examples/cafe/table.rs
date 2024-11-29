@@ -21,9 +21,13 @@ impl ActiveTables {
         }
     }
 
-	pub async fn is_active(&self, table_number: u64) -> bool {
-		self.table_numbers.read().await.values().any(|n| *n == table_number)
-	}
+    pub async fn is_active(&self, table_number: u64) -> bool {
+        self.table_numbers
+            .read()
+            .await
+            .values()
+            .any(|n| *n == table_number)
+    }
 }
 
 impl<'a> Project<'a> for ActiveTables {
@@ -37,7 +41,7 @@ impl<'a> Project<'a> for ActiveTables {
     where
         E: Envelope + Sync,
     {
-		let id = Context::id(&context);
+        let id = Context::id(&context);
         let mut map = self.table_numbers.write().await;
 
         if let TabEvent::Opened { table_number, .. } = *context {

@@ -1,7 +1,5 @@
-use esrc::Aggregate;
-use esrc::Event;
-use esrc_derive::DeserializeVersion;
-use esrc_derive::SerializeVersion;
+use esrc::{Aggregate, Event};
+use esrc_derive::{DeserializeVersion, SerializeVersion};
 use serde::{Deserialize, Serialize};
 
 use crate::error::TabError;

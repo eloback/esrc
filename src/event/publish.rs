@@ -2,11 +2,10 @@ use std::future::Future;
 
 use uuid::Uuid;
 
+use super::{Event, Sequence};
 use crate::aggregate::{Aggregate, Root};
 use crate::error::{self, Error};
 use crate::version::SerializeVersion;
-
-use super::{Event, Sequence};
 
 /// Publish a serializable event to an event stream.
 #[trait_variant::make(Send)]

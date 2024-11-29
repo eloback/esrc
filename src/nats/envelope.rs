@@ -4,13 +4,12 @@ use async_nats::{jetstream, Message};
 use serde_json::Deserializer;
 use uuid::Uuid;
 
+use super::header::{self, VERSION_KEY};
+use super::subject::NatsSubject;
 use crate::envelope::Envelope;
 use crate::error::{self, Error};
 use crate::event::{Event, Sequence};
 use crate::version::DeserializeVersion;
-
-use super::header::{self, VERSION_KEY};
-use super::subject::NatsSubject;
 
 /// Hold information needed to parse event types from a NATS Jetstream message.
 ///

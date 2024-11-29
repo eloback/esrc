@@ -3,14 +3,13 @@ use std::pin::pin;
 use futures::{Stream, StreamExt, TryStreamExt};
 use uuid::Uuid;
 
+use super::future::IntoSendFuture;
+use super::{Event, EventGroup, Sequence};
 use crate::aggregate::{Aggregate, Root};
 use crate::envelope;
 use crate::error::{self, Error};
 use crate::project::{Context, Project};
 use crate::version::DeserializeVersion;
-
-use super::future::IntoSendFuture;
-use super::{Event, EventGroup, Sequence};
 
 /// Replay all events present in a set of event streams.
 #[trait_variant::make(Send)]

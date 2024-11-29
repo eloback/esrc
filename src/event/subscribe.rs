@@ -2,12 +2,11 @@ use std::pin::pin;
 
 use futures::{Stream, StreamExt};
 
+use super::future::IntoSendFuture;
+use super::EventGroup;
 use crate::envelope;
 use crate::error::{self, Error};
 use crate::project::{Context, Project};
-
-use super::future::IntoSendFuture;
-use super::EventGroup;
 
 /// Subscribe to new events published to a set of event streams.
 #[trait_variant::make(Send)]

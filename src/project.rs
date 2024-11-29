@@ -31,7 +31,7 @@ pub struct Context<'de, E, G> {
 /// # use esrc::version::{DeserializeVersion, SerializeVersion};
 /// # use esrc::{Envelope, Event, EventGroup};
 /// #
-/// use serde::{Serialize, Deserialize};
+/// use serde::{Deserialize, Serialize};
 ///
 /// #[derive(Event, Deserialize, DeserializeVersion, Serialize, SerializeVersion)]
 /// enum FooEvent {
@@ -55,7 +55,7 @@ pub struct Context<'de, E, G> {
 ///
 ///     async fn project<E: Envelope>(
 ///         &mut self,
-///         context: Context<'de, E, Self::EventGroup>
+///         context: Context<'de, E, Self::EventGroup>,
 ///     ) -> Result<(), Self::Error> {
 ///         match *context {
 ///             FooEvent::Created(count) => self.created_sum += count,

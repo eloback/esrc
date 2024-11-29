@@ -59,7 +59,7 @@ fn event_generics() {
 fn event_group() {
     #[derive(EventGroup)]
     enum TestGroup {
-        Foo{foo: FooEvent},
+        Foo { foo: FooEvent },
         Bar(BarEvent),
     }
 
@@ -74,8 +74,11 @@ fn event_group() {
 fn event_group_ignore() {
     #[derive(EventGroup)]
     enum TestGroup {
-        Foo{foo: FooEvent},
-        #[esrc(ignore)] Bad(i32),
+        Foo {
+            foo: FooEvent,
+        },
+        #[esrc(ignore)]
+        Bad(i32),
         Bar(BarEvent),
     }
 
