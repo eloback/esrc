@@ -1,10 +1,12 @@
 [package]
 name = "esrc-derive"
 description = "Procedural macros for the `esrc` crate"
+readme = false
 version = "0.1.0"
 
 license.workspace = true
 authors.workspace = true
+repository.workspace = true
 
 rust-version.workspace = true
 edition.workspace = true
