@@ -25,7 +25,24 @@ in
   config = {
     custom = {
       common.project_name = "esrc";
-      rust.enable = true;
+      rust.enable = false;
     };
+    languages.rust = {
+      enable = true;
+    };
+    git-hooks.hooks = {
+      rustfmt = {
+        enable = true;
+        files = "\.rs$";
+      };
+      clippy = {
+        enable = true;
+        settings = {
+          denyWarnings = true;
+          allFeatures = true;
+        };
+      };
+    };
+
   };
 }
