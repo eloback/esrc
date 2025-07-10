@@ -102,7 +102,7 @@ where
     }
 }
 
-impl<'de, E: Envelope, G> Context<'de, E, G> {
+impl<E: Envelope, G> Context<'_, E, G> {
     /// The ID of the referenced Envelope (see [`Envelope::id`]).
     pub fn id(this: &Self) -> Uuid {
         this.envelope.id()
@@ -124,7 +124,7 @@ impl<'de, E: Envelope, G> Context<'de, E, G> {
     }
 }
 
-impl<'de, E, G> Deref for Context<'de, E, G> {
+impl<E, G> Deref for Context<'_, E, G> {
     type Target = G;
 
     fn deref(&self) -> &Self::Target {
