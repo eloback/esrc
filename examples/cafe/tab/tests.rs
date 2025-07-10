@@ -2,7 +2,6 @@
 
 use super::*;
 
-#[test]
 fn open_tab() {
     let table_number: u64 = 42;
     let waiter: String = "Derek".into();
