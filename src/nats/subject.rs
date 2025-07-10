@@ -10,7 +10,7 @@ pub enum NatsSubject<'a> {
     Aggregate(Cow<'a, str>, Uuid),
 }
 
-impl NatsSubject<'_> {
+impl<'a> NatsSubject<'a> {
     pub fn try_from_str(expected_prefix: &str, subject: &str) -> error::Result<Self> {
         let mut parts = subject.split('.').fuse();
 

@@ -82,14 +82,14 @@ impl Aggregate for DemoAggregate {
                 } else {
                     Ok(ZeroCopyEvent::Created(Box::leak(name.into_boxed_str())))
                 }
-            },
+            }
             DemoCommand::Destroy => {
                 if !self.active {
                     Err(DemoError::NotFound)
                 } else {
                     Ok(ZeroCopyEvent::Destroyed)
                 }
-            },
+            }
         }
     }
 
@@ -98,10 +98,10 @@ impl Aggregate for DemoAggregate {
             ZeroCopyEvent::Created(name) => {
                 self.name = Some(name.to_string());
                 self.active = true;
-            },
+            }
             ZeroCopyEvent::Destroyed => {
                 self.active = false;
-            },
+            }
         }
         self
     }
@@ -116,7 +116,7 @@ async fn main() -> anyhow::Result<()> {
 
     let projector = NamePrinter;
     let store_clone = store.clone();
-
+    
     // Start observing in a background task
     tokio::spawn(async move {
         if let Err(e) = store_clone.observe(projector).await {
@@ -128,34 +128,30 @@ async fn main() -> anyhow::Result<()> {
     sleep(Duration::from_millis(100)).await;
 
     println!("Starting zero-copy example...");
-
+    
     let mut store_mut = store.clone();
-
+    
     // Create some demo aggregates and publish events
     let id1 = Uuid::now_v7();
     let id2 = Uuid::now_v7();
-
+    
     let root1 = Root::<DemoAggregate>::new(id1);
     let root2 = Root::<DemoAggregate>::new(id2);
-
+    
     println!("Creating entities...");
-
-    let _root1 = store_mut
-        .try_write(root1, DemoCommand::Create("Alice".to_string()))
-        .await?;
-    let root2 = store_mut
-        .try_write(root2, DemoCommand::Create("Bob".to_string()))
-        .await?;
-
+    
+    let _root1 = store_mut.try_write(root1, DemoCommand::Create("Alice".to_string())).await?;
+    let root2 = store_mut.try_write(root2, DemoCommand::Create("Bob".to_string())).await?;
+    
     // Wait for events to be processed
     sleep(Duration::from_millis(500)).await;
-
+    
     println!("Destroying one entity...");
     store_mut.try_write(root2, DemoCommand::Destroy).await?;
-
+    
     // Wait for final processing
     sleep(Duration::from_millis(500)).await;
-
+    
     println!("Zero-copy example completed!");
 
     Ok(())
