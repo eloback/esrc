@@ -2,6 +2,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use async_nats::{jetstream, Message};
 use serde_json::Deserializer;
+use tracing::instrument;
 use uuid::Uuid;
 
 use super::header::{self, VERSION_KEY};
@@ -34,6 +35,7 @@ impl NatsEnvelope {
     ///   `<expected_prefix>.<name>.<uuid>`, where the name is a deserializable
     ///   Event's name, and the UUID is an aggregate ID.
     /// * Have an `Esrc-Version` header, which is used as the Event's version.
+    #[instrument(skip_all, level = "trace")]
     pub fn try_from_message(
         expected_prefix: &str,
         message: jetstream::Message,
@@ -85,6 +87,7 @@ impl Envelope for NatsEnvelope {
         &self.name
     }
 
+    #[instrument(skip_all, level = "trace")]
     fn deserialize<'de, E>(&'de self) -> error::Result<E>
     where
         E: DeserializeVersion<'de> + Event,

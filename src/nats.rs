@@ -2,6 +2,7 @@ use async_nats::jetstream::consumer::pull::{Config as ConsumerConfig, OrderedCon
 use async_nats::jetstream::consumer::{Consumer, DeliverPolicy};
 use async_nats::jetstream::stream::{Config as StreamConfig, DiscardPolicy, Stream as JetStream};
 use async_nats::jetstream::Context;
+use tracing::instrument;
 
 use crate::error;
 
@@ -38,6 +39,7 @@ impl NatsStore {
     /// method will attempt to use an existing stream with this name, or create
     /// a new one with default settings. All esrc event streams are created with
     /// this prefix, using the format `<prefix>.<event_name>.<aggregate_id>`.
+    #[instrument(skip_all, level = "debug")]
     pub async fn try_new(context: Context, prefix: &'static str) -> error::Result<Self> {
         let stream = {
             let config = StreamConfig {
@@ -58,6 +60,7 @@ impl NatsStore {
         })
     }
 
+    #[instrument(skip_all, level = "debug")]
     async fn ordered_consumer(
         &self,
         subjects: Vec<String>,
@@ -75,6 +78,7 @@ impl NatsStore {
         Ok(self.stream.create_consumer(config).await?)
     }
 
+    #[instrument(skip_all, level = "debug")]
     async fn durable_consumer(
         &self,
         name: String,

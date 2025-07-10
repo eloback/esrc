@@ -1,5 +1,6 @@
 use std::future::Future;
 
+use tracing::instrument;
 use uuid::Uuid;
 
 use super::{Event, Sequence};
@@ -47,6 +48,7 @@ pub trait PublishExt: Publish {
 }
 
 impl<T: Publish> PublishExt for T {
+    #[instrument(skip_all, level = "debug")]
     async fn write<A>(&mut self, root: Root<A>, event: A::Event) -> error::Result<Root<A>>
     where
         A: Aggregate,
@@ -61,6 +63,7 @@ impl<T: Publish> PublishExt for T {
         Ok(Root::with_aggregate(aggregate, id, last_sequence))
     }
 
+    #[instrument(skip_all, level = "debug")]
     fn try_write<A>(
         &mut self,
         root: Root<A>,

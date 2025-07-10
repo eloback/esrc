@@ -1,6 +1,7 @@
 use async_nats::header::NATS_EXPECTED_LAST_SUBJECT_SEQUENCE;
 use async_nats::HeaderMap;
 use futures::{Stream, StreamExt};
+use tracing::instrument;
 use uuid::Uuid;
 
 use super::header::VERSION_KEY;
@@ -11,6 +12,7 @@ use crate::event::{Event, EventGroup, Publish, Replay, ReplayOne, Sequence, Subs
 use crate::version::SerializeVersion;
 
 impl Publish for NatsStore {
+    #[instrument(skip_all, level = "debug")]
     async fn publish<E>(
         &mut self,
         id: Uuid,
@@ -41,6 +43,7 @@ impl Publish for NatsStore {
 impl Replay for NatsStore {
     type Envelope = NatsEnvelope;
 
+    #[instrument(skip_all, level = "debug")]
     async fn replay<G: EventGroup>(
         &self,
         first_sequence: Sequence,
@@ -64,6 +67,7 @@ impl Replay for NatsStore {
 impl ReplayOne for NatsStore {
     type Envelope = NatsEnvelope;
 
+    #[instrument(skip_all, level = "debug")]
     async fn replay_one<E: Event>(
         &self,
         id: Uuid,
@@ -86,6 +90,7 @@ impl ReplayOne for NatsStore {
 impl Subscribe for NatsStore {
     type Envelope = NatsEnvelope;
 
+    #[instrument(skip_all, level = "debug")]
     async fn subscribe<G: EventGroup>(
         &self,
     ) -> error::Result<impl Stream<Item = error::Result<Self::Envelope>> + Send> {
@@ -109,6 +114,7 @@ impl Subscribe for NatsStore {
 }
 
 impl Truncate for NatsStore {
+    #[instrument(skip_all, level = "debug")]
     async fn truncate<E>(&mut self, id: Uuid, last_sequence: Sequence) -> error::Result<()>
     where
         E: Event,

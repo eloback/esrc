@@ -1,525 +1,678 @@
 ====
->   Info: Duration: 1m 12s 108ms | ~$0.1292 | Prompt Tokens: 19,643 (cached: 0, cache_creation: 2,395) | Completion Tokens: 4,562 
+>   Info: Duration: 2m 2s 390ms | ~$0.1444 | Prompt Tokens: 15,946 (cached: 0, cache_creation: 2,395) | Completion Tokens: 6,318 
 >  Model: claude-sonnet-4-20250514 | Adapter: Anthropic
->  Files: Context Files: 24 | Working Files: 0 | Knowledge Files: 0
+>  Files: Context Files: 19 | Working Files: 0 | Knowledge Files: 0
 
-Looking at the code, I can see that the `observe` method is being called but the main function exits immediately without any further interaction. The issue is that `observe` creates an infinite stream that waits for new events, but there's no mechanism to publish events or keep the program running.
-
-Let me help you complete the examples by adding functionality to publish events and demonstrate the system working:
+I'll add observability to the crate by adding `tracing::instrument` macros with `skip_all` for performance to the relevant functions. Here are the files that need to be updated:
 
 ````rs
-// file: examples/cafe/main.rs
-#![allow(clippy::unnecessary_literal_unwrap)]
-#![allow(unused)]
-
-use async_nats::jetstream;
-use esrc::aggregate::Root;
-use esrc::event::{PublishExt, ReplayOneExt, SubscribeExt};
-use esrc::nats::NatsStore;
-use tab::{Item, Tab, TabCommand};
-use table::ActiveTables;
+// file: src/nats/event.rs
+use async_nats::header::NATS_EXPECTED_LAST_SUBJECT_SEQUENCE;
+use async_nats::HeaderMap;
+use futures::{Stream, StreamExt};
+use tracing::instrument;
 use uuid::Uuid;
-use std::time::Duration;
-use tokio::time::sleep;
 
-mod error;
-mod tab;
-mod table;
+use super::header::VERSION_KEY;
+use super::subject::NatsSubject;
+use super::{NatsEnvelope, NatsStore};
+use crate::error::{self, Error};
+use crate::event::{Event, EventGroup, Publish, Replay, ReplayOne, Sequence, Subscribe, Truncate};
+use crate::version::SerializeVersion;
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let client = async_nats::connect("localhost").await?;
-    let context = jetstream::new(client);
+impl Publish for NatsStore {
+    #[instrument(skip_all, level = "debug")]
+    async fn publish<E>(
+        &mut self,
+        id: Uuid,
+        last_sequence: Sequence,
+        event: E,
+    ) -> error::Result<Sequence>
+    where
+        E: Event + SerializeVersion,
+    {
+        let subject = NatsSubject::Aggregate(E::name().into(), id).into_string(self.prefix);
+        let payload = serde_json::to_string(&event).map_err(|e| Error::Format(e.into()))?;
 
-    let store = NatsStore::try_new(context, "cafe").await?;
+        let mut headers = HeaderMap::new();
+        headers.append(VERSION_KEY, E::version().to_string());
+        headers.append(
+            NATS_EXPECTED_LAST_SUBJECT_SEQUENCE,
+            u64::from(last_sequence).to_string(),
+        );
 
-    let active_tables = ActiveTables::new();
-    let store_clone = store.clone();
-    
-    // Start observing in a background task
-    tokio::spawn(async move {
-        if let Err(e) = store_clone.observe(active_tables).await {
-            eprintln!("Observer error: {}", e);
-        }
-    });
-
-    // Give the observer time to start
-    sleep(Duration::from_millis(100)).await;
-
-    // Demonstrate the system by creating some tabs
-    println!("Starting cafe example...");
-    
-    let table_42_id = on_open(store.clone(), 42, "Derek".to_string()).await?;
-    println!("Opened tab for table 42 with ID: {}", table_42_id);
-
-    let table_15_id = on_open(store.clone(), 15, "Alice".to_string()).await?;
-    println!("Opened tab for table 15 with ID: {}", table_15_id);
-
-    // Wait a bit for the events to be processed
-    sleep(Duration::from_millis(500)).await;
-
-    // Check if tables are active
-    let is_42_active = is_open(store.clone(), 42).await?;
-    let is_15_active = is_open(store.clone(), 15).await?;
-    let is_99_active = is_open(store.clone(), 99).await?;
-
-    println!("Table 42 is active: {}", is_42_active);
-    println!("Table 15 is active: {}", is_15_active);
-    println!("Table 99 is active: {}", is_99_active);
-
-    // Demonstrate ordering
-    place_order(store.clone(), table_42_id, vec![
-        Item {
-            menu_number: 1,
-            description: "Coffee".to_string(),
-            price: 4.50,
-        },
-        Item {
-            menu_number: 2,
-            description: "Sandwich".to_string(),
-            price: 8.00,
-        },
-    ]).await?;
-
-    // Mark items as served
-    mark_served(store.clone(), table_42_id, vec![1, 2]).await?;
-
-    // Close the tab
-    close_tab(store.clone(), table_42_id, 15.00).await?;
-
-    // Wait for final processing
-    sleep(Duration::from_millis(500)).await;
-
-    // Check final state
-    let is_42_still_active = is_open(store.clone(), 42).await?;
-    println!("Table 42 is still active after closing: {}", is_42_still_active);
-
-    println!("Cafe example completed successfully!");
-    
-    Ok(())
+        let ack = self
+            .context
+            .publish_with_headers(subject, headers, payload.into())
+            .await?;
+        Ok(Sequence::from(ack.await?.sequence))
+    }
 }
 
-async fn on_open(mut store: NatsStore, table_number: u64, waiter: String) -> anyhow::Result<Uuid> {
-    let id = Uuid::now_v7();
-    let tab = Root::<Tab>::new(id);
+impl Replay for NatsStore {
+    type Envelope = NatsEnvelope;
 
-    let command = TabCommand::Open {
-        table_number,
-        waiter,
-    };
-    store.try_write(tab, command).await?;
+    #[instrument(skip_all, level = "debug")]
+    async fn replay<G: EventGroup>(
+        &self,
+        first_sequence: Sequence,
+    ) -> error::Result<impl Stream<Item = error::Result<Self::Envelope>> + Send> {
+        let subjects = G::names()
+            .map(|n| NatsSubject::Event(n.into()).into_string(self.prefix))
+            .collect();
+        let consumer = self
+            .ordered_consumer(subjects, first_sequence.into())
+            .await?;
 
-    Ok(id)
+        let pending = consumer.cached_info().num_pending as usize;
+        Ok(consumer
+            .messages()
+            .await?
+            .take(pending)
+            .map(|m| NatsEnvelope::try_from_message(self.prefix, m?)))
+    }
 }
 
-async fn place_order(mut store: NatsStore, id: Uuid, items: Vec<Item>) -> anyhow::Result<()> {
-    let root = store.read::<Tab>(id).await?;
-    let command = TabCommand::PlaceOrder { items };
-    store.try_write(root, command).await?;
-    Ok(())
+impl ReplayOne for NatsStore {
+    type Envelope = NatsEnvelope;
+
+    #[instrument(skip_all, level = "debug")]
+    async fn replay_one<E: Event>(
+        &self,
+        id: Uuid,
+        first_sequence: Sequence,
+    ) -> error::Result<impl Stream<Item = error::Result<Self::Envelope>> + Send> {
+        let subject = NatsSubject::Aggregate(E::name().into(), id).into_string(self.prefix);
+        let consumer = self
+            .ordered_consumer(vec![subject], first_sequence.into())
+            .await?;
+
+        let pending = consumer.cached_info().num_pending as usize;
+        Ok(consumer
+            .messages()
+            .await?
+            .take(pending)
+            .map(|m| NatsEnvelope::try_from_message(self.prefix, m?)))
+    }
 }
 
-async fn mark_served(mut store: NatsStore, id: Uuid, menu_numbers: Vec<u64>) -> anyhow::Result<()> {
-    let root = store.read::<Tab>(id).await?;
-    let command = TabCommand::MarkServed { menu_numbers };
-    store.try_write(root, command).await?;
-    Ok(())
+impl Subscribe for NatsStore {
+    type Envelope = NatsEnvelope;
+
+    #[instrument(skip_all, level = "debug")]
+    async fn subscribe<G: EventGroup>(
+        &self,
+    ) -> error::Result<impl Stream<Item = error::Result<Self::Envelope>> + Send> {
+        let (topic, subjects) = {
+            let mut names = G::names().collect::<Vec<_>>();
+            names.sort();
+
+            let subjects = names
+                .iter()
+                .map(|&n| NatsSubject::Event(n.into()).into_string(self.prefix))
+                .collect();
+            (names.join("-"), subjects)
+        };
+
+        let consumer = self.durable_consumer(topic, subjects).await?;
+        Ok(consumer
+            .messages()
+            .await?
+            .map(|m| NatsEnvelope::try_from_message(self.prefix, m?)))
+    }
 }
 
-async fn close_tab(mut store: NatsStore, id: Uuid, amount_paid: f64) -> anyhow::Result<()> {
-    let root = store.read::<Tab>(id).await?;
-    let command = TabCommand::Close { amount_paid };
-    store.try_write(root, command).await?;
-    Ok(())
-}
+impl Truncate for NatsStore {
+    #[instrument(skip_all, level = "debug")]
+    async fn truncate<E>(&mut self, id: Uuid, last_sequence: Sequence) -> error::Result<()>
+    where
+        E: Event,
+    {
+        let subject = NatsSubject::Aggregate(E::name().into(), id).into_string(self.prefix);
+        self.context
+            .get_stream(&self.prefix)
+            .await?
+            .purge()
+            .filter(subject)
+            .sequence(last_sequence.into())
+            .await?;
 
-async fn is_open(store: NatsStore, table_number: u64) -> anyhow::Result<bool> {
-    let active_tables = ActiveTables::new();
-    store.rebuild(active_tables.clone()).await?;
-    Ok(active_tables.is_active(table_number).await)
+        Ok(())
+    }
 }
 ````
 
 ````rs
-// file: examples/zero_copy/main.rs
-use async_nats::jetstream;
-use esrc::aggregate::Root;
-use esrc::event::{PublishExt, SubscribeExt};
-use esrc::nats::NatsStore;
-use esrc::project::{Context, Project};
-use esrc::version::{DeserializeVersion, SerializeVersion};
-use esrc::{Aggregate, Envelope, Event};
-use serde::{Deserialize, Serialize};
-use std::time::Duration;
-use tokio::time::sleep;
-use uuid::Uuid;
+// file: src/nats.rs
+use async_nats::jetstream::consumer::pull::{Config as ConsumerConfig, OrderedConfig};
+use async_nats::jetstream::consumer::{Consumer, DeliverPolicy};
+use async_nats::jetstream::stream::{Config as StreamConfig, DiscardPolicy, Stream as JetStream};
+use async_nats::jetstream::Context;
+use tracing::instrument;
 
-#[derive(Event, Deserialize, DeserializeVersion, Serialize, SerializeVersion)]
-#[esrc(serde(version = 1))]
-enum ZeroCopyEvent<'a> {
-    Created(&'a str),
-    Destroyed,
+use crate::error;
+
+#[doc(hidden)]
+pub mod convert;
+/// Use a Jetstream message as an esrc Envelope.
+pub mod envelope;
+#[doc(hidden)]
+pub mod event;
+
+pub use envelope::NatsEnvelope;
+
+mod header;
+mod subject;
+
+use subject::NatsSubject;
+
+/// A handle to an event store implementation on top of NATS.
+///
+/// This type implements the needed traits for reading and writing events from
+/// various event streams, encoded as durable messages in a Jetstream instance.
+#[derive(Clone)]
+pub struct NatsStore {
+    prefix: &'static str,
+
+    context: Context,
+    stream: JetStream,
 }
 
-#[derive(Clone)]
-struct NamePrinter;
+impl NatsStore {
+    /// Create a new instance of a NATS event store.
+    ///
+    /// This uses an existing Jetstream context and a global prefix string. The
+    /// method will attempt to use an existing stream with this name, or create
+    /// a new one with default settings. All esrc event streams are created with
+    /// this prefix, using the format `<prefix>.<event_name>.<aggregate_id>`.
+    #[instrument(skip_all, level = "debug")]
+    pub async fn try_new(context: Context, prefix: &'static str) -> error::Result<Self> {
+        let stream = {
+            let config = StreamConfig {
+                name: prefix.to_owned(),
+                subjects: vec![NatsSubject::Wildcard.into_string(prefix)],
+                discard: DiscardPolicy::New,
+                ..Default::default()
+            };
 
-#[derive(Debug, thiserror::Error)]
-enum NamePrinterError {}
+            context.get_or_create_stream(config).await?
+        };
 
-impl<'a> Project<'a> for NamePrinter {
-    type EventGroup = ZeroCopyEvent<'a>;
-    type Error = NamePrinterError;
+        Ok(Self {
+            prefix,
 
-    async fn project<E>(
-        &mut self,
-        context: Context<'a, E, Self::EventGroup>,
-    ) -> Result<(), Self::Error>
+            context,
+            stream,
+        })
+    }
+
+    #[instrument(skip_all, level = "debug")]
+    async fn ordered_consumer(
+        &self,
+        subjects: Vec<String>,
+        start_sequence: u64,
+    ) -> error::Result<Consumer<OrderedConfig>> {
+        let mut config = OrderedConfig {
+            filter_subjects: subjects,
+            ..Default::default()
+        };
+
+        if start_sequence > 0 {
+            config.deliver_policy = DeliverPolicy::ByStartSequence { start_sequence };
+        }
+
+        Ok(self.stream.create_consumer(config).await?)
+    }
+
+    #[instrument(skip_all, level = "debug")]
+    async fn durable_consumer(
+        &self,
+        name: String,
+        subjects: Vec<String>,
+    ) -> error::Result<Consumer<ConsumerConfig>> {
+        let config = ConsumerConfig {
+            filter_subjects: subjects,
+            durable_name: Some(name),
+            deliver_policy: DeliverPolicy::New,
+            ..Default::default()
+        };
+
+        Ok(self.stream.create_consumer(config).await?)
+    }
+}
+````
+
+````rs
+// file: src/nats/envelope.rs
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use async_nats::{jetstream, Message};
+use serde_json::Deserializer;
+use tracing::instrument;
+use uuid::Uuid;
+
+use super::header::{self, VERSION_KEY};
+use super::subject::NatsSubject;
+use crate::envelope::Envelope;
+use crate::error::{self, Error};
+use crate::event::{Event, Sequence};
+use crate::version::DeserializeVersion;
+
+/// Hold information needed to parse event types from a NATS Jetstream message.
+///
+/// Fields derived from the subject name and various NATS headers will be parsed
+/// upon creation and stored alongside the original message.
+pub struct NatsEnvelope {
+    id: Uuid,
+    sequence: u64,
+
+    timestamp: i64,
+
+    name: String,
+    version: usize,
+    message: Message,
+}
+
+impl NatsEnvelope {
+    /// Attempt to convert a NATS jetstream message into an Envelope instance.
+    ///
+    /// This requires the NATS message to:
+    /// * Be published onto a subject matching the format
+    ///   `<expected_prefix>.<name>.<uuid>`, where the name is a deserializable
+    ///   Event's name, and the UUID is an aggregate ID.
+    /// * Have an `Esrc-Version` header, which is used as the Event's version.
+    #[instrument(skip_all, level = "debug")]
+    pub fn try_from_message(
+        expected_prefix: &str,
+        message: jetstream::Message,
+    ) -> error::Result<Self> {
+        let NatsSubject::Aggregate(name, id) =
+            NatsSubject::try_from_str(expected_prefix, message.subject.as_str())?
+        else {
+            return Err(Error::Invalid);
+        };
+
+        let version = header::get(&message, VERSION_KEY)
+            .ok_or(Error::Invalid)?
+            .parse::<usize>()
+            .map_err(|e| Error::Format(e.into()))?;
+        let (sequence, timestamp) = {
+            // Parse the sequence and timestamp from the message early since
+            // retrieving the messaeg info can return an error.
+            let info = message.info().map_err(Error::Internal)?;
+            (info.stream_sequence, info.published.unix_timestamp())
+        };
+
+        Ok(Self {
+            id,
+            sequence,
+
+            timestamp,
+
+            name: name.into_owned(),
+            version,
+            message: message.split().0,
+        })
+    }
+}
+
+impl Envelope for NatsEnvelope {
+    fn id(&self) -> Uuid {
+        self.id
+    }
+
+    fn sequence(&self) -> Sequence {
+        self.sequence.into()
+    }
+
+    fn timestamp(&self) -> SystemTime {
+        UNIX_EPOCH + Duration::from_secs(self.timestamp as u64)
+    }
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    #[instrument(skip_all, level = "debug")]
+    fn deserialize<'de, E>(&'de self) -> error::Result<E>
     where
-        E: Envelope + Sync,
+        E: DeserializeVersion<'de> + Event,
     {
-        match *context {
-            ZeroCopyEvent::Created(name) => println!("Created: {}", name),
-            ZeroCopyEvent::Destroyed => println!("Destroyed"),
+        if self.name != E::name() {
+            return Err(Error::Invalid);
+        }
+
+        let mut deserializer = Deserializer::from_slice(&self.message.payload);
+        E::deserialize_version(&mut deserializer, self.version).map_err(|e| Error::Format(e.into()))
+    }
+}
+````
+
+````rs
+// file: src/event/publish.rs
+use std::future::Future;
+
+use tracing::instrument;
+use uuid::Uuid;
+
+use super::{Event, Sequence};
+use crate::aggregate::{Aggregate, Root};
+use crate::error::{self, Error};
+use crate::version::SerializeVersion;
+
+/// Publish a serializable event to an event stream.
+#[trait_variant::make(Send)]
+pub trait Publish {
+    /// Publish the given Event to an event stream
+    ///
+    /// The stream is identified by the [`Event::name`] and the given Aggregate
+    /// ID. A last sequence is also specified to enforce optimistic concurrency;
+    /// if the sequence of the last message in the stream does not match, the
+    /// publish will fail. The sequence of the published message is returned.
+    async fn publish<E>(
+        &mut self,
+        id: Uuid,
+        last_sequence: Sequence,
+        event: E,
+    ) -> error::Result<Sequence>
+    where
+        E: Event + SerializeVersion;
+}
+
+/// Extensions for publishing events using the aggregate traits.
+#[trait_variant::make(Send)]
+pub trait PublishExt: Publish {
+    /// Apply an Event to an aggregate, after writing it to an event stream.
+    ///
+    /// The ID and last sequence number are taken from the Root.
+    async fn write<A>(&mut self, root: Root<A>, event: A::Event) -> error::Result<Root<A>>
+    where
+        A: Aggregate,
+        A::Event: SerializeVersion;
+
+    /// Process a Command, apply the new Event, and write to an event stream.
+    ///
+    /// Like [`write`], the ID and last sequence number are taken from the Root.
+    async fn try_write<A>(&mut self, root: Root<A>, command: A::Command) -> error::Result<Root<A>>
+    where
+        A: Aggregate,
+        A::Event: SerializeVersion;
+}
+
+impl<T: Publish> PublishExt for T {
+    #[instrument(skip_all, level = "debug")]
+    async fn write<A>(&mut self, root: Root<A>, event: A::Event) -> error::Result<Root<A>>
+    where
+        A: Aggregate,
+        A::Event: SerializeVersion,
+    {
+        let id = Root::id(&root);
+        let last_sequence = Root::last_sequence(&root);
+
+        let aggregate = Root::into_inner(root).apply(&event);
+        self.publish::<A::Event>(id, last_sequence, event).await?;
+
+        Ok(Root::with_aggregate(aggregate, id, last_sequence))
+    }
+
+    #[instrument(skip_all, level = "debug")]
+    fn try_write<A>(
+        &mut self,
+        root: Root<A>,
+        command: A::Command,
+    ) -> impl Future<Output = error::Result<Root<A>>>
+    where
+        A: Aggregate,
+        A::Event: SerializeVersion,
+    {
+        let event = root.process(command).map_err(|e| Error::External(e.into()));
+        async move { self.write(root, event?).await }
+    }
+}
+````
+
+````rs
+// file: src/event/replay.rs
+use std::pin::pin;
+
+use futures::{Stream, StreamExt, TryStreamExt};
+use tracing::instrument;
+use uuid::Uuid;
+
+use super::future::IntoSendFuture;
+use super::{Event, EventGroup, Sequence};
+use crate::aggregate::{Aggregate, Root};
+use crate::envelope;
+use crate::error::{self, Error};
+use crate::project::{Context, Project};
+use crate::version::DeserializeVersion;
+
+/// Replay all events present in a set of event streams.
+#[trait_variant::make(Send)]
+pub trait Replay {
+    /// The envelope type used by the implementing event store.
+    type Envelope: envelope::Envelope;
+
+    /// Replay events starting after the given sequence.
+    ///
+    /// All events from the streams identified by the EventGroup type parameter
+    /// will be included. Processing the resulting Stream will consume these
+    /// events in relative order. Any Event published to these streams after
+    /// this method is called do not apply; the Stream is finite.
+    async fn replay<G: EventGroup>(
+        &self,
+        first_sequence: Sequence,
+    ) -> error::Result<impl Stream<Item = error::Result<Self::Envelope>> + Send>;
+}
+
+/// Replay all events present in a single event stream.
+#[trait_variant::make(Send)]
+pub trait ReplayOne {
+    /// The envelope type used by the implementing event store.
+    type Envelope: envelope::Envelope;
+
+    /// Replay events starting after the given sequence.
+    ///
+    /// All events from the event stream identified by the Event type and the
+    /// given Aggregate ID are included. Like [`Replay::replay`], the returned
+    /// Stream is finite. This can be used to materialize an Aggregate instace.
+    async fn replay_one<E: Event>(
+        &self,
+        id: Uuid,
+        first_sequence: Sequence,
+    ) -> error::Result<impl Stream<Item = error::Result<Self::Envelope>> + Send>;
+}
+
+/// Extensions for projecting replayed events.
+#[trait_variant::make(Send)]
+pub trait ReplayExt: Replay {
+    /// Replay all events and project them onto the given Project type.
+    ///
+    /// Events from all streams identified in the EventGroup type parameter will
+    /// be replayed in relative order. Any errors raised by the projection will
+    /// cause this method to stop processing any remaining replay-able events.
+    async fn rebuild<P>(&self, projector: P) -> error::Result<()>
+    where
+        P: for<'de> Project<'de>;
+
+    /// Project a subset of events.
+    ///
+    /// Like [`ReplayExt::rebuild`], this replays any matching events in
+    /// relative order, but only with events after the given sequence number.
+    async fn rebuild_after<P>(&self, projector: P, first_sequence: Sequence) -> error::Result<()>
+    where
+        P: for<'de> Project<'de>;
+}
+
+/// Extensions for projecting replayed events from a single event stream.
+#[trait_variant::make(Send)]
+pub trait ReplayOneExt: ReplayOne {
+    /// Materialize an aggregate from an event stream.
+    ///
+    /// Replay all events from the event stream identified by the Aggregate's
+    /// Event type and the given Aggregate ID. Each event is applied
+    /// to an Aggregate instance to materialize it, with no pre-existing state.
+    async fn read<A>(&self, id: Uuid) -> error::Result<Root<A>>
+    where
+        A: Aggregate,
+        A::Event: for<'de> DeserializeVersion<'de>;
+
+    /// Update an existing aggregate with new events from a stream.
+    ///
+    /// Replay events like [`ReplayOneExt::read`], but starting from an existing
+    /// aggregate Root. Only events after the last sequence specified in the
+    /// Root are replayed. This can be used to read the most recent mutations to
+    /// an Aggregate after loading a snapshot.
+    async fn read_after<A>(&self, root: Root<A>) -> error::Result<Root<A>>
+    where
+        A: Aggregate,
+        A::Event: for<'de> DeserializeVersion<'de>;
+}
+
+impl<T> ReplayExt for T
+where
+    T: Replay + Sync,
+    T::Envelope: Sync,
+{
+    #[instrument(skip_all, level = "debug")]
+    async fn rebuild<P>(&self, projector: P) -> error::Result<()>
+    where
+        P: for<'de> Project<'de>,
+    {
+        self.rebuild_after(projector, Sequence::new()).await
+    }
+
+    #[instrument(skip_all, level = "debug")]
+    async fn rebuild_after<P>(
+        &self,
+        mut projector: P,
+        first_sequence: Sequence,
+    ) -> error::Result<()>
+    where
+        P: for<'de> Project<'de>,
+    {
+        let mut stream = pin!(self.replay::<P::EventGroup>(first_sequence).await?);
+        while let Some(envelope) = stream.next().await {
+            let envelope = envelope?;
+            let context = Context::try_with_envelope(&envelope)?;
+
+            projector
+                .project(context)
+                .into_send_future()
+                .await
+                .map_err(|e| Error::External(e.into()))?;
         }
 
         Ok(())
     }
 }
 
-#[derive(Default)]
-struct DemoAggregate {
-    name: Option<String>,
-    active: bool,
-}
-
-enum DemoCommand {
-    Create(String),
-    Destroy,
-}
-
-#[derive(Debug, thiserror::Error)]
-enum DemoError {
-    #[error("already exists")]
-    AlreadyExists,
-    #[error("not found")]
-    NotFound,
-}
-
-impl Aggregate for DemoAggregate {
-    type Command = DemoCommand;
-    type Event = ZeroCopyEvent<'static>;
-    type Error = DemoError;
-
-    fn process(&self, command: Self::Command) -> Result<Self::Event, Self::Error> {
-        match command {
-            DemoCommand::Create(name) => {
-                if self.active {
-                    Err(DemoError::AlreadyExists)
-                } else {
-                    Ok(ZeroCopyEvent::Created(Box::leak(name.into_boxed_str())))
-                }
-            }
-            DemoCommand::Destroy => {
-                if !self.active {
-                    Err(DemoError::NotFound)
-                } else {
-                    Ok(ZeroCopyEvent::Destroyed)
-                }
-            }
-        }
+impl<T> ReplayOneExt for T
+where
+    T: ReplayOne + Sync,
+{
+    #[instrument(skip_all, level = "debug")]
+    async fn read<A>(&self, id: Uuid) -> error::Result<Root<A>>
+    where
+        A: Aggregate,
+        A::Event: for<'de> DeserializeVersion<'de>,
+    {
+        self.read_after(Root::new(id)).await
     }
 
-    fn apply(mut self, event: &Self::Event) -> Self {
-        match event {
-            ZeroCopyEvent::Created(name) => {
-                self.name = Some(name.to_string());
-                self.active = true;
-            }
-            ZeroCopyEvent::Destroyed => {
-                self.active = false;
-            }
-        }
-        self
+    #[instrument(skip_all, level = "debug")]
+    async fn read_after<A>(&self, root: Root<A>) -> error::Result<Root<A>>
+    where
+        A: Aggregate,
+        A::Event: for<'de> DeserializeVersion<'de>,
+    {
+        self.replay_one::<A::Event>(Root::id(&root), Root::last_sequence(&root))
+            .await?
+            .try_fold(root, |r, e| async move { Root::try_apply(r, e) })
+            .await
     }
-}
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let client = async_nats::connect("localhost").await?;
-    let context = jetstream::new(client);
-
-    let store = NatsStore::try_new(context, "zero-copy").await?;
-
-    let projector = NamePrinter;
-    let store_clone = store.clone();
-    
-    // Start observing in a background task
-    tokio::spawn(async move {
-        if let Err(e) = store_clone.observe(projector).await {
-            eprintln!("Observer error: {}", e);
-        }
-    });
-
-    // Give the observer time to start
-    sleep(Duration::from_millis(100)).await;
-
-    println!("Starting zero-copy example...");
-    
-    let mut store_mut = store.clone();
-    
-    // Create some demo aggregates and publish events
-    let id1 = Uuid::now_v7();
-    let id2 = Uuid::now_v7();
-    
-    let root1 = Root::<DemoAggregate>::new(id1);
-    let root2 = Root::<DemoAggregate>::new(id2);
-    
-    println!("Creating entities...");
-    
-    let _root1 = store_mut.try_write(root1, DemoCommand::Create("Alice".to_string())).await?;
-    let root2 = store_mut.try_write(root2, DemoCommand::Create("Bob".to_string())).await?;
-    
-    // Wait for events to be processed
-    sleep(Duration::from_millis(500)).await;
-    
-    println!("Destroying one entity...");
-    store_mut.try_write(root2, DemoCommand::Destroy).await?;
-    
-    // Wait for final processing
-    sleep(Duration::from_millis(500)).await;
-    
-    println!("Zero-copy example completed!");
-
-    Ok(())
 }
 ````
 
 ````rs
-// file: examples/cafe/tab/tests.rs
-#![cfg(test)]
+// file: src/event/subscribe.rs
+use std::pin::pin;
 
-use super::*;
+use futures::{Stream, StreamExt};
+use tracing::instrument;
 
-#[test]
-fn open_tab() {
-    let table_number: u64 = 42;
-    let waiter: String = "Derek".into();
+use super::future::IntoSendFuture;
+use super::EventGroup;
+use crate::envelope;
+use crate::error::{self, Error};
+use crate::project::{Context, Project};
 
-    let command = TabCommand::Open {
-        table_number,
-        waiter: waiter.clone(),
-    };
-    let aggregate = Tab::default();
+/// Subscribe to new events published to a set of event streams.
+#[trait_variant::make(Send)]
+pub trait Subscribe {
+    /// The envelope type used by the implementing event store.
+    type Envelope: envelope::Envelope;
 
-    let expected_event = TabEvent::Opened {
-        table_number,
-        waiter,
-    };
-    let actual_event = aggregate.process(command);
-
-    assert!(actual_event.is_ok());
-    assert_eq!(expected_event, actual_event.unwrap());
+    /// Subscribe to events published across the event streams.
+    ///
+    /// This includes all events identified by the EventGroup type paramter, and
+    /// creates a Stream to consume these events in relative order. This method
+    /// will only produce events that are published after its invocation; the
+    /// Stream is infinite and will wait for new events.
+    async fn subscribe<G: EventGroup>(
+        &self,
+    ) -> error::Result<impl Stream<Item = error::Result<Self::Envelope>> + Send>;
 }
 
-#[test]
-fn order_with_unopened_tab() {
-    let item = Item {
-        menu_number: 1,
-        description: "drink".into(),
-        price: 5.50,
-    };
-
-    let command = TabCommand::PlaceOrder { items: vec![item] };
-    let aggregate = Tab::default();
-
-    let expected_error = TabError::NotOpen;
-    let actual_error = aggregate.process(command);
-
-    assert!(actual_error.is_err());
-    assert_eq!(expected_error, actual_error.unwrap_err());
+/// Extensions for projecting newly published events.
+#[trait_variant::make(Send)]
+pub trait SubscribeExt: Subscribe {
+    /// Subscribe to evens and project them onto the given Project type.
+    ///
+    /// Events published to any stream identified by the EventGroup type
+    /// parameter will be included. Any errors raised by the projection will
+    /// cause this method to stop processing future events.
+    async fn observe<P>(&self, projector: P) -> error::Result<()>
+    where
+        P: for<'de> Project<'de>;
 }
 
-#[test]
-fn order() {
-    let table_number: u64 = 42;
-    let waiter: String = "Derek".into();
-    let item = Item {
-        menu_number: 1,
-        description: "drink".into(),
-        price: 5.50,
-    };
+impl<T> SubscribeExt for T
+where
+    T: Subscribe + Sync,
+    T::Envelope: Sync,
+{
+    #[instrument(skip_all, level = "debug")]
+    async fn observe<P>(&self, mut projector: P) -> error::Result<()>
+    where
+        P: for<'de> Project<'de>,
+    {
+        let mut stream = pin!(self.subscribe::<P::EventGroup>().await?);
+        while let Some(envelope) = stream.next().await {
+            let envelope = envelope?;
+            let context = Context::try_with_envelope(&envelope)?;
 
-    let command = TabCommand::PlaceOrder {
-        items: vec![item.clone()],
-    };
-    let aggregate = Tab::default().apply(&TabEvent::Opened {
-        table_number,
-        waiter,
-    });
+            projector
+                .project(context)
+                .into_send_future()
+                .await
+                .map_err(|e| Error::External(e.into()))?;
+        }
 
-    let expected_event = TabEvent::Ordered { items: vec![item] };
-    let actual_event = aggregate.process(command);
-
-    assert!(actual_event.is_ok());
-    assert_eq!(expected_event, actual_event.unwrap());
-}
-
-#[test]
-fn serve_twice() {
-    let table_number: u64 = 42;
-    let waiter: String = "Derek".into();
-    let item = Item {
-        menu_number: 1,
-        description: "drink".into(),
-        price: 5.50,
-    };
-
-    let command = TabCommand::MarkServed {
-        menu_numbers: vec![item.menu_number],
-    };
-    let aggregate = Tab::default()
-        .apply(&TabEvent::Opened {
-            table_number,
-            waiter,
-        })
-        .apply(&TabEvent::Ordered {
-            items: vec![item.clone()],
-        })
-        .apply(&TabEvent::Served {
-            menu_numbers: vec![item.menu_number],
-        });
-
-    let expected_error = TabError::AlreadyServed;
-    let actual_error = aggregate.process(command);
-
-    assert!(actual_error.is_err());
-    assert_eq!(expected_error, actual_error.unwrap_err());
-}
-
-#[test]
-fn serve() {
-    let table_number: u64 = 42;
-    let waiter: String = "Derek".into();
-    let item = Item {
-        menu_number: 1,
-        description: "drink".into(),
-        price: 5.50,
-    };
-
-    let command = TabCommand::MarkServed {
-        menu_numbers: vec![item.menu_number],
-    };
-    let aggregate = Tab::default()
-        .apply(&TabEvent::Opened {
-            table_number,
-            waiter,
-        })
-        .apply(&TabEvent::Ordered {
-            items: vec![item.clone()],
-        });
-
-    let expected_event = TabEvent::Served {
-        menu_numbers: vec![item.menu_number],
-    };
-    let actual_event = aggregate.process(command);
-
-    assert!(actual_event.is_ok());
-    assert_eq!(expected_event, actual_event.unwrap());
-}
-
-#[test]
-fn close_with_underpayment() {
-    let table_number: u64 = 42;
-    let waiter: String = "Derek".into();
-    let item = Item {
-        menu_number: 1,
-        description: "drink".into(),
-        price: 5.50,
-    };
-    let amount_paid = 5.00;
-
-    let command = TabCommand::Close { amount_paid };
-    let aggregate = Tab::default()
-        .apply(&TabEvent::Opened {
-            table_number,
-            waiter,
-        })
-        .apply(&TabEvent::Ordered {
-            items: vec![item.clone()],
-        })
-        .apply(&TabEvent::Served {
-            menu_numbers: vec![item.menu_number],
-        });
-
-    let expected_error = TabError::Unpaid;
-    let actual_error = aggregate.process(command);
-
-    assert!(actual_error.is_err());
-    assert_eq!(expected_error, actual_error.unwrap_err());
-}
-
-#[test]
-fn close() {
-    let table_number: u64 = 42;
-    let waiter: String = "Derek".into();
-    let item = Item {
-        menu_number: 1,
-        description: "drink".into(),
-        price: 5.50,
-    };
-    let amount_paid = 6.00;
-
-    let command = TabCommand::Close { amount_paid };
-    let aggregate = Tab::default()
-        .apply(&TabEvent::Opened {
-            table_number,
-            waiter,
-        })
-        .apply(&TabEvent::Ordered {
-            items: vec![item.clone()],
-        })
-        .apply(&TabEvent::Served {
-            menu_numbers: vec![item.menu_number],
-        });
-
-    let expected_event = TabEvent::Closed {
-        amount_paid,
-        order_value: item.price,
-        tip_value: amount_paid - item.price,
-    };
-    let actual_event = aggregate.process(command);
-
-    assert!(actual_event.is_ok());
-    assert_eq!(expected_event, actual_event.unwrap());
+        Ok(())
+    }
 }
 ````
 
-The key changes I made:
+The changes I've made:
 
-**For the cafe example:**
+1. **Added `tracing::instrument` with `skip_all` and `level = "debug"`** to all relevant functions in the NATS implementation and trait extension methods
+2. **Added `use tracing::instrument;`** imports to the modified files
+3. **Applied instrumentation to**:
+   - All NATS trait implementations (`Publish`, `Replay`, `ReplayOne`, `Subscribe`, `Truncate`)
+   - All trait extension methods (`PublishExt`, `ReplayExt`, `ReplayOneExt`, `SubscribeExt`)
+   - NATS store helper methods (`ordered_consumer`, `durable_consumer`, `try_new`)
+   - Envelope methods (`try_from_message`, `deserialize`)
 
-- Added helper functions (`place_order`, `mark_served`, `close_tab`) to demonstrate the full lifecycle of a tab
-- Created a complete workflow that opens tabs, places orders, serves items, and closes tabs
-- Used `tokio::spawn` to run the observer in the background so the main thread can continue
-- Added delays to allow events to be processed
-- Demonstrated checking the active tables state after operations
-- Fixed the `on_open` and `is_open` functions to actually use the store instead of returning errors
-
-**For the zero-copy example:**
-
-- Created a `DemoAggregate` that works with the `ZeroCopyEvent` 
-- Added commands to create and destroy entities
-- Demonstrated the zero-copy deserialization by publishing events and observing them
-- Added proper error handling and lifecycle management
-
-Both examples now:
-
-- Start the observer in a background task using `tokio::spawn`
-- Publish events to demonstrate the system working
-- Include proper delays to allow async processing
-- Show the complete event sourcing workflow
-- Verify that the streams are being populated and processed correctly
-
-The examples will now run successfully and show the event sourcing system in action, with the observers processing events as they're published.
+The `skip_all` parameter ensures that function arguments are not logged, which is important for performance and to avoid potentially sensitive data being logged. The `debug` level provides good observability without being too verbose in production environments.
 

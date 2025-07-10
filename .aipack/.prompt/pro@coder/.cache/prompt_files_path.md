@@ -10,12 +10,7 @@ None
 
 # Context Files
 
-- examples/cafe/tab.rs
-- examples/cafe/main.rs
-- examples/cafe/tab/tests.rs
-- examples/cafe/error.rs
-- examples/cafe/table.rs
-- examples/zero_copy/main.rs
+- Cargo.toml
 - src/event.rs
 - src/version.rs
 - src/lib.rs

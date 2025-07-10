@@ -1,6 +1,7 @@
 use std::pin::pin;
 
 use futures::{Stream, StreamExt, TryStreamExt};
+use tracing::instrument;
 use uuid::Uuid;
 
 use super::future::IntoSendFuture;
@@ -98,6 +99,7 @@ where
     T: Replay + Sync,
     T::Envelope: Sync,
 {
+    #[instrument(skip_all, level = "debug")]
     async fn rebuild<P>(&self, projector: P) -> error::Result<()>
     where
         P: for<'de> Project<'de>,
@@ -105,6 +107,7 @@ where
         self.rebuild_after(projector, Sequence::new()).await
     }
 
+    #[instrument(skip_all, level = "debug")]
     async fn rebuild_after<P>(
         &self,
         mut projector: P,
@@ -133,6 +136,7 @@ impl<T> ReplayOneExt for T
 where
     T: ReplayOne + Sync,
 {
+    #[instrument(skip_all, level = "debug")]
     async fn read<A>(&self, id: Uuid) -> error::Result<Root<A>>
     where
         A: Aggregate,
@@ -141,6 +145,7 @@ where
         self.read_after(Root::new(id)).await
     }
 
+    #[instrument(skip_all, level = "debug")]
     async fn read_after<A>(&self, root: Root<A>) -> error::Result<Root<A>>
     where
         A: Aggregate,

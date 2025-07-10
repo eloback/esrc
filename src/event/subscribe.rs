@@ -1,6 +1,7 @@
 use std::pin::pin;
 
 use futures::{Stream, StreamExt};
+use tracing::instrument;
 
 use super::future::IntoSendFuture;
 use super::EventGroup;
@@ -43,6 +44,7 @@ where
     T: Subscribe + Sync,
     T::Envelope: Sync,
 {
+    #[instrument(skip_all, level = "debug")]
     async fn observe<P>(&self, mut projector: P) -> error::Result<()>
     where
         P: for<'de> Project<'de>,
