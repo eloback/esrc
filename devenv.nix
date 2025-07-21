@@ -28,6 +28,7 @@ in
       rust.enable = false;
     };
     languages.rust = {
+      channel = "stable";
       enable = true;
     };
     git-hooks.hooks = {
