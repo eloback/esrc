@@ -131,3 +131,70 @@ impl Truncate for NatsStore {
         Ok(())
     }
 }
+
+pub mod custom {
+    use std::pin::pin;
+
+    use crate::{
+        event::future::IntoSendFuture,
+        project::{Context, Project},
+    };
+
+    use super::*;
+
+    impl NatsStore {
+        #[instrument(skip_all, level = "debug")]
+        pub async fn durable_subscribe<G: EventGroup>(
+            &self,
+            durable_name: &str,
+        ) -> error::Result<impl Stream<Item = error::Result<NatsEnvelope>> + Send> {
+            let (_, subjects) = {
+                let mut names = G::names().collect::<Vec<_>>();
+                names.sort();
+
+                let subjects = names
+                    .iter()
+                    .map(|&n| NatsSubject::Event(n.into()).into_string(self.prefix))
+                    .collect();
+                (names.join("-"), subjects)
+            };
+
+            let consumer = self
+                .durable_consumer(durable_name.to_string(), subjects)
+                .await?;
+            Ok(consumer
+                .messages()
+                .await?
+                .map(|m| NatsEnvelope::try_from_message(self.prefix, m?)))
+        }
+    }
+
+    impl NatsStore {
+        #[instrument(skip_all, level = "debug")]
+        pub async fn durable_observe<P>(
+            &self,
+            mut projector: P,
+            durable_name: &str,
+        ) -> error::Result<()>
+        where
+            P: for<'de> Project<'de>,
+        {
+            let mut stream = pin!(
+                self.durable_subscribe::<P::EventGroup>(durable_name)
+                    .await?
+            );
+            while let Some(envelope) = stream.next().await {
+                let envelope = envelope?;
+                let context = Context::try_with_envelope(&envelope)?;
+
+                projector
+                    .project(context)
+                    .into_send_future()
+                    .await
+                    .map_err(|e| Error::External(e.into()))?;
+            }
+
+            Ok(())
+        }
+    }
+}
