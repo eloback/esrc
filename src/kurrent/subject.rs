@@ -12,7 +12,7 @@ pub enum KurrentSubject<'a> {
 
 impl KurrentSubject<'_> {
     pub fn try_from_str(subject: &str) -> error::Result<Self> {
-        let mut parts = subject.split('-').fuse();
+        let mut parts = subject.split('.').fuse();
 
         let name = parts.next();
         let id = parts.next();
@@ -31,7 +31,7 @@ impl KurrentSubject<'_> {
         match self {
             Self::Wildcard => unimplemented!(),
             Self::Event(name) => format!("{name}"),
-            Self::Aggregate(name, id) => format!("{name}-{id}"),
+            Self::Aggregate(name, id) => format!("{name}.{id}"),
         }
     }
 }
