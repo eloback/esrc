@@ -4,7 +4,7 @@ use futures::{Stream, StreamExt};
 use tracing::instrument;
 use uuid::Uuid;
 
-use super::header::VERSION_KEY;
+use super::header::{EVENT_TYPE, VERSION_KEY};
 use super::subject::NatsSubject;
 use super::{NatsEnvelope, NatsStore};
 use crate::error::{self, Error};
@@ -31,6 +31,7 @@ impl Publish for NatsStore {
             NATS_EXPECTED_LAST_SUBJECT_SEQUENCE,
             u64::from(last_sequence).to_string(),
         );
+        headers.append(EVENT_TYPE, event._type().to_string());
 
         let ack = self
             .context

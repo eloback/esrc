@@ -1,7 +1,7 @@
 use darling::{FromDeriveInput, FromMeta, FromVariant};
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{DeriveInput, Error};
+use syn::{Data, DeriveInput, Error, Fields};
 
 use crate::util::variant;
 
@@ -39,11 +39,41 @@ pub fn derive_event(input: DeriveInput) -> Result<TokenStream, Error> {
         name_string.strip_suffix("Event").unwrap_or(&name_string)
     };
 
+    // Generate the `_type` method. For enums, return the variant name by default.
+    // For non-enum types, return the concrete type identifier.
+    let type_impl = match &input.data {
+        Data::Enum(e) => {
+            let arms = e.variants.iter().map(|v| {
+                let v_ident = &v.ident;
+                let pat = match &v.fields {
+                    Fields::Named(_) => quote! { Self::#v_ident { .. } },
+                    Fields::Unnamed(_) => quote! { Self::#v_ident ( .. ) },
+                    Fields::Unit => quote! { Self::#v_ident },
+                };
+                quote! { #pat => stringify!(#v_ident), }
+            });
+            quote! {
+                fn _type(&self) -> &'static str {
+                    match self {
+                        #( #arms )*
+                    }
+                }
+            }
+        },
+        _ => quote! {
+            fn _type(&self) -> &'static str {
+                stringify!(#name)
+            }
+        },
+    };
+
     Ok(quote! {
         impl #impl_generics ::esrc::event::Event for #name #ty_generics #clause {
             fn name() -> &'static str {
                 #event_name
             }
+
+            #type_impl
         }
     })
 }

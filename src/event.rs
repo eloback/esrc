@@ -39,6 +39,17 @@ pub trait Event: Send {
     /// kept to ASCII letters and numbers. Once used, the name of an event
     /// should stay the same, even if the data structure changes.
     fn name() -> &'static str;
+
+    /// The concrete Rust variant/type name for this event.
+    ///
+    /// By default, this returns the same value as `name()`. Derive-generated
+    /// impls will:
+    /// - For enums, return the variant identifier (e.g., "Created").
+    ///
+    /// - For structs/other types, return the type identifier (e.g., "UserEvent").
+    fn _type(&self) -> &'static str {
+        Self::name()
+    }
 }
 
 /// Reference multiple event types in a single read stream.

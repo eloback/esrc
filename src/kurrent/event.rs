@@ -3,18 +3,19 @@ use std::collections::HashMap;
 use futures::{stream, Stream, StreamExt};
 use kurrentdb::{
     AppendToStreamOptions, EventData, PersistentSubscriptionToAllOptions, ReadStreamOptions,
-    StreamPosition, StreamState, SubscriptionFilter,
+    StreamPosition, SubscriptionFilter,
 };
 use tracing::instrument;
 use uuid::Uuid;
 
 use crate::error::{self, Error};
 use crate::event::{Event, EventGroup, Publish, ReplayOne, Sequence, Subscribe};
-use crate::kurrent::envelope::KurrentEnvelope;
-use crate::kurrent::header::VERSION_KEY;
-use crate::kurrent::subject::KurrentSubject;
-use crate::kurrent::KurrentStore;
 use crate::version::SerializeVersion;
+
+use super::envelope::KurrentEnvelope;
+use super::header::{EVENT_TYPE, VERSION_KEY};
+use super::subject::KurrentSubject;
+use super::KurrentStore;
 
 impl Publish for KurrentStore {
     #[instrument(skip_all, level = "debug")]
@@ -33,10 +34,11 @@ impl Publish for KurrentStore {
 
         let mut metadata = HashMap::new();
         metadata.insert(VERSION_KEY.to_string(), E::version().to_string());
+        metadata.insert(EVENT_TYPE.to_string(), event._type().to_string());
         let metadata = serde_json::to_string(&metadata).map_err(|e| Error::Format(e.into()))?;
 
         // FIXME: add type to event or serialization
-        let envelope: EventData = EventData::json("Unknown", &event)
+        let envelope: EventData = EventData::json(event._type(), &event)
             .map_err(|e| Error::Format(e.into()))?
             .id(Uuid::new_v4())
             .metadata(metadata.into());
