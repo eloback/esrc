@@ -37,7 +37,6 @@ impl Publish for KurrentStore {
         metadata.insert(EVENT_TYPE.to_string(), event._type().to_string());
         let metadata = serde_json::to_string(&metadata).map_err(|e| Error::Format(e.into()))?;
 
-        // FIXME: add type to event or serialization
         let envelope: EventData = EventData::json(event._type(), &event)
             .map_err(|e| Error::Format(e.into()))?
             .id(Uuid::new_v4())
