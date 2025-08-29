@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use futures::{stream, Stream, StreamExt};
 use kurrentdb::{
-    AppendToStreamOptions, EventData, ReadStreamOptions, StreamPosition, StreamState,
-    SubscribeToAllOptions, SubscriptionFilter,
+    AppendToStreamOptions, EventData, PersistentSubscriptionToAllOptions, ReadStreamOptions,
+    StreamPosition, StreamState, SubscriptionFilter,
 };
 use tracing::instrument;
 use uuid::Uuid;
@@ -56,7 +56,31 @@ impl Publish for KurrentStore {
 //         &self,
 //         first_sequence: Sequence,
 //     ) -> error::Result<impl Stream<Item = error::Result<Self::Envelope>> + Send> {
-//         todo!()
+//         let (_, subjects) = {
+//             let mut names = G::names().collect::<Vec<_>>();
+//             names.sort();
+//
+//             let subjects: Vec<_> = names
+//                 .iter()
+//                 .map(|&n| KurrentSubject::Event(n.into()).into_string())
+//                 .collect();
+//             (names.join("-"), subjects)
+//         };
+//
+//         let mut filter = SubscriptionFilter::on_stream_name();
+//         for subject in subjects {
+//             filter = filter.add_prefix(subject);
+//         }
+//         let options = SubscribeToAllOptions::default().filter(filter);
+//
+//         let sub = self.client.subscribe_to_all(&options).await;
+//         let stream = stream::unfold(sub, |mut state| async move {
+//             match state.next().await {
+//                 event => Some((event, state)),
+//                 _ => None,
+//             }
+//         });
+//         unimplemented!()
 //     }
 // }
 
@@ -95,7 +119,7 @@ impl Subscribe for KurrentStore {
     async fn subscribe<G: EventGroup>(
         &self,
     ) -> error::Result<impl Stream<Item = error::Result<Self::Envelope>> + Send> {
-        let (_, subjects) = {
+        let (topic, subjects) = {
             let mut names = G::names().collect::<Vec<_>>();
             names.sort();
 
@@ -110,15 +134,28 @@ impl Subscribe for KurrentStore {
         for subject in subjects {
             filter = filter.add_prefix(subject);
         }
-        let options = SubscribeToAllOptions::default().filter(filter);
+        let options = PersistentSubscriptionToAllOptions::default().filter(filter);
 
-        let sub = self.client.subscribe_to_all(&options).await;
-        let stream = stream::unfold(sub, |mut state| async move {
-            match state.next().await {
-                event => Some((event, state)),
-                _ => None,
-            }
-        });
+        match self
+            .client
+            .create_persistent_subscription_to_all(&topic, &options)
+            .await
+        {
+            Ok(_) => tracing::info!("persistent subscription created"),
+            Err(kurrentdb::Error::ResourceAlreadyExists) => {
+                tracing::info!("persistent subscription already exists!")
+            },
+            Err(error) => return Err(error.into()),
+        };
+
+        let sub = self
+            .client
+            .subscribe_to_persistent_subscription_to_all(&topic, &Default::default())
+            .await?;
+        let stream = stream::unfold(
+            sub,
+            |mut state| async move { Some((state.next().await, state)) },
+        );
         Ok(stream.map(|m| KurrentEnvelope::try_from_message(m?)))
     }
 }
@@ -144,59 +181,79 @@ pub mod custom {
 
     use super::*;
 
-    // impl KurrentStore {
-    //     #[instrument(skip_all, level = "debug")]
-    //     pub async fn durable_subscribe<G: EventGroup>(
-    //         &self,
-    //         durable_name: &str,
-    //     ) -> error::Result<impl Stream<Item = error::Result<NatsEnvelope>> + Send> {
-    //         let (_, subjects) = {
-    //             let mut names = G::names().collect::<Vec<_>>();
-    //             names.sort();
-    //
-    //             let subjects = names
-    //                 .iter()
-    //                 .map(|&n| NatsSubject::Event(n.into()).into_string(self.prefix))
-    //                 .collect();
-    //             (names.join("-"), subjects)
-    //         };
-    //
-    //         let consumer = self
-    //             .durable_consumer(durable_name.to_string(), subjects)
-    //             .await?;
-    //         Ok(consumer
-    //             .messages()
-    //             .await?
-    //             .map(|m| NatsEnvelope::try_from_message(self.prefix, m?)))
-    //     }
-    // }
-    //
-    // impl KurrentStore {
-    //     #[instrument(skip_all, level = "debug")]
-    //     pub async fn durable_observe<P>(
-    //         &self,
-    //         mut projector: P,
-    //         durable_name: &str,
-    //     ) -> error::Result<()>
-    //     where
-    //         P: for<'de> Project<'de>,
-    //     {
-    //         let mut stream = pin!(
-    //             self.durable_subscribe::<P::EventGroup>(durable_name)
-    //                 .await?
-    //         );
-    //         while let Some(envelope) = stream.next().await {
-    //             let envelope = envelope?;
-    //             let context = Context::try_with_envelope(&envelope)?;
-    //
-    //             projector
-    //                 .project(context)
-    //                 .into_send_future()
-    //                 .await
-    //                 .map_err(|e| Error::External(e.into()))?;
-    //         }
-    //
-    //         Ok(())
-    //     }
-    // }
+    impl KurrentStore {
+        #[instrument(skip_all, level = "debug")]
+        pub async fn durable_subscribe<G: EventGroup>(
+            &self,
+            durable_name: &str,
+        ) -> error::Result<impl Stream<Item = error::Result<KurrentEnvelope>> + Send> {
+            let (_, subjects) = {
+                let mut names = G::names().collect::<Vec<_>>();
+                names.sort();
+
+                let subjects: Vec<_> = names
+                    .iter()
+                    .map(|&n| KurrentSubject::Event(n.into()).into_string())
+                    .collect();
+                (names.join("-"), subjects)
+            };
+
+            let mut filter = SubscriptionFilter::on_stream_name();
+            for subject in subjects {
+                filter = filter.add_prefix(subject);
+            }
+            let options = PersistentSubscriptionToAllOptions::default().filter(filter);
+
+            match self
+                .client
+                .create_persistent_subscription_to_all(durable_name, &options)
+                .await
+            {
+                Ok(_) => tracing::info!("persistent subscription created"),
+                Err(kurrentdb::Error::ResourceAlreadyExists) => {
+                    tracing::info!("persistent subscription already exists!")
+                },
+                Err(error) => return Err(error.into()),
+            };
+
+            let sub = self
+                .client
+                .subscribe_to_persistent_subscription_to_all(durable_name, &Default::default())
+                .await?;
+            let stream =
+                stream::unfold(
+                    sub,
+                    |mut state| async move { Some((state.next().await, state)) },
+                );
+            Ok(stream.map(|m| KurrentEnvelope::try_from_message(m?)))
+        }
+    }
+    impl KurrentStore {
+        #[instrument(skip_all, level = "debug")]
+        pub async fn durable_observe<P>(
+            &self,
+            mut projector: P,
+            durable_name: &str,
+        ) -> error::Result<()>
+        where
+            P: for<'de> Project<'de>,
+        {
+            let mut stream = pin!(
+                self.durable_subscribe::<P::EventGroup>(durable_name)
+                    .await?
+            );
+            while let Some(envelope) = stream.next().await {
+                let envelope = envelope?;
+                let context = Context::try_with_envelope(&envelope)?;
+
+                projector
+                    .project(context)
+                    .into_send_future()
+                    .await
+                    .map_err(|e| Error::External(e.into()))?;
+            }
+
+            Ok(())
+        }
+    }
 }
