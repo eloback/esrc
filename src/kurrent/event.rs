@@ -100,11 +100,11 @@ impl ReplayOne for KurrentStore {
         let stream = stream::unfold(
             self.client.read_stream(subject, &options).await?,
             |mut state| async move {
-                if let Some(event) = state.next().await.transpose() {
-                    let yielded = event;
-                    Some((yielded, state))
-                } else {
-                    None
+                match state.next().await {
+                    Ok(Some(event)) => Some((Ok(event), state)),
+                    Ok(None) => None,
+                    Err(kurrentdb::Error::ResourceNotFound) => None,
+                    Err(error) => Some((Err(error), state)),
                 }
             },
         );
