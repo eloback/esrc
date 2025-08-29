@@ -13,8 +13,8 @@ pub mod envelope;
 #[doc(hidden)]
 pub mod event;
 
-pub mod header;
-pub mod subject;
+mod header;
+mod subject;
 
 /// A handle to an event store implementation on top of KurrentDB.
 #[derive(Clone)]

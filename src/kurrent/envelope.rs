@@ -1,5 +1,6 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use async_nats::rustls::quic::Version;
 use kurrentdb::ResolvedEvent;
 use serde_json::Deserializer;
 use tracing::instrument;
@@ -39,7 +40,10 @@ impl KurrentEnvelope {
         else {
             return Err(Error::Invalid);
         };
-        let version = header::get(event, VERSION_KEY)
+        let metadata: std::collections::HashMap<String, String> =
+            serde_json::from_slice(&event.custom_metadata).map_err(|e| Error::Format(e.into()))?;
+        let version = metadata
+            .get(VERSION_KEY)
             .ok_or(Error::Invalid)?
             .parse::<usize>()
             .map_err(|e| Error::Format(e.into()))?;
