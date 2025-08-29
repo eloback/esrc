@@ -21,15 +21,15 @@ impl Publish for KurrentStore {
     async fn publish<E>(
         &mut self,
         id: Uuid,
-        last_sequence: Sequence,
+        // this guarantee is already made by the database
+        _last_sequence: Sequence,
         event: E,
     ) -> error::Result<Sequence>
     where
         E: Event + SerializeVersion,
     {
         let subject = KurrentSubject::Aggregate(E::name().into(), id);
-        let options = AppendToStreamOptions::default()
-            .stream_state(StreamState::StreamRevision(last_sequence.into()));
+        let options = AppendToStreamOptions::default();
 
         let mut metadata = HashMap::new();
         metadata.insert(VERSION_KEY.to_string(), E::version().to_string());
