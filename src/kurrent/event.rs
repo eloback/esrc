@@ -224,9 +224,24 @@ pub mod custom {
             let stream =
                 stream::unfold(
                     sub,
-                    |mut state| async move { Some((state.next().await, state)) },
-                );
-            Ok(stream.map(|m| KurrentEnvelope::try_from_message(m?)))
+                    |mut state| async move {
+                    let message = state.next().await;
+                    match message {
+                        Ok(m) => {
+                            match state.ack(&m).await {
+                                Ok(()) => Some((Ok(Ok(m)), state)),
+                                Err(error) => Some((Ok(Err(error)), state))
+                            }
+                        }
+                        Err(error) => Some((Err(error), state))
+                    }
+                },
+                )
+                .map(|m| {
+                    let m = m??;
+                    KurrentEnvelope::try_from_message(m)
+                });
+            Ok(stream)
         }
     }
     impl KurrentStore {

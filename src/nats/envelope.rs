@@ -24,7 +24,7 @@ pub struct NatsEnvelope {
 
     name: String,
     version: usize,
-    message: Message,
+    message: jetstream::Message,
 }
 
 impl NatsEnvelope {
@@ -65,8 +65,12 @@ impl NatsEnvelope {
 
             name: name.into_owned(),
             version,
-            message: message.split().0,
+            message,
         })
+    }
+
+    pub async fn ack(&self) -> Result<(), Error> {
+        Ok(self.message.ack().await?)
     }
 }
 
