@@ -30,6 +30,8 @@ pub struct NatsStore {
 
     context: Context,
     stream: JetStream,
+
+    durable_consumer_options: ConsumerConfig,
 }
 
 impl NatsStore {
@@ -52,12 +54,26 @@ impl NatsStore {
             context.get_or_create_stream(config).await?
         };
 
+        let config = ConsumerConfig {
+            deliver_policy: DeliverPolicy::New,
+            ..Default::default()
+        };
+
         Ok(Self {
             prefix,
 
             context,
             stream,
+
+            durable_consumer_options: config,
         })
+    }
+
+    /// the subjects and durable name of the consumer are overwritten by the function that starts
+    /// the consumer, all other options should be alright for modification
+    pub fn update_durable_consumer_option(mut self, options: ConsumerConfig) -> Self {
+        self.durable_consumer_options = options;
+        self
     }
 
     #[instrument(skip_all, level = "debug")]
@@ -84,12 +100,10 @@ impl NatsStore {
         name: String,
         subjects: Vec<String>,
     ) -> error::Result<Consumer<ConsumerConfig>> {
-        let config = ConsumerConfig {
-            filter_subjects: subjects,
-            durable_name: Some(name),
-            deliver_policy: DeliverPolicy::New,
-            ..Default::default()
-        };
+        let mut config = self.durable_consumer_options.clone();
+
+        config.filter_subjects = subjects;
+        config.durable_name = Some(name);
 
         Ok(self.stream.create_consumer(config).await?)
     }
