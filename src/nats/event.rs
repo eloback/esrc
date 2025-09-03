@@ -186,7 +186,6 @@ pub mod custom {
             );
             while let Some(envelope) = stream.next().await {
                 let envelope = envelope?;
-                envelope.ack().await?;
                 let context = Context::try_with_envelope(&envelope)?;
 
                 projector

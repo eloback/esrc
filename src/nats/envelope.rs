@@ -1,6 +1,6 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use async_nats::{jetstream, Message};
+use async_nats::jetstream;
 use serde_json::Deserializer;
 use tracing::instrument;
 use uuid::Uuid;
@@ -16,6 +16,10 @@ use crate::version::DeserializeVersion;
 ///
 /// Fields derived from the subject name and various NATS headers will be parsed
 /// upon creation and stored alongside the original message.
+///
+/// When the envelope is dropped the message is automatically acked, and any error
+/// is ignored, so the user may want to hold a reference of the message if they need
+/// to manually ack or nack it.
 pub struct NatsEnvelope {
     id: Uuid,
     sequence: u64,
@@ -68,9 +72,17 @@ impl NatsEnvelope {
             message,
         })
     }
+}
 
-    pub async fn ack(&self) -> Result<(), Error> {
-        Ok(self.message.ack().await?)
+// ack the message on envelope drop automatically
+impl Drop for NatsEnvelope {
+    fn drop(&mut self) {
+        // clone the message to send to other thread
+        let message = self.message.clone();
+        // ack the message ignoring any error
+        tokio::spawn(async move {
+            let _ = message.ack().await;
+        });
     }
 }
 
