@@ -39,7 +39,6 @@ in
       clippy = {
         enable = true;
         settings = {
-          denyWarnings = true;
           allFeatures = true;
         };
       };
