@@ -1,6 +1,5 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use async_nats::rustls::quic::Version;
 use kurrentdb::ResolvedEvent;
 use serde_json::Deserializer;
 use tracing::instrument;
@@ -9,7 +8,7 @@ use uuid::Uuid;
 use crate::envelope::Envelope;
 use crate::error::{self, Error};
 use crate::event::{Event, Sequence};
-use crate::kurrent::header::{self, VERSION_KEY};
+use crate::kurrent::header::VERSION_KEY;
 use crate::kurrent::subject::KurrentSubject;
 use crate::version::DeserializeVersion;
 

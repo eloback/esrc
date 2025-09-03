@@ -221,26 +221,20 @@ pub mod custom {
                 .client
                 .subscribe_to_persistent_subscription_to_all(durable_name, &Default::default())
                 .await?;
-            let stream =
-                stream::unfold(
-                    sub,
-                    |mut state| async move {
-                    let message = state.next().await;
-                    match message {
-                        Ok(m) => {
-                            match state.ack(&m).await {
-                                Ok(()) => Some((Ok(Ok(m)), state)),
-                                Err(error) => Some((Ok(Err(error)), state))
-                            }
-                        }
-                        Err(error) => Some((Err(error), state))
-                    }
-                },
-                )
-                .map(|m| {
-                    let m = m??;
-                    KurrentEnvelope::try_from_message(m)
-                });
+            let stream = stream::unfold(sub, |mut state| async move {
+                let message = state.next().await;
+                match message {
+                    Ok(m) => match state.ack(&m).await {
+                        Ok(()) => Some((Ok(Ok(m)), state)),
+                        Err(error) => Some((Ok(Err(error)), state)),
+                    },
+                    Err(error) => Some((Err(error), state)),
+                }
+            })
+            .map(|m| {
+                let m = m??;
+                KurrentEnvelope::try_from_message(m)
+            });
             Ok(stream)
         }
     }

@@ -18,6 +18,7 @@ pub use replay::{Replay, ReplayExt, ReplayOne, ReplayOneExt};
 pub use subscribe::{Subscribe, SubscribeExt};
 pub use truncate::Truncate;
 
+#[doc(hidden)]
 pub mod future;
 
 /// The relative order of an Event within a single event stream.
