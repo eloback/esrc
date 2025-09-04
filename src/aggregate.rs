@@ -150,7 +150,7 @@ impl<A: Aggregate> Root<A> {
     pub fn try_apply<E>(this: Self, envelope: E) -> error::Result<Self>
     where
         E: Envelope,
-        A::Event: for<'de> DeserializeVersion<'de>,
+        A::Event: DeserializeVersion,
     {
         // If the name or ID of the envelope does not match this root, the
         // event likely came from an incorrect stream.

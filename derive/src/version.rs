@@ -3,8 +3,6 @@ use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{DeriveInput, Error, Ident, Lifetime};
 
-use crate::util::lifetime;
-
 #[derive(Default, FromMeta)]
 pub struct SerdeMeta {
     pub version: Option<usize>,
@@ -31,24 +29,31 @@ pub fn derive_deserialize_version(input: DeriveInput) -> Result<TokenStream, Err
             Err(<D::Error as ::serde::de::Error>::custom("unknown version"))
         });
 
-    // Create a new lifetime for the deserializer trait. This lifetime should
-    // outlive all other lifetimes defined on the implementing type.
-    let lt = Lifetime::new("'__esrc_de", Span::mixed_site());
-    let generics = lifetime::add_supertype_bounds(input.generics.clone(), &lt);
+    // Collect lifetime bounds so that the method-level deserializer lifetime
+    // outlives all lifetimes declared on the type (supports borrowed fields).
+    let method_lt = Lifetime::new("'__esrc_de", Span::mixed_site());
+    let lifetime_bounds = input
+        .generics
+        .lifetimes()
+        .map(|lt| {
+            let sub = &lt.lifetime;
+            quote! { #method_lt: #sub }
+        })
+        .collect::<Vec<_>>();
 
     // Pull the type generics from the original generic data (before the new
     // lifetime was inserted), and the impl ones from the updated generics.
-    let (_, ty_generics, _) = input.generics.split_for_impl();
-    let (all_generics, _, clause) = generics.split_for_impl();
+    let (impl_generics, ty_generics, clause) = input.generics.split_for_impl();
 
     // Build the deserializer as an if-else chain, which first checks if the
     // received data has the expected version number to deserialize. If not,
     // pass along the attempt to the previous version.
     Ok(quote! {
-        impl #all_generics ::esrc::version::DeserializeVersion<#lt> for #name #ty_generics #clause {
-            fn deserialize_version<D>(#deserializer: D, #version: usize) -> Result<Self, D::Error>
+        impl #impl_generics ::esrc::version::DeserializeVersion for #name #ty_generics #clause {
+            fn deserialize_version<#method_lt, D>(#deserializer: D, #version: usize) -> Result<Self, D::Error>
             where
-                D: ::serde::Deserializer<#lt>,
+                D: ::serde::Deserializer<#method_lt>,
+                #(#lifetime_bounds,)*
             {
                 if #version == <Self as ::esrc::version::SerializeVersion>::version() {
                     <Self as ::serde::Deserialize>::deserialize(#deserializer)

@@ -48,7 +48,7 @@ fn try_from_envelope_lifetime() {
     #[derive(Debug, PartialEq, TryFromEnvelope)]
     enum TestGroup<'de, T>
     where
-        T: Event + DeserializeVersion<'de>,
+        T: Event + DeserializeVersion,
     {
         Other(T),
         Lifetime(LifetimeEvent<'de>),

@@ -104,9 +104,9 @@ impl Envelope for NatsEnvelope {
     }
 
     #[instrument(skip_all, level = "trace")]
-    fn deserialize<'de, E>(&'de self) -> error::Result<E>
+    fn deserialize<E>(&self) -> error::Result<E>
     where
-        E: DeserializeVersion<'de> + Event,
+        E: DeserializeVersion + Event,
     {
         if self.name != E::name() {
             return Err(Error::Invalid);

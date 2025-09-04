@@ -4,13 +4,13 @@ pub use esrc_derive::{DeserializeVersion, SerializeVersion};
 use serde::{Deserialize, Deserializer, Serialize};
 
 /// Extend the serde Deserialize trait with extra versioning info.
-pub trait DeserializeVersion<'de>: Deserialize<'de> {
+pub trait DeserializeVersion: for<'de> Deserialize<'de> {
     /// Deserialize the implementing type, using the specified version.
     ///
     /// In the context of this library, a version is implicitly stored with all
     /// serialized types (that use [`SerializeVersion`]). When deserialized,
     /// this version can be used to upcast events, etc.
-    fn deserialize_version<D>(deserializer: D, version: usize) -> Result<Self, D::Error>
+    fn deserialize_version<'de, D>(deserializer: D, version: usize) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>;
 }

@@ -36,7 +36,7 @@ pub trait SubscribeExt: Subscribe {
     /// cause this method to stop processing future events.
     async fn observe<P>(&self, projector: P) -> error::Result<()>
     where
-        P: for<'de> Project<'de>;
+        P: Project;
 }
 
 impl<T> SubscribeExt for T
@@ -47,7 +47,7 @@ where
     #[instrument(skip_all, level = "debug")]
     async fn observe<P>(&self, mut projector: P) -> error::Result<()>
     where
-        P: for<'de> Project<'de>,
+        P: Project,
     {
         let mut stream = pin!(self.subscribe::<P::EventGroup>().await?);
         while let Some(envelope) = stream.next().await {

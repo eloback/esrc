@@ -1,3 +1,4 @@
+/// NOTE: this doesnt work anymore since i simplified the lifetimes.
 use async_nats::jetstream;
 use esrc::event::SubscribeExt;
 use esrc::nats::NatsStore;
@@ -12,8 +13,8 @@ use serde::{Deserialize, Serialize};
 // store backend (for example, the NATS backend uses JSON).
 #[derive(Event, Deserialize, DeserializeVersion, Serialize, SerializeVersion)]
 #[esrc(serde(version = 1))]
-enum ZeroCopyEvent<'a> {
-    Created(&'a str),
+enum ZeroCopyEvent {
+    Created(String),
     Destroyed,
 }
 
@@ -26,11 +27,11 @@ enum NamePrinterError {}
 // The lifetime of the Project trait refers to the lifetime of the source
 // Envelope; when used with the Subscribe extensions, this is an HRTB lifetime
 // as the Envelope only exists within a single subscription iteration.
-impl<'a> Project<'a> for NamePrinter {
-    type EventGroup = ZeroCopyEvent<'a>;
+impl Project for NamePrinter {
+    type EventGroup = ZeroCopyEvent;
     type Error = NamePrinterError;
 
-    async fn project<E>(
+    async fn project<'a, E>(
         &mut self,
         context: Context<'a, E, Self::EventGroup>,
     ) -> Result<(), Self::Error>
@@ -38,7 +39,7 @@ impl<'a> Project<'a> for NamePrinter {
         E: Envelope + Sync,
     {
         match *context {
-            ZeroCopyEvent::Created(name) => println!("{}", name),
+            ZeroCopyEvent::Created(ref name) => println!("{}", name),
             ZeroCopyEvent::Destroyed => {},
         }
 

@@ -68,9 +68,9 @@ pub struct Context<'de, E, G> {
 /// }
 /// ```
 #[trait_variant::make(Send)]
-pub trait Project<'de>: Send + Clone {
+pub trait Project: Send + Clone {
     /// The event(s) that can be processed by this object.
-    type EventGroup: event::EventGroup + TryFromEnvelope<'de>;
+    type EventGroup: event::EventGroup + TryFromEnvelope;
     /// The type to return as an `Err` when the projection fails.
     type Error: std::error::Error + Send + Sync + 'static;
 
@@ -78,7 +78,7 @@ pub trait Project<'de>: Send + Clone {
     ///
     /// Returning an error from this method should stop further messages from
     /// being processed in the associated event store.
-    async fn project<E>(
+    async fn project<'de, E>(
         &mut self,
         context: Context<'de, E, Self::EventGroup>,
     ) -> Result<(), Self::Error>
@@ -89,7 +89,7 @@ pub trait Project<'de>: Send + Clone {
 impl<'de, E, G> Context<'de, E, G>
 where
     E: Envelope,
-    G: EventGroup + TryFromEnvelope<'de>,
+    G: EventGroup + TryFromEnvelope,
 {
     /// Try to convert the given Envelope into an instance of an EventGroup.
     ///

@@ -19,8 +19,8 @@ impl Event for FooEvent {
     }
 }
 
-impl<'de> DeserializeVersion<'de> for FooEvent {
-    fn deserialize_version<D>(_deserializer: D, _version: usize) -> Result<Self, D::Error>
+impl DeserializeVersion for FooEvent {
+    fn deserialize_version<'de, D>(_deserializer: D, _version: usize) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -34,8 +34,8 @@ impl Event for BarEvent {
     }
 }
 
-impl<'de> DeserializeVersion<'de> for BarEvent {
-    fn deserialize_version<D>(_deserializer: D, _version: usize) -> Result<Self, D::Error>
+impl DeserializeVersion for BarEvent {
+    fn deserialize_version<'de, D>(_deserializer: D, _version: usize) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -49,10 +49,11 @@ impl<'a> Event for LifetimeEvent<'a> {
     }
 }
 
-impl<'a, 'de: 'a> DeserializeVersion<'de> for LifetimeEvent<'a> {
-    fn deserialize_version<D>(_deserializer: D, _version: usize) -> Result<Self, D::Error>
+impl<'a> DeserializeVersion for LifetimeEvent<'a> {
+    fn deserialize_version<'de, D>(_deserializer: D, _version: usize) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
+        'de: 'a,
     {
         Ok(LifetimeEvent {
             local_name: "LocalLifetime",

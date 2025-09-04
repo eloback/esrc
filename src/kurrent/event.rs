@@ -246,7 +246,7 @@ pub mod custom {
             durable_name: &str,
         ) -> error::Result<()>
         where
-            P: for<'de> Project<'de>,
+            P: Project,
         {
             let mut stream = pin!(
                 self.durable_subscribe::<P::EventGroup>(durable_name)

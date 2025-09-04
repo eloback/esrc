@@ -30,11 +30,11 @@ impl ActiveTables {
     }
 }
 
-impl<'a> Project<'a> for ActiveTables {
+impl Project for ActiveTables {
     type EventGroup = TabEvent;
     type Error = TabError;
 
-    async fn project<E>(
+    async fn project<'a, E>(
         &mut self,
         context: Context<'a, E, Self::EventGroup>,
     ) -> Result<(), Self::Error>

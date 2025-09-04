@@ -58,7 +58,7 @@ pub trait ReplayExt: Replay {
     /// cause this method to stop processing any remaining replay-able events.
     async fn rebuild<P>(&self, projector: P) -> error::Result<()>
     where
-        P: for<'de> Project<'de>;
+        P: Project;
 
     /// Project a subset of events.
     ///
@@ -66,7 +66,7 @@ pub trait ReplayExt: Replay {
     /// relative order, but only with events after the given sequence number.
     async fn rebuild_after<P>(&self, projector: P, first_sequence: Sequence) -> error::Result<()>
     where
-        P: for<'de> Project<'de>;
+        P: Project;
 }
 
 /// Extensions for projecting replayed events from a single event stream.
@@ -80,7 +80,7 @@ pub trait ReplayOneExt: ReplayOne {
     async fn read<A>(&self, id: Uuid) -> error::Result<Root<A>>
     where
         A: Aggregate,
-        A::Event: for<'de> DeserializeVersion<'de>;
+        A::Event: DeserializeVersion;
 
     /// Update an existing aggregate with new events from a stream.
     ///
@@ -91,7 +91,7 @@ pub trait ReplayOneExt: ReplayOne {
     async fn read_after<A>(&self, root: Root<A>) -> error::Result<Root<A>>
     where
         A: Aggregate,
-        A::Event: for<'de> DeserializeVersion<'de>;
+        A::Event: DeserializeVersion;
 }
 
 impl<T> ReplayExt for T
@@ -102,7 +102,7 @@ where
     #[instrument(skip_all, level = "debug")]
     async fn rebuild<P>(&self, projector: P) -> error::Result<()>
     where
-        P: for<'de> Project<'de>,
+        P: Project,
     {
         self.rebuild_after(projector, Sequence::new()).await
     }
@@ -114,7 +114,7 @@ where
         first_sequence: Sequence,
     ) -> error::Result<()>
     where
-        P: for<'de> Project<'de>,
+        P: Project,
     {
         let mut stream = pin!(self.replay::<P::EventGroup>(first_sequence).await?);
         while let Some(envelope) = stream.next().await {
@@ -140,7 +140,7 @@ where
     async fn read<A>(&self, id: Uuid) -> error::Result<Root<A>>
     where
         A: Aggregate,
-        A::Event: for<'de> DeserializeVersion<'de>,
+        A::Event: DeserializeVersion,
     {
         self.read_after(Root::new(id)).await
     }
@@ -149,7 +149,7 @@ where
     async fn read_after<A>(&self, root: Root<A>) -> error::Result<Root<A>>
     where
         A: Aggregate,
-        A::Event: for<'de> DeserializeVersion<'de>,
+        A::Event: DeserializeVersion,
     {
         self.replay_one::<A::Event>(Root::id(&root), Root::last_sequence(&root))
             .await?

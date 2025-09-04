@@ -38,9 +38,9 @@ pub trait Envelope: Send {
     /// The exact format that is used and deserialized is dependent on the event
     /// store backend. An error will be returned if the given type of event is
     /// not stored in this envelope, or there is an error with the data format.
-    fn deserialize<'de, E>(&'de self) -> error::Result<E>
+    fn deserialize<E>(&self) -> error::Result<E>
     where
-        E: DeserializeVersion<'de> + Event;
+        E: DeserializeVersion + Event;
 }
 
 /// Attempt to deserialize an Envelope into the implementing type.
@@ -68,8 +68,8 @@ pub trait Envelope: Send {
 ///     Bar(BarEvent),
 /// }
 ///
-/// impl<'de> TryFromEnvelope<'de> for BazEvents {
-///     fn try_from_envelope(envelope: &'de impl Envelope) -> Result<Self, Error> {
+/// impl TryFromEnvelope for BazEvents {
+///     fn try_from_envelope(envelope: &impl Envelope) -> Result<Self, Error> {
 ///         if envelope.name() == FooEvent::name() {
 ///             Ok(BazEvents::Foo(envelope.deserialize()?))
 ///         } else {
@@ -78,20 +78,16 @@ pub trait Envelope: Send {
 ///     }
 /// }
 /// ```
-pub trait TryFromEnvelope<'de>: Sized {
+pub trait TryFromEnvelope: Sized {
     /// Attempt to deserialize the content of an Envelope and convert it.
-    ///
-    /// This method takes a reference to the Envelope, as the implementor may
-    /// have its own lifetimes that will be dependent of the deserializer
-    /// lifetime of the Envelope (for zero-copy deserialization, etc).
-    fn try_from_envelope(envelope: &'de impl Envelope) -> error::Result<Self>;
+    fn try_from_envelope(envelope: &impl Envelope) -> error::Result<Self>;
 }
 
-impl<'de, E> TryFromEnvelope<'de> for E
+impl<E> TryFromEnvelope for E
 where
-    E: DeserializeVersion<'de> + Event,
+    E: DeserializeVersion + Event,
 {
-    fn try_from_envelope(envelope: &'de impl Envelope) -> error::Result<Self> {
+    fn try_from_envelope(envelope: &impl Envelope) -> error::Result<Self> {
         envelope.deserialize()
     }
 }

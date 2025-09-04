@@ -36,9 +36,9 @@ impl Envelope for EmptyEnvelope {
         self.name
     }
 
-    fn deserialize<'de, E>(&self) -> error::Result<E>
+    fn deserialize<E>(&self) -> error::Result<E>
     where
-        E: DeserializeVersion<'de>,
+        E: DeserializeVersion,
     {
         E::deserialize_version(unit_deserializer(), 1).map_err(|_| error::Error::Invalid)
     }

@@ -3,7 +3,7 @@
 
 use async_nats::jetstream;
 use esrc::aggregate::Root;
-use esrc::event::{PublishExt, ReplayOneExt, SubscribeExt};
+use esrc::event::{PublishExt, ReplayOne, ReplayOneExt, SubscribeExt};
 use esrc::nats::NatsStore;
 use tab::{Tab, TabCommand};
 use table::ActiveTables;
@@ -18,10 +18,38 @@ async fn main() -> anyhow::Result<()> {
     let client = async_nats::connect("localhost").await?;
     let context = jetstream::new(client);
 
-    let store = NatsStore::try_new(context, "cafe").await?;
+    let mut store = NatsStore::try_new(context, "cafe").await?;
 
-    let active_tables = ActiveTables::new();
-    store.observe(active_tables).await?;
+    let handle = {
+        let active_tables = ActiveTables::new();
+        let store = store.clone();
+        tokio::spawn(async move {
+            store
+                .durable_observe(active_tables, "teupai")
+                .await
+                .unwrap()
+        })
+    };
+
+    let id = Uuid::now_v7();
+    let tab = Root::<Tab>::new(id);
+
+    let command = TabCommand::Open {
+        table_number: 1,
+        waiter: "teste".to_string(),
+    };
+    store.try_write(tab, command).await?;
+    let command = TabCommand::Open {
+        table_number: 2,
+        waiter: "teste".to_string(),
+    };
+    let root: Root<Tab> = store.read(id).await?;
+    let root = store.try_write(root, command).await?;
+
+    let command = TabCommand::Open {
+        table_number: 1,
+        waiter: "teste".to_string(),
+    };
 
     // Place the `store` and `active_tables` objects inside shared state for
     // your chosen web application / interface framework (such as
