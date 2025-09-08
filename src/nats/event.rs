@@ -193,6 +193,7 @@ pub mod custom {
                     .into_send_future()
                     .await
                     .map_err(|e| Error::External(e.into()))?;
+                envelope.ack().await;
             }
 
             Ok(())
