@@ -258,13 +258,12 @@ pub mod event_model {
         where
             E: crate::event::Event + crate::version::SerializeVersion,
         {
-            let subject = NatsSubject::Event(E::name().into()).into_string(self.prefix);
+            let subject = NatsSubject::Aggregate(E::name().into(), id).into_string(self.prefix);
             let payload = serde_json::to_string(&event).map_err(|e| Error::Format(e.into()))?;
 
             let mut headers = HeaderMap::new();
             headers.append(VERSION_KEY, E::version().to_string());
             headers.append(EVENT_TYPE, event._type().to_string());
-            headers.append("X-Entity-ID", id.to_string());
 
             let _ack = self
                 .context
