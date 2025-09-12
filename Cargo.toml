@@ -1,11 +1,12 @@
 [workspace]
-members = [".", "./derive"]
+members = [".", "./derive", "./crates/opentelemetry-nats"]
 resolver = "2"
 
 [workspace.package]
 license = "MIT"
 authors = ["Wyatt Lindquist <wquist@users.noreply.github.com>"]
 repository = "https://github.com/wquist/esrc"
+categories = ["asynchronous"]
 
 rust-version = "1.79"
 edition = "2021"
@@ -26,6 +27,7 @@ tracing = "0.1"
 trait-variant = "0.1"
 uuid = "1.8"
 kurrentdb = "1.0.0"
+tracing-futures = { version = "0.2.5", features =["futures-03"] }
 
 [package]
 name = "esrc"
@@ -33,7 +35,6 @@ description = "Primitives for implementing event sourcing and CQRS systems"
 readme = true
 version = "0.1.0"
 
-categories = ["asynchronous"]
 keywords = ["cqrs", "event-sourcing", "ddd"]
 
 license.workspace = true
@@ -44,15 +45,18 @@ rust-version.workspace = true
 edition.workspace = true
 
 [features]
-default = ["derive", "nats"]
+default = ["derive", "nats", "opentelemetry"]
 derive = ["dep:esrc-derive"]
 nats = ["dep:async-nats", "dep:serde_json"]
 kurrent = ["dep:kurrentdb", "dep:serde_json"]
+opentelemetry = ["opentelemetry-nats"]
 
 [dependencies]
 esrc-derive = { path = "./derive", version = "0.1.0", optional = true }
 
 async-nats = { workspace = true, optional = true }
+tracing-futures.workspace = true
+opentelemetry-nats = { path = "./crates/opentelemetry-nats", optional = true }
 futures.workspace = true
 serde.workspace = true
 serde_json = { workspace = true, optional = true }

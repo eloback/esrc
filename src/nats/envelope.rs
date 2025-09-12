@@ -60,6 +60,8 @@ impl NatsEnvelope {
             let info = message.info().map_err(Error::Internal)?;
             (info.stream_sequence, info.published.unix_timestamp())
         };
+        // propagate otel span if exists
+        opentelemetry_nats::attach_span_context(&message);
 
         Ok(Self {
             id,
@@ -76,7 +78,7 @@ impl NatsEnvelope {
     /// ack the message asynchronously, ignoring any error
     pub async fn ack(self) {
         tokio::spawn(async move {
-            let _ = self.message.ack().await;
+            let _ = self.message.ack();
         });
     }
 }

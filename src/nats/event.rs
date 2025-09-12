@@ -25,7 +25,15 @@ impl Publish for NatsStore {
         let subject = NatsSubject::Aggregate(E::name().into(), id).into_string(self.prefix);
         let payload = serde_json::to_string(&event).map_err(|e| Error::Format(e.into()))?;
 
-        let mut headers = HeaderMap::new();
+        let mut headers: HeaderMap = {
+            if cfg!(feature = "opentelemetry") {
+                // create with openslemetry headers
+                opentelemetry_nats::NatsHeaderInjector::default_with_span().into()
+            } else {
+                HeaderMap::new()
+            }
+        };
+        // add esrc headers
         headers.append(VERSION_KEY, E::version().to_string());
         headers.append(
             NATS_EXPECTED_LAST_SUBJECT_SEQUENCE,
@@ -197,13 +205,13 @@ pub mod event_model {
             Ok(())
         }
 
-        #[instrument(skip_all, name = "message", err)]
+        #[instrument(skip_all, name = "automation", level = "info", fields(subject = %message.subject), err)]
         async fn process_message<P: Project>(
             prefix: &str,
             projector: &mut P,
             message: async_nats::jetstream::Message,
         ) -> error::Result<()> {
-            // attach_span_context(&message);
+            opentelemetry_nats::attach_span_context(&message);
             let envelope = NatsEnvelope::try_from_message(prefix, message)?;
             let context = Context::try_with_envelope(&envelope)?;
             projector
@@ -261,7 +269,14 @@ pub mod event_model {
             let subject = NatsSubject::Aggregate(E::name().into(), id).into_string(self.prefix);
             let payload = serde_json::to_string(&event).map_err(|e| Error::Format(e.into()))?;
 
-            let mut headers = HeaderMap::new();
+            let mut headers: HeaderMap = {
+                if cfg!(feature = "opentelemetry") {
+                    // create with openslemetry headers
+                    opentelemetry_nats::NatsHeaderInjector::default_with_span().into()
+                } else {
+                    HeaderMap::new()
+                }
+            };
             headers.append(VERSION_KEY, E::version().to_string());
             headers.append(EVENT_TYPE, event._type().to_string());
 
