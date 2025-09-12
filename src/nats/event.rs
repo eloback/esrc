@@ -133,11 +133,16 @@ impl Truncate for NatsStore {
     }
 }
 
-pub mod custom {
+pub mod event_model {
     use std::pin::pin;
 
+    use futures::TryStreamExt;
+
     use crate::{
-        event::future::IntoSendFuture,
+        event::{
+            event_model::{Automation, Translation},
+            future::IntoSendFuture,
+        },
         project::{Context, Project},
     };
 
@@ -145,10 +150,11 @@ pub mod custom {
 
     impl NatsStore {
         #[instrument(skip_all, level = "debug")]
-        pub async fn durable_subscribe<G: EventGroup>(
+        async fn nats_durable_subscribe<G: EventGroup>(
             &self,
             durable_name: &str,
-        ) -> error::Result<impl Stream<Item = error::Result<NatsEnvelope>> + Send> {
+        ) -> error::Result<impl Stream<Item = error::Result<async_nats::jetstream::Message>> + Send>
+        {
             let (_, subjects) = {
                 let mut names = G::names().collect::<Vec<_>>();
                 names.sort();
@@ -163,39 +169,107 @@ pub mod custom {
             let consumer = self
                 .durable_consumer(durable_name.to_string(), subjects)
                 .await?;
+            Ok(consumer.messages().await?.map_err(|e| e.into()))
+        }
+
+        #[instrument(skip_all, level = "debug")]
+        async fn run_project<P>(&self, projector: P, durable_name: &str) -> error::Result<()>
+        where
+            P: Project + 'static,
+        {
+            let mut stream = pin!(
+                self.nats_durable_subscribe::<P::EventGroup>(durable_name)
+                    .await?
+            );
+            while let Some(message) = stream.next().await {
+                let message = message?;
+                let prefix = self.prefix.to_string();
+                let mut projector = projector.clone();
+                tokio::spawn(async move {
+                    if let Err(e) =
+                        NatsStore::process_message(&prefix, &mut projector, message).await
+                    {
+                        tracing::error!("Error processing message: {:?}", e);
+                    }
+                });
+            }
+
+            Ok(())
+        }
+
+        #[instrument(skip_all, name = "message", err)]
+        async fn process_message<P: Project>(
+            prefix: &str,
+            projector: &mut P,
+            message: async_nats::jetstream::Message,
+        ) -> error::Result<()> {
+            // attach_span_context(&message);
+            let envelope = NatsEnvelope::try_from_message(prefix, message)?;
+            let context = Context::try_with_envelope(&envelope)?;
+            projector
+                .project(context)
+                .into_send_future()
+                .await
+                .map_err(|e| Error::External(e.into()))?;
+            envelope.ack().await;
+            Ok(())
+        }
+    }
+
+    impl Automation for NatsStore {
+        type Envelope = NatsEnvelope;
+
+        #[instrument(skip_all, level = "debug")]
+        async fn durable_subscribe<G: EventGroup>(
+            &self,
+            unique_name: &str,
+        ) -> error::Result<impl Stream<Item = error::Result<Self::Envelope>> + Send> {
+            let (_, subjects) = {
+                let mut names = G::names().collect::<Vec<_>>();
+                names.sort();
+
+                let subjects = names
+                    .iter()
+                    .map(|&n| NatsSubject::Event(n.into()).into_string(self.prefix))
+                    .collect();
+                (names.join("-"), subjects)
+            };
+
+            let consumer = self
+                .durable_consumer(unique_name.to_string(), subjects)
+                .await?;
             Ok(consumer
                 .messages()
                 .await?
                 .map(|m| NatsEnvelope::try_from_message(self.prefix, m?)))
         }
+
+        #[instrument(skip_all, level = "debug")]
+        async fn start<P>(&self, projector: P, feature_name: &str) -> error::Result<()>
+        where
+            P: Project + 'static,
+        {
+            self.run_project(projector, feature_name).await
+        }
     }
 
-    impl NatsStore {
-        #[instrument(skip_all, level = "debug")]
-        pub async fn durable_observe<P>(
-            &self,
-            mut projector: P,
-            durable_name: &str,
-        ) -> error::Result<()>
+    impl Translation for NatsStore {
+        async fn publish_to_automation<E>(&mut self, id: uuid::Uuid, event: E) -> error::Result<()>
         where
-            P: Project,
+            E: crate::event::Event + crate::version::SerializeVersion,
         {
-            let mut stream = pin!(
-                self.durable_subscribe::<P::EventGroup>(durable_name)
-                    .await?
-            );
-            while let Some(envelope) = stream.next().await {
-                let envelope = envelope?;
-                let context = Context::try_with_envelope(&envelope)?;
+            let subject = NatsSubject::Event(E::name().into()).into_string(self.prefix);
+            let payload = serde_json::to_string(&event).map_err(|e| Error::Format(e.into()))?;
 
-                projector
-                    .project(context)
-                    .into_send_future()
-                    .await
-                    .map_err(|e| Error::External(e.into()))?;
-                envelope.ack().await;
-            }
+            let mut headers = HeaderMap::new();
+            headers.append(VERSION_KEY, E::version().to_string());
+            headers.append(EVENT_TYPE, event._type().to_string());
+            headers.append("X-Entity-ID", id.to_string());
 
+            let _ack = self
+                .context
+                .publish_with_headers(subject, headers, payload.into())
+                .await?;
             Ok(())
         }
     }

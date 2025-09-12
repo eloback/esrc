@@ -28,7 +28,7 @@ pub trait Subscribe {
 
 /// Extensions for projecting newly published events.
 #[trait_variant::make(Send)]
-pub trait SubscribeExt: Subscribe {
+pub trait SubscribeExt: Subscribe + Clone {
     /// Subscribe to evens and project them onto the given Project type.
     ///
     /// Events published to any stream identified by the EventGroup type
@@ -41,7 +41,7 @@ pub trait SubscribeExt: Subscribe {
 
 impl<T> SubscribeExt for T
 where
-    T: Subscribe + Sync,
+    T: Subscribe + Sync + Clone,
     T::Envelope: Sync,
 {
     #[instrument(skip_all, level = "debug")]

@@ -70,7 +70,7 @@ pub struct Context<'de, E, G> {
 #[trait_variant::make(Send)]
 pub trait Project: Send + Clone {
     /// The event(s) that can be processed by this object.
-    type EventGroup: event::EventGroup + TryFromEnvelope;
+    type EventGroup: event::EventGroup + Send + TryFromEnvelope;
     /// The type to return as an `Err` when the projection fails.
     type Error: std::error::Error + Send + Sync + 'static;
 

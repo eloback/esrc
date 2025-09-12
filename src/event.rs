@@ -4,6 +4,8 @@ use std::iter;
 #[doc(inline)]
 pub use esrc_derive::{Event, EventGroup};
 
+/// Helper trait to handle event model slices
+pub mod event_model;
 /// Publish events to an event store.
 pub mod publish;
 /// Replay existing events in an event store.
