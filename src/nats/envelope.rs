@@ -78,7 +78,7 @@ impl NatsEnvelope {
     /// ack the message asynchronously, ignoring any error
     pub async fn ack(self) {
         tokio::spawn(async move {
-            let _ = self.message.ack();
+            let _ = self.message.ack().await;
         });
     }
 }
