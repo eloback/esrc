@@ -83,18 +83,6 @@ impl NatsEnvelope {
     }
 }
 
-// ack the message on envelope drop automatically
-impl Drop for NatsEnvelope {
-    fn drop(&mut self) {
-        // clone the message to send to other thread
-        let message = self.message.clone();
-        // ack the message ignoring any error
-        tokio::spawn(async move {
-            let _ = message.ack().await;
-        });
-    }
-}
-
 impl Envelope for NatsEnvelope {
     fn id(&self) -> Uuid {
         self.id
