@@ -144,79 +144,27 @@ impl Truncate for NatsStore {
 pub mod event_model {
     use std::pin::pin;
 
-    use futures::TryStreamExt;
-
     use crate::{
-        event::{
-            event_model::{Automation, Translation},
-            future::IntoSendFuture,
-        },
+        event::event_model::{Automation, Translation, ViewAutomation},
         project::{Context, Project},
+        Envelope,
     };
 
     use super::*;
 
     impl NatsStore {
-        #[instrument(skip_all, level = "debug")]
-        async fn nats_durable_subscribe<G: EventGroup>(
-            &self,
-            durable_name: &str,
-        ) -> error::Result<impl Stream<Item = error::Result<async_nats::jetstream::Message>> + Send>
-        {
-            let (_, subjects) = {
-                let mut names = G::names().collect::<Vec<_>>();
-                names.sort();
-
-                let subjects = names
-                    .iter()
-                    .map(|&n| NatsSubject::Event(n.into()).into_string(self.prefix))
-                    .collect();
-                (names.join("-"), subjects)
-            };
-
-            let consumer = self
-                .durable_consumer(durable_name.to_string(), subjects)
-                .await?;
-            Ok(consumer.messages().await?.map_err(|e| e.into()))
-        }
-
-        #[instrument(skip_all, level = "debug")]
-        async fn run_project<P>(&self, projector: P, durable_name: &str) -> error::Result<()>
-        where
-            P: Project + 'static,
-        {
-            let mut stream = pin!(
-                self.nats_durable_subscribe::<P::EventGroup>(durable_name)
-                    .await?
-            );
-            while let Some(message) = stream.next().await {
-                let message = message?;
-                let prefix = self.prefix.to_string();
-                let mut projector = projector.clone();
-                tokio::spawn(async move {
-                    if let Err(e) =
-                        NatsStore::process_message(&prefix, &mut projector, message).await
-                    {
-                        tracing::error!("Error processing message: {:?}", e);
-                    }
-                });
-            }
-
-            Ok(())
-        }
-
-        #[instrument(skip_all, name = "automation", level = "info", fields(subject = %message.subject), err)]
+        /// recieves a message, processes it with the given projector, and acknowledges it.
+        #[instrument(skip_all, name = "automation", level = "info", fields(aggregate=tracing::field::Empty) err)]
         async fn process_message<P: Project>(
-            prefix: &str,
             projector: &mut P,
-            message: async_nats::jetstream::Message,
+            message: Result<NatsEnvelope, Error>,
         ) -> error::Result<()> {
-            opentelemetry_nats::attach_span_context(&message);
-            let envelope = NatsEnvelope::try_from_message(prefix, message)?;
+            let envelope = message?;
+            envelope.attach_span_context();
+            tracing::Span::current().record("aggregate", envelope.name());
             let context = Context::try_with_envelope(&envelope)?;
             projector
                 .project(context)
-                .into_send_future()
                 .await
                 .map_err(|e| Error::External(e.into()))?;
             envelope.ack().await;
@@ -253,11 +201,24 @@ pub mod event_model {
         }
 
         #[instrument(skip_all, level = "debug")]
-        async fn start<P>(&self, projector: P, feature_name: &str) -> error::Result<()>
+        async fn start_automation<P>(&self, projector: P, feature_name: &str) -> error::Result<()>
         where
             P: Project + 'static,
         {
-            self.run_project(projector, feature_name).await
+            let mut stream = pin!(
+                self.durable_subscribe::<P::EventGroup>(feature_name)
+                    .await?
+            );
+            while let Some(message) = stream.next().await {
+                let mut projector = projector.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = NatsStore::process_message(&mut projector, message).await {
+                        tracing::error!("Error processing message: {:?}", e);
+                    }
+                });
+            }
+
+            Ok(())
         }
     }
 
@@ -284,6 +245,30 @@ pub mod event_model {
                 .context
                 .publish_with_headers(subject, headers, payload.into())
                 .await?;
+            Ok(())
+        }
+    }
+
+    impl ViewAutomation for NatsStore {
+        #[instrument(skip_all, level = "debug")]
+        async fn start_view_automation<P>(
+            &self,
+            mut projector: P,
+            feature_name: &str,
+        ) -> error::Result<()>
+        where
+            P: Project + 'static,
+        {
+            let mut stream = pin!(
+                self.durable_subscribe::<P::EventGroup>(feature_name)
+                    .await?
+            );
+            while let Some(message) = stream.next().await {
+                if let Err(e) = NatsStore::process_message(&mut projector, message).await {
+                    tracing::error!("Error processing message: {:?}", e);
+                }
+            }
+
             Ok(())
         }
     }

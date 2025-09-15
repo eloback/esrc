@@ -22,11 +22,23 @@ pub trait Automation {
         unique_name: &str,
     ) -> error::Result<impl Stream<Item = error::Result<Self::Envelope>> + Send>;
 
-    /// Subscribe to evens and project them onto the given Project type.
+    /// Subscribe to events and project them onto the given Project type.
     ///
     /// Events published to any stream identified by the EventGroup type
     /// parameter will be included.
-    async fn start<P>(&self, projector: P, feature_name: &str) -> error::Result<()>
+    async fn start_automation<P>(&self, projector: P, feature_name: &str) -> error::Result<()>
+    where
+        P: Project + 'static;
+}
+
+/// automation that projects events onto a read model
+#[trait_variant::make(Send)]
+pub trait ViewAutomation: Automation {
+    /// Subscribe to events and project them onto the given Project type.
+    ///
+    /// Events published to any stream identified by the EventGroup type
+    /// parameter will be included.
+    async fn start_view_automation<P>(&self, projector: P, feature_name: &str) -> error::Result<()>
     where
         P: Project + 'static;
 }

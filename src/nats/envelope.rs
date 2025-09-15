@@ -60,8 +60,6 @@ impl NatsEnvelope {
             let info = message.info().map_err(Error::Internal)?;
             (info.stream_sequence, info.published.unix_timestamp())
         };
-        // propagate otel span if exists
-        opentelemetry_nats::attach_span_context(&message);
 
         Ok(Self {
             id,
@@ -73,6 +71,12 @@ impl NatsEnvelope {
             version,
             message,
         })
+    }
+
+    /// Attach the current OpenTelemetry span context to the message headers, if any.
+    pub fn attach_span_context(&self) {
+        // propagate otel span if exists
+        opentelemetry_nats::attach_span_context(&self.message);
     }
 
     /// ack the message asynchronously, ignoring any error

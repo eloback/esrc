@@ -3,7 +3,7 @@
 
 use async_nats::jetstream;
 use esrc::aggregate::Root;
-use esrc::event::event_model::Automation;
+use esrc::event::event_model::{Automation, ViewAutomation};
 use esrc::event::{PublishExt, ReplayOne, ReplayOneExt, SubscribeExt};
 use esrc::nats::NatsStore;
 use tab::{Tab, TabCommand};
@@ -24,7 +24,12 @@ async fn main() -> anyhow::Result<()> {
     let handle = {
         let active_tables = ActiveTables::new();
         let store = store.clone();
-        tokio::spawn(async move { store.start(active_tables, "active_tables").await.unwrap() })
+        tokio::spawn(async move {
+            store
+                .start_view_automation(active_tables, "active_tables")
+                .await
+                .unwrap()
+        })
     };
 
     let id = Uuid::now_v7();
