@@ -1,4 +1,6 @@
 use futures::Stream;
+use stream_cancel::Trigger;
+use tokio::sync::oneshot::Sender;
 
 use super::EventGroup;
 use crate::envelope;
@@ -29,6 +31,21 @@ pub trait Automation {
     async fn start_automation<P>(&self, projector: P, feature_name: &str) -> error::Result<()>
     where
         P: Project + 'static;
+
+    /// Subscribe to events and project them onto the given Project type, with a way to gracefully shutdown the process.
+    ///
+    /// Events published to any stream identified by the EventGroup type
+    /// parameter will be included.
+    ///
+    /// The exit_tx Sender can be used to send a Trigger that will stop the processing of new events.
+    async fn start_automation_with_graceful_shutdown<P>(
+        &self,
+        projector: P,
+        feature_name: &str,
+        exit_tx: Sender<Trigger>,
+    ) -> error::Result<()>
+    where
+        P: Project + 'static;
 }
 
 /// automation that projects events onto a read model
@@ -39,6 +56,21 @@ pub trait ViewAutomation: Automation {
     /// Events published to any stream identified by the EventGroup type
     /// parameter will be included.
     async fn start_view_automation<P>(&self, projector: P, feature_name: &str) -> error::Result<()>
+    where
+        P: Project + 'static;
+
+    /// Subscribe to events and project them onto the given Project type, with a way to gracefully shutdown the process.
+    ///
+    /// Events published to any stream identified by the EventGroup type
+    /// parameter will be included.
+    ///
+    /// The exit_tx Sender can be used to send a Trigger that will stop the processing of new events.
+    async fn start_view_automation_with_graceful_shutdown<P>(
+        &self,
+        projector: P,
+        feature_name: &str,
+        exit_tx: Sender<Trigger>,
+    ) -> error::Result<()>
     where
         P: Project + 'static;
 }

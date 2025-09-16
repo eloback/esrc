@@ -144,6 +144,9 @@ impl Truncate for NatsStore {
 pub mod event_model {
     use std::pin::pin;
 
+    use stream_cancel::{Trigger, Valved};
+    use tokio::sync::oneshot::Sender;
+
     use crate::{
         event::event_model::{Automation, Translation, ViewAutomation},
         project::{Context, Project},
@@ -220,6 +223,36 @@ pub mod event_model {
 
             Ok(())
         }
+
+        #[instrument(skip_all, level = "debug")]
+        async fn start_automation_with_graceful_shutdown<P>(
+            &self,
+            projector: P,
+            feature_name: &str,
+            exit_tx: Sender<Trigger>,
+        ) -> error::Result<()>
+        where
+            P: Project + 'static,
+        {
+            let stream = pin!(
+                self.durable_subscribe::<P::EventGroup>(feature_name)
+                    .await?
+            );
+
+            let (exit, mut incoming) = Valved::new(stream);
+            exit_tx.send(exit).unwrap();
+
+            while let Some(message) = incoming.next().await {
+                let mut projector = projector.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = NatsStore::process_message(&mut projector, message).await {
+                        tracing::error!("Error processing message: {:?}", e);
+                    }
+                });
+            }
+
+            Ok(())
+        }
     }
 
     impl Translation for NatsStore {
@@ -264,6 +297,33 @@ pub mod event_model {
                     .await?
             );
             while let Some(message) = stream.next().await {
+                if let Err(e) = NatsStore::process_message(&mut projector, message).await {
+                    tracing::error!("Error processing message: {:?}", e);
+                }
+            }
+
+            Ok(())
+        }
+
+        #[instrument(skip_all, level = "debug")]
+        async fn start_view_automation_with_graceful_shutdown<P>(
+            &self,
+            mut projector: P,
+            feature_name: &str,
+            exit_tx: Sender<Trigger>,
+        ) -> error::Result<()>
+        where
+            P: Project + 'static,
+        {
+            let stream = pin!(
+                self.durable_subscribe::<P::EventGroup>(feature_name)
+                    .await?
+            );
+
+            let (exit, mut incoming) = Valved::new(stream);
+            exit_tx.send(exit).unwrap();
+
+            while let Some(message) = incoming.next().await {
                 if let Err(e) = NatsStore::process_message(&mut projector, message).await {
                     tracing::error!("Error processing message: {:?}", e);
                 }
