@@ -28,6 +28,10 @@ impl ActiveTables {
             .values()
             .any(|n| *n == table_number)
     }
+
+    pub async fn get_table_numbers(&self) -> HashMap<Uuid, u64> {
+        self.table_numbers.read().await.clone()
+    }
 }
 
 impl Project for ActiveTables {
