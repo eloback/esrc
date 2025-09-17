@@ -1,6 +1,7 @@
 use futures::Stream;
 use stream_cancel::Trigger;
 use tokio::sync::oneshot::Sender;
+use tokio_util::task::TaskTracker;
 
 use super::EventGroup;
 use crate::envelope;
@@ -42,8 +43,9 @@ pub trait Automation {
         &self,
         projector: P,
         feature_name: &str,
+        task_tracker: TaskTracker,
         exit_tx: Sender<Trigger>,
-    ) -> error::Result<()>
+    ) -> error::Result<TaskTracker>
     where
         P: Project + 'static;
 }
@@ -69,8 +71,9 @@ pub trait ViewAutomation: Automation {
         &self,
         projector: P,
         feature_name: &str,
+        task_tracker: TaskTracker,
         exit_tx: Sender<Trigger>,
-    ) -> error::Result<()>
+    ) -> error::Result<TaskTracker>
     where
         P: Project + 'static;
 }
