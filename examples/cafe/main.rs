@@ -1,6 +1,8 @@
 #![allow(clippy::unnecessary_literal_unwrap)]
 #![allow(unused)]
 
+use std::task;
+
 use async_nats::jetstream;
 use esrc::aggregate::Root;
 use esrc::event::event_model::{Automation, ViewAutomation};
@@ -20,13 +22,24 @@ async fn main() -> anyhow::Result<()> {
     let context = jetstream::new(client);
 
     let mut store = NatsStore::try_new(context, "cafe").await?;
+    let task_tracker = tokio_util::task::TaskTracker::new();
+    let (exit_tx, mut exit_rx) = tokio::sync::oneshot::channel::<stream_cancel::Trigger>();
+
+    let active_tables = ActiveTables::new();
 
     let handle = {
-        let active_tables = ActiveTables::new();
         let store = store.clone();
-        tokio::spawn(async move {
+        let task_tracker = task_tracker.clone();
+        let active_tables = active_tables.clone();
+
+        task_tracker.clone().spawn(async move {
             store
-                .start_view_automation(active_tables, "active_tables")
+                .start_view_automation_with_graceful_shutdown(
+                    active_tables,
+                    "active_tables",
+                    task_tracker,
+                    exit_tx,
+                )
                 .await
                 .unwrap()
         })
@@ -56,6 +69,14 @@ async fn main() -> anyhow::Result<()> {
     // your chosen web application / interface framework (such as
     // `axum::extract::State<S>`). Both the NatsStore and any Project impl
     // will be Clone and can be used in this way.
+
+    let table_numbers = active_tables.get_table_numbers().await;
+    println!("Active tables: {:#?}", table_numbers);
+
+    let exit = exit_rx.await.expect("Failed to receive exit signal");
+    drop(exit);
+    task_tracker.close();
+    task_tracker.wait().await;
 
     Ok(())
 }
