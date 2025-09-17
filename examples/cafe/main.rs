@@ -22,24 +22,28 @@ async fn main() -> anyhow::Result<()> {
     let context = jetstream::new(client);
 
     let mut store = NatsStore::try_new(context, "cafe").await?;
-    let task_tracker = tokio_util::task::TaskTracker::new();
-    let (exit_tx, mut exit_rx) = tokio::sync::oneshot::channel::<stream_cancel::Trigger>();
+    let task_tracker = store.get_task_tracker();
 
     let active_tables = ActiveTables::new();
 
-    let handle = {
+    {
         let store = store.clone();
-        let task_tracker = task_tracker.clone();
         let active_tables = active_tables.clone();
 
-        task_tracker.clone().spawn(async move {
+        task_tracker.spawn(async move {
             store
-                .start_view_automation_with_graceful_shutdown(
-                    active_tables,
-                    "active_tables",
-                    task_tracker,
-                    exit_tx,
-                )
+                .start_automation(active_tables, "active_tables")
+                .await
+                .unwrap()
+        })
+    };
+    {
+        let store = store.clone();
+        let active_tables = active_tables.clone();
+
+        task_tracker.spawn(async move {
+            store
+                .start_automation(active_tables, "active_tables")
                 .await
                 .unwrap()
         })
@@ -73,10 +77,7 @@ async fn main() -> anyhow::Result<()> {
     let table_numbers = active_tables.get_table_numbers().await;
     println!("Active tables: {:#?}", table_numbers);
 
-    let exit = exit_rx.await.expect("Failed to receive exit signal");
-    drop(exit);
-    task_tracker.close();
-    task_tracker.wait().await;
+    store.wait_graceful_shutdown().await;
 
     Ok(())
 }

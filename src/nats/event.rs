@@ -144,9 +144,7 @@ impl Truncate for NatsStore {
 pub mod event_model {
     use std::pin::pin;
 
-    use stream_cancel::{Trigger, Valved};
-    use tokio::sync::oneshot::Sender;
-    use tokio_util::task::TaskTracker;
+    use stream_cancel::Valved;
 
     use crate::{
         event::event_model::{Automation, Translation, ViewAutomation},
@@ -209,13 +207,24 @@ pub mod event_model {
         where
             P: Project + 'static,
         {
-            let mut stream = pin!(
+            let stream = pin!(
                 self.durable_subscribe::<P::EventGroup>(feature_name)
-                    .await?
+                    .await?,
             );
-            while let Some(message) = stream.next().await {
+
+            let (exit, incoming) = Valved::new(stream);
+            self.graceful_shutdown
+                .exit_tx
+                .send(exit)
+                .await
+                .expect("should be able to send graceful trigger");
+
+            let mut incoming = incoming;
+
+            while let Some(message) = incoming.next().await {
                 let mut projector = projector.clone();
-                tokio::spawn(async move {
+
+                self.graceful_shutdown.task_tracker.spawn(async move {
                     if let Err(e) = NatsStore::process_message(&mut projector, message).await {
                         tracing::error!("Error processing message: {:?}", e);
                     }
@@ -223,40 +232,6 @@ pub mod event_model {
             }
 
             Ok(())
-        }
-
-        #[instrument(skip_all, level = "debug")]
-        async fn start_automation_with_graceful_shutdown<P>(
-            &self,
-            projector: P,
-            feature_name: &str,
-            task_tracker: TaskTracker,
-            exit_tx: Sender<Trigger>,
-        ) -> error::Result<TaskTracker>
-        where
-            P: Project + 'static,
-        {
-            let stream = pin!(
-                self.durable_subscribe::<P::EventGroup>(feature_name)
-                    .await?,
-            );
-
-            let (exit, incoming) = Valved::new(stream);
-            exit_tx.send(exit).unwrap();
-
-            let mut incoming = incoming;
-
-            while let Some(message) = incoming.next().await {
-                let mut projector = projector.clone();
-
-                task_tracker.spawn(async move {
-                    if let Err(e) = NatsStore::process_message(&mut projector, message).await {
-                        tracing::error!("Error processing message: {:?}", e);
-                    }
-                });
-            }
-
-            Ok(task_tracker)
         }
     }
 
@@ -291,33 +266,9 @@ pub mod event_model {
         #[instrument(skip_all, level = "debug")]
         async fn start_view_automation<P>(
             &self,
-            mut projector: P,
-            feature_name: &str,
-        ) -> error::Result<()>
-        where
-            P: Project + 'static,
-        {
-            let mut stream = pin!(
-                self.durable_subscribe::<P::EventGroup>(feature_name)
-                    .await?
-            );
-            while let Some(message) = stream.next().await {
-                if let Err(e) = NatsStore::process_message(&mut projector, message).await {
-                    tracing::error!("Error processing message: {:?}", e);
-                }
-            }
-
-            Ok(())
-        }
-
-        #[instrument(skip_all, level = "debug")]
-        async fn start_view_automation_with_graceful_shutdown<P>(
-            &self,
             projector: P,
             feature_name: &str,
-            task_tracker: TaskTracker,
-            exit_tx: Sender<Trigger>,
-        ) -> error::Result<TaskTracker>
+        ) -> error::Result<()>
         where
             P: Project + 'static,
         {
@@ -325,21 +276,25 @@ pub mod event_model {
                 self.durable_subscribe::<P::EventGroup>(feature_name)
                     .await?
             );
-
             let (exit, mut incoming) = Valved::new(stream);
-            exit_tx.send(exit).unwrap();
+            self.graceful_shutdown
+                .exit_tx
+                .clone()
+                .send(exit)
+                .await
+                .expect("should be able to send graceful trigger");
 
             while let Some(message) = incoming.next().await {
                 let mut projector = projector.clone();
 
-                task_tracker.spawn(async move {
+                self.graceful_shutdown.task_tracker.spawn(async move {
                     if let Err(e) = NatsStore::process_message(&mut projector, message).await {
                         tracing::error!("Error processing message: {:?}", e);
                     }
                 });
             }
 
-            Ok(task_tracker)
+            Ok(())
         }
     }
 }

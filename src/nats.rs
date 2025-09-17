@@ -1,7 +1,12 @@
+use std::sync::{Arc, Mutex};
+
 use async_nats::jetstream::consumer::pull::{Config as ConsumerConfig, OrderedConfig};
 use async_nats::jetstream::consumer::{Consumer, DeliverPolicy};
 use async_nats::jetstream::stream::{Config as StreamConfig, DiscardPolicy, Stream as JetStream};
 use async_nats::jetstream::Context;
+use stream_cancel::Trigger;
+use tokio::sync::mpsc::{Receiver, Sender};
+use tokio_util::task::TaskTracker;
 use tracing::instrument;
 
 use crate::error;
@@ -31,7 +36,17 @@ pub struct NatsStore {
     context: Context,
     stream: JetStream,
 
+    graceful_shutdown: GracefulShutdown,
+
     durable_consumer_options: ConsumerConfig,
+}
+
+/// A structure to help with graceful shutdown of tasks.
+#[derive(Clone)]
+pub struct GracefulShutdown {
+    task_tracker: TaskTracker,
+    exit_rx: Arc<Mutex<Receiver<Trigger>>>,
+    exit_tx: Sender<Trigger>,
 }
 
 impl NatsStore {
@@ -59,14 +74,46 @@ impl NatsStore {
             ..Default::default()
         };
 
+        // if there is more than 1000 automations this should be increased
+        let (exit_tx, exit_rx) = tokio::sync::mpsc::channel::<stream_cancel::Trigger>(1000);
+        let task_tracker = tokio_util::task::TaskTracker::new();
+
+        let graceful_shutdown = GracefulShutdown {
+            exit_tx,
+            exit_rx: Mutex::new(exit_rx).into(),
+            task_tracker,
+        };
+
         Ok(Self {
             prefix,
 
             context,
             stream,
 
+            graceful_shutdown,
+
             durable_consumer_options: config,
         })
+    }
+
+    /// get a handle to the task tracker used for graceful shutdown of tasks
+    pub fn get_task_tracker(&self) -> TaskTracker {
+        self.graceful_shutdown.task_tracker.clone()
+    }
+
+    ///
+    pub async fn wait_graceful_shutdown(self) {
+        let mut exit_rx = self
+            .graceful_shutdown
+            .exit_rx
+            .lock()
+            .expect("lock to not be poisoned");
+        while let Some(trigger) = exit_rx.try_recv().ok() {
+            println!("triggering graceful shutdown");
+            trigger.cancel();
+        }
+        self.graceful_shutdown.task_tracker.close();
+        self.graceful_shutdown.task_tracker.wait().await;
     }
 
     /// the subjects and durable name of the consumer are overwritten by the function that starts
