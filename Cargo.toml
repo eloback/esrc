@@ -29,6 +29,7 @@ uuid = "1.8"
 kurrentdb = "1.0.0"
 tracing-futures = { version = "0.2.5", features = ["futures-03"] }
 stream-cancel = "0.8"
+tokio-util = { version = "0.7", features = ["rt"] }
 
 [package]
 name = "esrc"
@@ -68,6 +69,7 @@ uuid.workspace = true
 kurrentdb = { workspace = true, optional = true }
 tokio.workspace = true
 stream-cancel.workspace = true
+tokio-util.workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true
