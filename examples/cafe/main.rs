@@ -32,7 +32,7 @@ async fn main() -> anyhow::Result<()> {
 
         task_tracker.spawn(async move {
             store
-                .start_automation(active_tables, "active_tables")
+                .start_automation(active_tables, "active_tables_1")
                 .await
                 .unwrap()
         })
@@ -43,41 +43,38 @@ async fn main() -> anyhow::Result<()> {
 
         task_tracker.spawn(async move {
             store
-                .start_automation(active_tables, "active_tables")
+                .start_automation(active_tables, "active_tables_2")
                 .await
                 .unwrap()
         })
     };
 
     let id = Uuid::now_v7();
-    let tab = Root::<Tab>::new(id);
-
+    let root: Root<Tab> = store.read(id).await?;
     let command = TabCommand::Open {
         table_number: 1,
         waiter: "teste".to_string(),
     };
-    store.try_write(tab, command).await?;
+    store.try_write(root, command).await?;
+
+    let id = Uuid::now_v7();
     let command = TabCommand::Open {
         table_number: 2,
         waiter: "teste".to_string(),
     };
     let root: Root<Tab> = store.read(id).await?;
     let root = store.try_write(root, command).await?;
-
-    let command = TabCommand::Open {
-        table_number: 1,
-        waiter: "teste".to_string(),
-    };
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
     // Place the `store` and `active_tables` objects inside shared state for
     // your chosen web application / interface framework (such as
     // `axum::extract::State<S>`). Both the NatsStore and any Project impl
     // will be Clone and can be used in this way.
 
+    store.wait_graceful_shutdown().await;
+
     let table_numbers = active_tables.get_table_numbers().await;
     println!("Active tables: {:#?}", table_numbers);
-
-    store.wait_graceful_shutdown().await;
 
     Ok(())
 }

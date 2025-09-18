@@ -45,6 +45,8 @@ impl Project for ActiveTables {
     where
         E: Envelope + Sync,
     {
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
         let id = Context::id(&context);
         let mut map = self.table_numbers.write().await;
 
