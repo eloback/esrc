@@ -287,11 +287,9 @@ pub mod event_model {
             while let Some(message) = incoming.next().await {
                 let mut projector = projector.clone();
 
-                self.graceful_shutdown.task_tracker.spawn(async move {
-                    if let Err(e) = NatsStore::process_message(&mut projector, message).await {
-                        tracing::error!("Error processing message: {:?}", e);
-                    }
-                });
+                if let Err(e) = NatsStore::process_message(&mut projector, message).await {
+                    tracing::error!("Error processing message: {:?}", e);
+                }
             }
 
             Ok(())
