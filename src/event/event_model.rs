@@ -59,22 +59,17 @@ pub mod view {
     use crate::{envelope::TryFromEnvelope, event, project::Context, Envelope};
 
     /// tell if the state of the view changed
-    type Changed = bool;
+    pub type Changed = bool;
 
     /// Declare a read model that can be updated by projecting events onto it.
     #[trait_variant::make(Send)]
-    pub trait View: Default + Send + Serialize + DeserializeOwned {
+    pub trait View: Default + Clone + Send + Serialize + DeserializeOwned {
         /// The event(s) that can be processed by this object.
         type EventGroup: event::EventGroup + Send + TryFromEnvelope;
-        /// The type to return as an `Err` when the projection fails.
-        type Error: std::error::Error + Send + Sync + 'static;
 
         /// Update the aggregate state using a previously published event.
         /// and return whether the state changed
-        async fn apply<'de, E>(
-            &mut self,
-            context: Context<'de, E, Self::EventGroup>,
-        ) -> Result<Changed, Self::Error>
+        fn apply<'de, E>(&mut self, context: Context<'de, E, Self::EventGroup>) -> Changed
         where
             E: Envelope + Sync;
     }
