@@ -47,6 +47,33 @@ impl Publish for NatsStore {
             .await?;
         Ok(Sequence::from(ack.await?.sequence))
     }
+
+    async fn publish_without_occ<E>(&mut self, id: Uuid, event: E) -> error::Result<()>
+    where
+        E: Event + SerializeVersion,
+    {
+        let subject = NatsSubject::Aggregate(E::name().into(), id).into_string(self.prefix);
+        let payload = serde_json::to_string(&event).map_err(|e| Error::Format(e.into()))?;
+
+        let mut headers: HeaderMap = {
+            if cfg!(feature = "opentelemetry") {
+                // create with openslemetry headers
+                opentelemetry_nats::NatsHeaderInjector::default_with_span().into()
+            } else {
+                HeaderMap::new()
+            }
+        };
+        // add esrc headers
+        headers.append(VERSION_KEY, E::version().to_string());
+        headers.append(EVENT_TYPE, event._type().to_string());
+
+        let _ = self
+            .context
+            .publish_with_headers(subject, headers, payload.into())
+            .await?
+            .await?;
+        Ok(())
+    }
 }
 
 impl Replay for NatsStore {

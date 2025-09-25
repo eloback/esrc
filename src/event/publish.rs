@@ -25,6 +25,14 @@ pub trait Publish {
     ) -> error::Result<Sequence>
     where
         E: Event + SerializeVersion;
+
+    /// Publish the given Event to an event stream without checking the last sequence.
+    ///
+    /// The stream is identified by the [`Event::name`] and the given Aggregate
+    /// ID.
+    async fn publish_without_occ<E>(&mut self, id: Uuid, event: E) -> error::Result<()>
+    where
+        E: Event + SerializeVersion;
 }
 
 /// Extensions for publishing events using the aggregate traits.

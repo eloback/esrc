@@ -47,6 +47,14 @@ impl Publish for KurrentStore {
             .await?;
         Ok(Sequence::from(result.next_expected_version))
     }
+
+    async fn publish_without_occ<E>(&mut self, id: Uuid, event: E) -> error::Result<()>
+    where
+        E: Event + SerializeVersion,
+    {
+        let _ = self.publish::<E>(id, Sequence::from(0), event).await?;
+        Ok(())
+    }
 }
 
 // impl Replay for KurrentStore {
