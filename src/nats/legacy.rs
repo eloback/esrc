@@ -12,7 +12,10 @@ impl NatsStore {
         unique_name: &str,
         subjects: Vec<impl Into<String> + Send + Sync>,
     ) -> error::Result<impl Stream<Item = error::Result<Message>> + Send> {
-        let subjects: Vec<String> = subjects.into_iter().map(|s| s.into()).collect();
+        let subjects: Vec<String> = subjects
+            .into_iter()
+            .map(|s| format!("{}.{}", self.prefix, s.into()))
+            .collect();
 
         let consumer = self
             .durable_consumer(unique_name.to_string(), subjects)
