@@ -62,7 +62,6 @@ pub mod view {
     pub type Changed = bool;
 
     /// Declare a read model that can be updated by projecting events onto it.
-    #[trait_variant::make(Send)]
     pub trait View: Default + Clone + Send + Serialize + DeserializeOwned {
         /// The event(s) that can be processed by this object.
         type EventGroup: event::EventGroup + Send + TryFromEnvelope;
@@ -71,6 +70,6 @@ pub mod view {
         /// and return whether the state changed
         fn apply<'de, E>(&mut self, context: Context<'de, E, Self::EventGroup>) -> Changed
         where
-            E: Envelope + Sync;
+            E: Envelope;
     }
 }
