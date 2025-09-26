@@ -5,6 +5,9 @@ use crate::envelope;
 use crate::error::{self};
 use crate::project::Project;
 
+/// View trait to help declare Read Models
+pub mod view;
+
 /// Declare automations that will be executed on new events.
 #[trait_variant::make(Send)]
 pub trait Automation {
@@ -50,26 +53,4 @@ pub trait Translation: Automation {
     async fn publish_to_automation<E>(&mut self, id: uuid::Uuid, event: E) -> error::Result<()>
     where
         E: super::Event + crate::version::SerializeVersion;
-}
-
-/// View trait to help declare Read Models
-pub mod view {
-    use serde::{de::DeserializeOwned, Serialize};
-
-    use crate::{envelope::TryFromEnvelope, event, project::Context, Envelope};
-
-    /// tell if the state of the view changed
-    pub type Changed = bool;
-
-    /// Declare a read model that can be updated by projecting events onto it.
-    pub trait View: Default + Clone + Send + Serialize + DeserializeOwned {
-        /// The event(s) that can be processed by this object.
-        type EventGroup: event::EventGroup + Send + TryFromEnvelope;
-
-        /// Update the aggregate state using a previously published event.
-        /// and return whether the state changed
-        fn apply<'de, E>(&mut self, context: Context<'de, E, Self::EventGroup>) -> Changed
-        where
-            E: Envelope;
-    }
 }
