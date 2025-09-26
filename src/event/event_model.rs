@@ -5,6 +5,9 @@ use crate::envelope;
 use crate::error::{self};
 use crate::project::Project;
 
+/// View trait to help declare Read Models
+pub mod view;
+
 /// Declare automations that will be executed on new events.
 #[trait_variant::make(Send)]
 pub trait Automation {
