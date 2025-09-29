@@ -70,6 +70,7 @@ kurrentdb = { workspace = true, optional = true }
 tokio.workspace = true
 stream-cancel.workspace = true
 tokio-util.workspace = true
+time = { version = "0.3", features = ["serde", "macros"] }
 
 [dev-dependencies]
 anyhow.workspace = true

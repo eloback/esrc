@@ -21,6 +21,10 @@ pub mod event;
 /// Legacy support for older projects that needed the automation control of the NatsStore.
 pub mod legacy;
 
+/// Dead letter queue functionality for handling undelivered messages.
+pub mod dead_letter;
+
+pub use dead_letter::{DeadLetterMessage, DeadLetterReason, DeadLetterStore};
 pub use envelope::NatsEnvelope;
 
 mod header;

@@ -553,6 +553,7 @@ dependencies = [
  "serde_json",
  "stream-cancel",
  "thiserror 2.0.12",
+ "time",
  "tokio",
  "tokio-util",
  "tracing",
