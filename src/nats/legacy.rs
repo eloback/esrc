@@ -82,7 +82,7 @@ pub trait LegacyProject: Send + Clone {
 }
 
 /// recieves a message, processes it with the given projector, and acknowledges it.
-#[instrument(skip_all, name = "legacy_automation", level = "info", fields(aggregate=tracing::field::Empty) err)]
+#[instrument(skip_all, name = "legacy_automation", level = "info", fields(aggregate=tracing::field::Empty) err(Debug))]
 async fn process_legacy_message<P: LegacyProject>(
     projector: &mut P,
     message: Result<Message, error::Error>,
