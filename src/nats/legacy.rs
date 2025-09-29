@@ -50,7 +50,11 @@ impl NatsStore {
         while let Some(message) = incoming.next().await {
             let mut projector = projector.clone();
 
-            let _ = process_legacy_message(&mut projector, message).await;
+            self.graceful_shutdown.task_tracker.spawn(async move {
+                if let Err(e) = process_legacy_message(&mut projector, message).await {
+                    tracing::error!("Error processing message: {:?}", e);
+                }
+            });
         }
 
         Ok(())
