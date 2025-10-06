@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::future::Future;
 
 use tracing::instrument;
@@ -22,6 +23,7 @@ pub trait Publish {
         id: Uuid,
         last_sequence: Sequence,
         event: E,
+        metadata: Option<HashMap<String, String>>,
     ) -> error::Result<Sequence>
     where
         E: Event + SerializeVersion;
@@ -41,7 +43,12 @@ pub trait PublishExt: Publish {
     /// Apply an Event to an aggregate, after writing it to an event stream.
     ///
     /// The ID and last sequence number are taken from the Root.
-    async fn write<A>(&mut self, root: Root<A>, event: A::Event) -> error::Result<Root<A>>
+    async fn write<A>(
+        &mut self,
+        root: Root<A>,
+        event: A::Event,
+        metadata: Option<HashMap<String, String>>,
+    ) -> error::Result<Root<A>>
     where
         A: Aggregate,
         A::Event: SerializeVersion;
@@ -49,7 +56,12 @@ pub trait PublishExt: Publish {
     /// Process a Command, apply the new Event, and write to an event stream.
     ///
     /// Like [`write`], the ID and last sequence number are taken from the Root.
-    async fn try_write<A>(&mut self, root: Root<A>, command: A::Command) -> error::Result<Root<A>>
+    async fn try_write<A>(
+        &mut self,
+        root: Root<A>,
+        command: A::Command,
+        metadata: Option<HashMap<String, String>>,
+    ) -> error::Result<Root<A>>
     where
         A: Aggregate,
         A::Event: SerializeVersion;
@@ -57,7 +69,12 @@ pub trait PublishExt: Publish {
 
 impl<T: Publish> PublishExt for T {
     #[instrument(skip_all, level = "debug")]
-    async fn write<A>(&mut self, root: Root<A>, event: A::Event) -> error::Result<Root<A>>
+    async fn write<A>(
+        &mut self,
+        root: Root<A>,
+        event: A::Event,
+        metadata: Option<HashMap<String, String>>,
+    ) -> error::Result<Root<A>>
     where
         A: Aggregate,
         A::Event: SerializeVersion,
@@ -66,7 +83,8 @@ impl<T: Publish> PublishExt for T {
         let last_sequence = Root::last_sequence(&root);
 
         let aggregate = Root::into_inner(root).apply(&event);
-        self.publish::<A::Event>(id, last_sequence, event).await?;
+        self.publish::<A::Event>(id, last_sequence, event, metadata)
+            .await?;
 
         Ok(Root::with_aggregate(aggregate, id, last_sequence))
     }
@@ -76,12 +94,13 @@ impl<T: Publish> PublishExt for T {
         &mut self,
         root: Root<A>,
         command: A::Command,
+        metadata: Option<HashMap<String, String>>,
     ) -> impl Future<Output = error::Result<Root<A>>>
     where
         A: Aggregate,
         A::Event: SerializeVersion,
     {
         let event = root.process(command).map_err(|e| Error::External(e.into()));
-        async move { self.write(root, event?).await }
+        async move { self.write(root, event?, metadata).await }
     }
 }

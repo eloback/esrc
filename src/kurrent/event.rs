@@ -25,6 +25,7 @@ impl Publish for KurrentStore {
         // this guarantee is already made by the database
         _last_sequence: Sequence,
         event: E,
+        metadata: Option<HashMap<String, String>>,
     ) -> error::Result<Sequence>
     where
         E: Event + SerializeVersion,
@@ -32,7 +33,8 @@ impl Publish for KurrentStore {
         let subject = KurrentSubject::Aggregate(E::name().into(), id);
         let options = AppendToStreamOptions::default();
 
-        let mut metadata = HashMap::new();
+        let mut metadata = metadata.unwrap_or_default();
+        // reserved keys override any provided values
         metadata.insert(VERSION_KEY.to_string(), E::version().to_string());
         metadata.insert(EVENT_TYPE.to_string(), event._type().to_string());
         let metadata = serde_json::to_string(&metadata).map_err(|e| Error::Format(e.into()))?;
@@ -52,7 +54,9 @@ impl Publish for KurrentStore {
     where
         E: Event + SerializeVersion,
     {
-        let _ = self.publish::<E>(id, Sequence::from(0), event).await?;
+        let _ = self
+            .publish::<E>(id, Sequence::from(0), event, None)
+            .await?;
         Ok(())
     }
 }

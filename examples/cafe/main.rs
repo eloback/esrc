@@ -55,7 +55,7 @@ async fn main() -> anyhow::Result<()> {
         table_number: 1,
         waiter: "teste".to_string(),
     };
-    store.try_write(root, command).await?;
+    store.try_write(root, command, None).await?;
 
     let id = Uuid::now_v7();
     let command = TabCommand::Open {
@@ -63,7 +63,9 @@ async fn main() -> anyhow::Result<()> {
         waiter: "teste".to_string(),
     };
     let root: Root<Tab> = store.read(id).await?;
-    let root = store.try_write(root, command).await?;
+    let headers =
+        std::collections::HashMap::from([("x-correlation-id".to_string(), "123".to_string())]);
+    let root = store.try_write(root, command, Some(headers)).await?;
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
     // Place the `store` and `active_tables` objects inside shared state for
@@ -90,7 +92,7 @@ async fn on_open(table_number: u64, waiter: String) -> anyhow::Result<Uuid> {
         table_number,
         waiter,
     };
-    shared_store.unwrap().try_write(tab, command).await?;
+    shared_store.unwrap().try_write(tab, command, None).await?;
 
     Ok(id)
 }

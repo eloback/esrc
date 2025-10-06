@@ -18,6 +18,7 @@ impl Publish for NatsStore {
         id: Uuid,
         last_sequence: Sequence,
         event: E,
+        metadata: Option<std::collections::HashMap<String, String>>,
     ) -> error::Result<Sequence>
     where
         E: Event + SerializeVersion,
@@ -27,19 +28,30 @@ impl Publish for NatsStore {
 
         let mut headers: HeaderMap = {
             if cfg!(feature = "opentelemetry") {
-                // create with openslemetry headers
                 opentelemetry_nats::NatsHeaderInjector::default_with_span().into()
             } else {
                 HeaderMap::new()
             }
         };
-        // add esrc headers
         headers.append(VERSION_KEY, E::version().to_string());
         headers.append(
             NATS_EXPECTED_LAST_SUBJECT_SEQUENCE,
             u64::from(last_sequence).to_string(),
         );
         headers.append(EVENT_TYPE, event._type().to_string());
+
+        if let Some(extra) = metadata {
+            for (k, v) in extra {
+                // avoid overriding reserved keys; NATS headers allow multiple values, but
+                // appending duplicate reserved keys may change semantics of retrieval.
+                let is_reserved = k.eq_ignore_ascii_case(VERSION_KEY)
+                    || k.eq_ignore_ascii_case(EVENT_TYPE)
+                    || k.eq_ignore_ascii_case(&NATS_EXPECTED_LAST_SUBJECT_SEQUENCE.to_string());
+                if !is_reserved {
+                    headers.append(k, v);
+                }
+            }
+        }
 
         let ack = self
             .context
@@ -57,13 +69,11 @@ impl Publish for NatsStore {
 
         let mut headers: HeaderMap = {
             if cfg!(feature = "opentelemetry") {
-                // create with openslemetry headers
                 opentelemetry_nats::NatsHeaderInjector::default_with_span().into()
             } else {
                 HeaderMap::new()
             }
         };
-        // add esrc headers
         headers.append(VERSION_KEY, E::version().to_string());
         headers.append(EVENT_TYPE, event._type().to_string());
 
@@ -272,7 +282,6 @@ pub mod event_model {
 
             let mut headers: HeaderMap = {
                 if cfg!(feature = "opentelemetry") {
-                    // create with openslemetry headers
                     opentelemetry_nats::NatsHeaderInjector::default_with_span().into()
                 } else {
                     HeaderMap::new()

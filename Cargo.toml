@@ -35,7 +35,7 @@ tokio-util = { version = "0.7", features = ["rt"] }
 name = "esrc"
 description = "Primitives for implementing event sourcing and CQRS systems"
 readme = true
-version = "0.1.0"
+version = "0.2.0"
 
 keywords = ["cqrs", "event-sourcing", "ddd"]
 
