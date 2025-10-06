@@ -60,7 +60,12 @@ impl Publish for NatsStore {
         Ok(Sequence::from(ack.await?.sequence))
     }
 
-    async fn publish_without_occ<E>(&mut self, id: Uuid, event: E) -> error::Result<()>
+    async fn publish_without_occ<E>(
+        &mut self,
+        id: Uuid,
+        event: E,
+        metadata: Option<std::collections::HashMap<String, String>>,
+    ) -> error::Result<()>
     where
         E: Event + SerializeVersion,
     {
@@ -76,6 +81,18 @@ impl Publish for NatsStore {
         };
         headers.append(VERSION_KEY, E::version().to_string());
         headers.append(EVENT_TYPE, event._type().to_string());
+
+        if let Some(extra) = metadata {
+            for (k, v) in extra {
+                // avoid overriding reserved keys; NATS headers allow multiple values, but
+                // appending duplicate reserved keys may change semantics of retrieval.
+                let is_reserved =
+                    k.eq_ignore_ascii_case(VERSION_KEY) || k.eq_ignore_ascii_case(EVENT_TYPE);
+                if !is_reserved {
+                    headers.append(k, v);
+                }
+            }
+        }
 
         let _ = self
             .context

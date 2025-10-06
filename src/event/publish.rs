@@ -32,7 +32,12 @@ pub trait Publish {
     ///
     /// The stream is identified by the [`Event::name`] and the given Aggregate
     /// ID.
-    async fn publish_without_occ<E>(&mut self, id: Uuid, event: E) -> error::Result<()>
+    async fn publish_without_occ<E>(
+        &mut self,
+        id: Uuid,
+        event: E,
+        metadata: Option<HashMap<String, String>>,
+    ) -> error::Result<()>
     where
         E: Event + SerializeVersion;
 }
