@@ -64,7 +64,7 @@ async fn main() -> anyhow::Result<()> {
     };
     let root: Root<Tab> = store.read(id).await?;
     let headers =
-        std::collections::HashMap::from([("x-correlation-id".to_string(), "123".to_string())]);
+        std::collections::HashMap::from([("correlation-id".to_string(), "123".to_string())]);
     let root = store.try_write(root, command, Some(headers)).await?;
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 

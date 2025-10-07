@@ -2,6 +2,7 @@ use async_nats::{HeaderValue, Message};
 
 pub const VERSION_KEY: &str = "Esrc-Version";
 pub const EVENT_TYPE: &str = "Esrc-Event-Type";
+pub const METADATA_PREFIX: &str = "xn-";
 
 pub fn get<'a>(message: &'a Message, key: &str) -> Option<&'a str> {
     message

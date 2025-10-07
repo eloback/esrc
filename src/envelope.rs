@@ -33,6 +33,8 @@ pub trait Envelope: Send {
     /// This name will correspond to the [`Event::name`] of the event type that
     /// can be deserialized from this envelope.
     fn name(&self) -> &str;
+    /// A Metadata value associated with this event.
+    fn get_metadata(&self, key: &str) -> Option<&str>;
     /// Parse the inner [`Event`] type from this envelope.
     ///
     /// The exact format that is used and deserialized is dependent on the event

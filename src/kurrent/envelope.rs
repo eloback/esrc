@@ -80,6 +80,10 @@ impl Envelope for KurrentEnvelope {
         &self.name
     }
 
+    fn get_metadata(&self, key: &str) -> Option<&str> {
+        unimplemented!()
+    }
+
     #[instrument(skip_all, level = "trace")]
     fn deserialize<E>(&self) -> error::Result<E>
     where

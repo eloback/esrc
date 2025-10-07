@@ -4,7 +4,7 @@ use futures::{Stream, StreamExt};
 use tracing::instrument;
 use uuid::Uuid;
 
-use super::header::{EVENT_TYPE, VERSION_KEY};
+use super::header::{EVENT_TYPE, METADATA_PREFIX, VERSION_KEY};
 use super::subject::NatsSubject;
 use super::{NatsEnvelope, NatsStore};
 use crate::error::{self, Error};
@@ -42,14 +42,9 @@ impl Publish for NatsStore {
 
         if let Some(extra) = metadata {
             for (k, v) in extra {
-                // avoid overriding reserved keys; NATS headers allow multiple values, but
-                // appending duplicate reserved keys may change semantics of retrieval.
-                let is_reserved = k.eq_ignore_ascii_case(VERSION_KEY)
-                    || k.eq_ignore_ascii_case(EVENT_TYPE)
-                    || k.eq_ignore_ascii_case(&NATS_EXPECTED_LAST_SUBJECT_SEQUENCE.to_string());
-                if !is_reserved {
-                    headers.append(k, v);
-                }
+                // avoid overriding reserved keys;
+                let k = format!("{METADATA_PREFIX}{k}");
+                headers.append(k, v);
             }
         }
 
@@ -86,11 +81,8 @@ impl Publish for NatsStore {
             for (k, v) in extra {
                 // avoid overriding reserved keys; NATS headers allow multiple values, but
                 // appending duplicate reserved keys may change semantics of retrieval.
-                let is_reserved =
-                    k.eq_ignore_ascii_case(VERSION_KEY) || k.eq_ignore_ascii_case(EVENT_TYPE);
-                if !is_reserved {
-                    headers.append(k, v);
-                }
+                let k = format!("{METADATA_PREFIX}{k}");
+                headers.append(k, v);
             }
         }
 

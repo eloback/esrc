@@ -118,6 +118,11 @@ impl<E: Envelope, G> Context<'_, E, G> {
         this.envelope.timestamp()
     }
 
+    /// Get a metadata value from the referenced Envelope (see [`Envelope::get_metadata`]).
+    pub fn get_metadata<'a>(this: &'a Self, key: &str) -> Option<&'a str> {
+        this.envelope.get_metadata(key)
+    }
+
     /// Unwrap the inner EventGroup instance, and drop the Envelope reference.
     pub fn into_inner(this: Self) -> G {
         this.event_group

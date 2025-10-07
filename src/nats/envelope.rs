@@ -1,11 +1,11 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use async_nats::jetstream;
+use async_nats::{jetstream, HeaderMap};
 use serde_json::Deserializer;
 use tracing::instrument;
 use uuid::Uuid;
 
-use super::header::{self, VERSION_KEY};
+use super::header::{self, METADATA_PREFIX, VERSION_KEY};
 use super::subject::NatsSubject;
 use crate::envelope::Envelope;
 use crate::error::{self, Error};
@@ -28,6 +28,8 @@ pub struct NatsEnvelope {
 
     name: String,
     version: usize,
+
+    message_headers: HeaderMap,
     message: jetstream::Message,
 }
 
@@ -60,6 +62,11 @@ impl NatsEnvelope {
             let info = message.info().map_err(Error::Internal)?;
             (info.stream_sequence, info.published.unix_timestamp())
         };
+        let message_headers = message
+            .headers
+            .as_ref()
+            .cloned()
+            .unwrap_or_else(HeaderMap::new);
 
         Ok(Self {
             id,
@@ -69,6 +76,8 @@ impl NatsEnvelope {
 
             name: name.into_owned(),
             version,
+
+            message_headers,
             message,
         })
     }
@@ -100,6 +109,13 @@ impl Envelope for NatsEnvelope {
 
     fn name(&self) -> &str {
         &self.name
+    }
+
+    fn get_metadata(&self, key: &str) -> Option<&str> {
+        let key = format!("{METADATA_PREFIX}{key}");
+        self.message_headers
+            .get(key)
+            .map(async_nats::HeaderValue::as_str)
     }
 
     #[instrument(skip_all, level = "trace")]
