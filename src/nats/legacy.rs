@@ -78,11 +78,15 @@ pub trait LegacyProject: Send + Clone {
     ///
     /// Returning an error from this method should stop further messages from
     /// being processed in the associated event store.
-    async fn project(&mut self, event: Self::EventGroup) -> Result<(), Self::Error>;
+    async fn project(
+        &mut self,
+        event: Self::EventGroup,
+        metadata: Option<serde_json::Value>,
+    ) -> Result<(), Self::Error>;
 }
 
 /// recieves a message, processes it with the given projector, and acknowledges it.
-#[instrument(skip_all, name = "legacy_automation", level = "info", fields(aggregate=tracing::field::Empty) err(Debug))]
+#[instrument(skip_all, name = "legacy_automation", level = "info", err(Debug))]
 async fn process_legacy_message<P: LegacyProject>(
     projector: &mut P,
     message: Result<Message, error::Error>,
@@ -91,10 +95,15 @@ async fn process_legacy_message<P: LegacyProject>(
     // propagate otel span if exists
     opentelemetry_nats::attach_span_context(&envelope);
 
+    // extract headers and event
+    let headers = envelope
+        .headers
+        .as_ref()
+        .and_then(|v| serde_json::to_value(v).ok());
     let event: P::EventGroup = serde_json::from_slice(&envelope.payload).unwrap();
 
     projector
-        .project(event)
+        .project(event, headers)
         .await
         .map_err(|e| error::Error::External(e.into()))?;
     let _ = envelope.ack().await;
