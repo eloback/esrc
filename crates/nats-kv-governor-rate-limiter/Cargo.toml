@@ -1,0 +1,16 @@
+[package]
+name = "nats-kv-governor-rate-limiter"
+version = "0.1.0"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+
+[dependencies]
+async-nats = { workspace= true }
+governor = "0.10"
+tokio = { version = "1", features = ["full"] }
+nonzero_ext="0.3"
+bytes="1.11"
