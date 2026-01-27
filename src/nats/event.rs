@@ -202,7 +202,7 @@ pub mod event_model {
 
     impl NatsStore {
         /// recieves a message, processes it with the given projector, and acknowledges it.
-        #[instrument(skip_all, name = "automation", level = "info", fields(aggregate=tracing::field::Empty) err)]
+        #[instrument(skip_all, name = "automation", level = "info", fields(aggregate=tracing::field::Empty) err(Debug))]
         async fn process_message<P: Project>(
             projector: &mut P,
             message: Result<NatsEnvelope, Error>,
