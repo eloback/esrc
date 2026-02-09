@@ -29,7 +29,12 @@ pub trait Automation {
     ///
     /// Events published to any stream identified by the EventGroup type
     /// parameter will be included.
-    async fn start_automation<P>(&self, projector: P, feature_name: &str) -> error::Result<()>
+    async fn start_automation<P>(
+        &self,
+        projector: P,
+        feature_name: &str,
+        max_concurrency: usize,
+    ) -> error::Result<()>
     where
         P: Project + 'static;
 }

@@ -32,7 +32,7 @@ async fn main() -> anyhow::Result<()> {
 
         task_tracker.spawn(async move {
             store
-                .start_automation(active_tables, "active_tables_1")
+                .start_automation(active_tables, "active_tables_1", 10)
                 .await
                 .unwrap()
         })
@@ -43,7 +43,7 @@ async fn main() -> anyhow::Result<()> {
 
         task_tracker.spawn(async move {
             store
-                .start_automation(active_tables, "active_tables_2")
+                .start_automation(active_tables, "active_tables_2", 10)
                 .await
                 .unwrap()
         })

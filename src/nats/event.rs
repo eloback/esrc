@@ -204,13 +204,14 @@ pub mod event_model {
         /// recieves a message, processes it with the given projector, and acknowledges it.
         #[instrument(skip_all, name = "automation", level = "info", fields(aggregate=tracing::field::Empty) err)]
         async fn process_message<P: Project>(
-            projector: &mut P,
+            projector: &P,
             message: Result<NatsEnvelope, Error>,
         ) -> error::Result<()> {
             let envelope = message?;
             envelope.attach_span_context();
             tracing::Span::current().record("aggregate", envelope.name());
             let context = Context::try_with_envelope(&envelope)?;
+            let mut projector = projector.clone();
             projector
                 .project(context)
                 .await
@@ -249,7 +250,12 @@ pub mod event_model {
         }
 
         #[instrument(skip_all, level = "debug")]
-        async fn start_automation<P>(&self, projector: P, feature_name: &str) -> error::Result<()>
+        async fn start_automation<P>(
+            &self,
+            projector: P,
+            feature_name: &str,
+            max_concurrency: usize,
+        ) -> error::Result<()>
         where
             P: Project + 'static,
         {
@@ -265,17 +271,18 @@ pub mod event_model {
                 .await
                 .expect("should be able to send graceful trigger");
 
-            let mut incoming = incoming;
+            // Configure throughput (concurrent workers)
+            incoming
+                .for_each_concurrent(max_concurrency, |message| {
+                    let projector = projector.clone();
 
-            while let Some(message) = incoming.next().await {
-                let mut projector = projector.clone();
-
-                self.graceful_shutdown.task_tracker.spawn(async move {
-                    if let Err(e) = NatsStore::process_message(&mut projector, message).await {
-                        tracing::error!("Error processing message: {:?}", e);
+                    async move {
+                        if let Err(e) = NatsStore::process_message(&projector, message).await {
+                            tracing::error!("Error processing message: {:?}", e);
+                        }
                     }
-                });
-            }
+                })
+                .await;
 
             Ok(())
         }
@@ -330,9 +337,9 @@ pub mod event_model {
                 .expect("should be able to send graceful trigger");
 
             while let Some(message) = incoming.next().await {
-                let mut projector = projector.clone();
+                let projector = projector.clone();
 
-                if let Err(e) = NatsStore::process_message(&mut projector, message).await {
+                if let Err(e) = NatsStore::process_message(&projector, message).await {
                     tracing::error!("Error processing message: {:?}", e);
                 }
             }

@@ -68,7 +68,7 @@ pub struct Context<'de, E, G> {
 /// }
 /// ```
 #[trait_variant::make(Send)]
-pub trait Project: Send + Clone {
+pub trait Project: Send + Sync + Clone {
     /// The event(s) that can be processed by this object.
     type EventGroup: event::EventGroup + Send + TryFromEnvelope;
     /// The type to return as an `Err` when the projection fails.
