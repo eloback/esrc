@@ -254,7 +254,7 @@ pub mod event_model {
             &self,
             projector: P,
             feature_name: &str,
-            max_concurrency: usize,
+            max_concurrency: impl Into<Option<usize>> + Send,
         ) -> error::Result<()>
         where
             P: Project + 'static,
