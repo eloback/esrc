@@ -2,7 +2,9 @@ use std::sync::{Arc, Mutex};
 
 use async_nats::jetstream::consumer::pull::{Config as ConsumerConfig, OrderedConfig};
 use async_nats::jetstream::consumer::{Consumer, DeliverPolicy};
-use async_nats::jetstream::stream::{Config as StreamConfig, DiscardPolicy, Stream as JetStream};
+use async_nats::jetstream::stream::{
+    Config as StreamConfig, DiscardPolicy, Source as StreamMirror, Stream as JetStream,
+};
 use async_nats::jetstream::Context;
 use stream_cancel::Trigger;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -42,6 +44,11 @@ pub struct NatsStore {
 
     context: Context,
     stream: JetStream,
+
+    // When set, all read consumers will be created against this mirror stream
+    // instead of the default `stream`. This allows isolating read state per
+    // feature while keeping writes in the original stream.
+    mirror_stream: Option<JetStream>,
 
     graceful_shutdown: GracefulShutdown,
 
@@ -97,10 +104,38 @@ impl NatsStore {
             context,
             stream,
 
+            mirror_stream: None,
+
             graceful_shutdown,
 
             durable_consumer_options: config,
         })
+    }
+
+    /// Enable reading from a mirror stream instead of the default stream.
+    ///
+    /// The mirror will be created (or reused if it exists) and will mirror the
+    /// entire writer stream identified by `prefix`. Consumers created for
+    /// replay/subscribe APIs will be attached to this mirror stream.
+    #[instrument(skip_all, level = "debug")]
+    pub async fn enable_mirror(mut self, mirror_name: impl Into<String>) -> error::Result<Self> {
+        let mirror_name = mirror_name.into();
+
+        let config = StreamConfig {
+            name: mirror_name,
+            // Mirror the writer stream (self.prefix). Filtering remains at the consumer level.
+            mirror: Some(StreamMirror {
+                name: self.prefix.to_owned(),
+                ..Default::default()
+            }),
+            discard: DiscardPolicy::New,
+            ..Default::default()
+        };
+
+        let mirror_stream = self.context.get_or_create_stream(config).await?;
+        self.mirror_stream = Some(mirror_stream);
+
+        Ok(self)
     }
 
     /// get a handle to the task tracker used for graceful shutdown of tasks
@@ -130,6 +165,11 @@ impl NatsStore {
         self
     }
 
+    /// Select the stream used for creating read-side consumers.
+    fn reader_stream(&self) -> &JetStream {
+        self.mirror_stream.as_ref().unwrap_or(&self.stream)
+    }
+
     #[instrument(skip_all, level = "debug")]
     async fn ordered_consumer(
         &self,
@@ -145,7 +185,7 @@ impl NatsStore {
             config.deliver_policy = DeliverPolicy::ByStartSequence { start_sequence };
         }
 
-        Ok(self.stream.create_consumer(config).await?)
+        Ok(self.reader_stream().create_consumer(config).await?)
     }
 
     #[instrument(skip_all, level = "debug")]

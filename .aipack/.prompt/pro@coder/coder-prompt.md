@@ -11,7 +11,7 @@ base_dir = "" # Leave empty for workspace root; make sure to narrow context_glob
 
 # Relative to base_dir. Inline these files’ contents into the prompt (narrow as the project grows)
 # (e.g., for Rust, replace "package.json" with "Cargo.toml")
-context_globs = ["src/**/*", "Cargo.toml", "derive/**/*"] 
+context_globs = ["src/**/*", "Cargo.toml", "derive/**/*"]
 
 # Relative to base_dir. Only include paths (not content) in the prompt.
 # structure_globs = ["src/**/*.*"]
@@ -31,16 +31,17 @@ model_aliases = {gpro = "gemini-2.5-pro", flash = "gemini-2.5-flash", lite = "ge
 write_mode = true
 
 # It can be an alias name above, or model names like "o4-mini", "o4-mini-high".
-# If not set, the model defined in config.toml will be used.  
+# If not set, the model defined in config.toml will be used.
 model = "gpt"
 
 # To see docs, type "Show Doc" and then press `r` in the aip terminal
 ```
-Make the publish receive a optional metadata parameter, and update all Extensions that call publish to receive it too.
-Add the metadata to the stored event.
+
+add a mirror feature to NatsStore, where it'll create and use one or more mirrors instead of reading from the default stream.
+consumers will be created in reading the mirror.
 
 ====
->   Info: Duration: 2m 27s | ~$0.1146 | Prompt Tokens: 29,256 | Completion Tokens: 7,807 (reasoning: 2,560) 
+>   Info: Duration: 2m 22s | ~$0.1304 | Prompt Tokens: 29,858 | Completion Tokens: 9,312 (reasoning: 5,440) 
 >  Model: gpt-5 (gpt-5-2025-08-07) | Adapter: OpenAI
 >  Files: Context Files: 44 | Working Files: 0 | Knowledge Files: 0
 

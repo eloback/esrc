@@ -14,7 +14,7 @@ edition = "2021"
 [workspace.dependencies]
 anyhow = "1.0"
 async-nats = "0.46"
-darling = "0.20"
+darling = "0.23"
 futures = "0.3"
 proc-macro2 = "1.0"
 quote = "1.0"
@@ -35,7 +35,7 @@ tokio-util = { version = "0.7", features = ["rt"] }
 name = "esrc"
 description = "Primitives for implementing event sourcing and CQRS systems"
 readme = true
-version = "0.3.0"
+version = "0.3.1"
 
 keywords = ["cqrs", "event-sourcing", "ddd"]
 

@@ -22,6 +22,7 @@ async fn main() -> anyhow::Result<()> {
     let context = jetstream::new(client);
 
     let mut store = NatsStore::try_new(context, "cafe").await?;
+    // let mut store = store.enable_mirror("cafe_mirror").await?;
     let task_tracker = store.get_task_tracker();
 
     let active_tables = ActiveTables::new();
