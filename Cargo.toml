@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "./derive", "./crates/opentelemetry-nats"]
+members = [".", "./derive", "./crates/opentelemetry-nats", "./crates/esrc-cqrs"]
 resolver = "2"
 
 [workspace.package]

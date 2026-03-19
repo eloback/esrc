@@ -1,14 +1,16 @@
+
 ====
+file_content_mode: udiffx
 
 # Knowledge Files
 
+## All resolve files(sent to AI with content, in this order)
+
 - nats_service.md
 
-# Struture Files
-
-None
-
 # Context Files
+
+## All resolve files(sent to AI with content, in this order)
 
 - src/aggregate.rs
 - src/envelope.rs
@@ -52,6 +54,10 @@ None
 - derive/tests/test_version.rs
 
 # Working Files
+
+None
+
+# Structure Files
 
 None
 

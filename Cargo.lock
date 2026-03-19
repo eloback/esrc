@@ -488,6 +488,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "esrc-cqrs"
+version = "0.1.0"
+dependencies = [
+ "async-nats",
+ "esrc",
+ "futures",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "trait-variant",
+ "uuid",
+]
+
+[[package]]
 name = "esrc-derive"
 version = "0.1.0"
 dependencies = [

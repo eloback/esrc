@@ -1,0 +1,29 @@
+[package]
+name = "esrc-cqrs"
+description = "CQRS command and event handler registry for the esrc crate"
+readme = false
+version = "0.1.0"
+
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+rust-version.workspace = true
+edition.workspace = true
+
+[features]
+default = ["nats"]
+nats = ["dep:async-nats", "esrc/nats", "dep:serde_json", "dep:serde"]
+
+[dependencies]
+esrc = { path = "../..", version = "0.3.1" }
+
+async-nats = { workspace = true, optional = true }
+futures.workspace = true
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+trait-variant.workspace = true
+uuid.workspace = true
