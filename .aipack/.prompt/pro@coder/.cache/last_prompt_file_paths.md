@@ -48,10 +48,12 @@ file_content_mode: udiffx
 - crates/esrc-cqrs/src/projector.rs
 - crates/esrc-cqrs/src/registry.rs
 - .aipack/.prompt/pro@coder/dev/plan/_plan-rules.md
+- .aipack/.prompt/pro@coder/dev/plan/plan-1-todo-steps.md
 
 ## Post (just for info, included in the All resolved files above)
 
 - .aipack/.prompt/pro@coder/dev/plan/_plan-rules.md
+- .aipack/.prompt/pro@coder/dev/plan/plan-1-todo-steps.md
 
 # Working Files
 
