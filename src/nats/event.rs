@@ -95,6 +95,59 @@ impl Publish for NatsStore {
     }
 }
 
+pub mod custom {
+    use std::pin::pin;
+
+    use crate::{
+        event::future::IntoSendFuture,
+        project::{Context, Project},
+    };
+
+    use super::*;
+
+    impl NatsStore {
+        #[instrument(skip_all, level = "debug")]
+        pub async fn durable_observe<P>(
+            &self,
+            mut projector: P,
+            durable_name: &str,
+        ) -> error::Result<()>
+        where
+            P: Project,
+        {
+            let (topic, subjects) = {
+                let mut names = P::EventGroup::names().collect::<Vec<_>>();
+                names.sort();
+
+                let subjects = names
+                    .iter()
+                    .map(|&n| super::subject::NatsSubject::Event(n.into()).into_string(self.prefix))
+                    .collect();
+                (durable_name.to_owned(), subjects)
+            };
+
+            let consumer = self.durable_consumer(topic, subjects).await?;
+            let mut stream = pin!(consumer
+                .messages()
+                .await?
+                .map(|m| NatsEnvelope::try_from_message(self.prefix, m?)));
+
+            while let Some(envelope) = stream.next().await {
+                let envelope = envelope?;
+                let context = Context::try_with_envelope(&envelope)?;
+
+                projector
+                    .project(context)
+                    .into_send_future()
+                    .await
+                    .map_err(|e| Error::External(e.into()))?;
+            }
+
+            Ok(())
+        }
+    }
+}
+
 impl Replay for NatsStore {
     type Envelope = NatsEnvelope;
 

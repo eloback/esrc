@@ -30,10 +30,10 @@ pub mod command_dispatcher;
 /// NATS projector runner backed by JetStream durable consumers.
 pub mod projector_runner;
 
-pub use command_dispatcher::NatsCommandDispatcher;
-pub use projector_runner::NatsProjectorRunner;
 pub use aggregate_command_handler::{AggregateCommandHandler, CommandEnvelope, CommandReply};
 pub use aggregate_projector_handler::DurableProjectorHandler;
+pub use command_dispatcher::NatsCommandDispatcher;
+pub use projector_runner::NatsProjectorRunner;
 
 mod aggregate_command_handler;
 mod aggregate_projector_handler;

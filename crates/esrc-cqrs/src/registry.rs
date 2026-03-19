@@ -48,7 +48,7 @@ where
     /// The projector will be started as a background task when `run` is called.
     pub fn register_projector<H>(mut self, handler: H) -> Self
     where
-        H: ProjectorHandler<S> + 'static,
+        H: ProjectorHandler<S> + Sync + 'static,
     {
         self.projector_handlers.push(Arc::new(handler));
         self

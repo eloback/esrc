@@ -1,10 +1,6 @@
-use std::pin::pin;
-
-use esrc::error::{self, Error};
-use esrc::event::future::IntoSendFuture;
+use esrc::error;
 use esrc::nats::NatsStore;
-use esrc::project::{Context, Project};
-use futures::StreamExt;
+use esrc::project::Project;
 use tracing::instrument;
 
 use crate::projector::ProjectorHandler;

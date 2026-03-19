@@ -5,7 +5,6 @@ use futures::StreamExt;
 use tracing::instrument;
 
 use esrc::error::{self, Error};
-use esrc::nats::NatsStore;
 
 use crate::registry::ErasedCommandHandler;
 
