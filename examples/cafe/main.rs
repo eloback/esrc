@@ -27,29 +27,6 @@ async fn main() -> anyhow::Result<()> {
 
     let active_tables = ActiveTables::new();
 
-    {
-        let store = store.clone();
-        let active_tables = active_tables.clone();
-
-        task_tracker.spawn(async move {
-            store
-                .start_automation(active_tables, "active_tables_1", 10)
-                .await
-                .unwrap()
-        })
-    };
-    {
-        let store = store.clone();
-        let active_tables = active_tables.clone();
-
-        task_tracker.spawn(async move {
-            store
-                .start_automation(active_tables, "active_tables_2", 10)
-                .await
-                .unwrap()
-        })
-    };
-
     let id = Uuid::now_v7();
     let root: Root<Tab> = store.read(id).await?;
     let command = TabCommand::Open {
@@ -67,7 +44,6 @@ async fn main() -> anyhow::Result<()> {
     let headers =
         std::collections::HashMap::from([("correlation-id".to_string(), "123".to_string())]);
     let root = store.try_write(root, command, Some(headers)).await?;
-    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
     // Place the `store` and `active_tables` objects inside shared state for
     // your chosen web application / interface framework (such as

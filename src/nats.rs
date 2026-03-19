@@ -20,9 +20,6 @@ pub mod envelope;
 #[doc(hidden)]
 pub mod event;
 
-/// Legacy support for older projects that needed the automation control of the NatsStore.
-pub mod legacy;
-
 pub use envelope::NatsEnvelope;
 
 mod header;
