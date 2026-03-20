@@ -48,21 +48,22 @@
     - Types: Error
     - Functions: from_esrc_error
 
-- crates/esrc-cqrs/src/nats/aggregate_query_handler.rs
-    - Summary: Defines a generic NATS-backed CQRS query handler for aggregates, including standard query/reply envelopes and a projection-based handler that loads an aggregate root and serializes a response.
-    - When To Use: Use when you need to route NATS queries to an aggregate, deserialize a query envelope containing an aggregate ID, read the aggregate from NATS storage, and return a JSON-serialized projected result.
-    - Types: QueryEnvelope, QueryReply, ProjectFn, AggregateQueryHandler
-    - Functions: AggregateQueryHandler::new, QueryHandler::name, QueryHandler::handle
-
-- crates/esrc-cqrs/src/query.rs
-    - Summary: Defines the QueryHandler trait for handling read-only query messages by name, using a shared event store reference and returning serialized response bytes.
-    - When To Use: Include this file when working on CQRS query handling, query routing by handler name, or implementing/consuming read-only handlers that deserialize request payloads and serialize replies.
-    - Types: QueryHandler
+- crates/esrc-cqrs/tests/integration_nats.rs
+    - Summary: Integration tests for esrc-cqrs against a live NATS JetStream server, covering command dispatch, durable event storage, projector behavior, error propagation, malformed payload handling, query handling, and registry accessors.
+    - When To Use: Include this file when you need to understand or verify the NATS/JetStream integration behavior of esrc-cqrs, especially request/reply command and query handling, projector execution, durability, or end-to-end test setup.
+    - Types: CounterState, Counter, CounterCommand, CounterEvent, CounterError, RecordingProjector, ProjectorError
+    - Functions: test_command_request_response_success, test_command_error_does_not_break_dispatcher, test_projector_receives_events, test_projector_acks_messages_no_redelivery, test_projector_error_propagates, test_multiple_commands_same_aggregate_occ, test_malformed_payload_returns_error, test_registry_accessors, test_query_returns_aggregate_state, test_query_default_state_for_new_aggregate, test_query_malformed_payload_returns_error, test_registry_query_handlers_accessor
 
 - crates/esrc-cqrs/src/lib.rs
     - Summary: Top-level library module for the `esrc-cqrs` crate. It documents the CQRS extension, exposes modules for command handling, queries, projectors, the main registry, and optional NATS integrations, and re-exports the primary CQRS traits and registry type.
     - When To Use: Include this file when you need the crate’s public API surface, an overview of CQRS support, or to find where command handlers, query handlers, projector handlers, and the registry are defined and re-exported.
     - Types: CommandHandler, Error, ProjectorHandler, CqrsRegistry, QueryHandler
+
+- crates/esrc-cqrs/src/nats/aggregate_query_handler.rs
+    - Summary: Defines a generic NATS-backed CQRS query handler for aggregates, including standard query/reply envelopes and a projection-based handler that loads an aggregate root and serializes a response.
+    - When To Use: Use when you need to route NATS queries to an aggregate, deserialize a query envelope containing an aggregate ID, read the aggregate from NATS storage, and return a JSON-serialized projected result.
+    - Types: QueryEnvelope, QueryReply, ProjectFn, AggregateQueryHandler
+    - Functions: AggregateQueryHandler::new, QueryHandler::name, QueryHandler::handle
 
 - crates/esrc-cqrs/src/nats/query_dispatcher.rs
     - Summary: Implements a NATS-based query dispatcher that registers each query handler as a service endpoint and forwards request/reply queries to erased handlers. Also provides a helper to build query subjects.
@@ -70,20 +71,19 @@
     - Types: NatsQueryDispatcher
     - Functions: query_subject
 
+- crates/esrc-cqrs/src/query.rs
+    - Summary: Defines the QueryHandler trait for handling read-only query messages by name, using a shared event store reference and returning serialized response bytes.
+    - When To Use: Include this file when working on CQRS query handling, query routing by handler name, or implementing/consuming read-only handlers that deserialize request payloads and serialize replies.
+    - Types: QueryHandler
+
 - crates/esrc-cqrs/src/registry.rs
     - Summary: Defines a CQRS registry that stores command, projector, and query handlers, provides registration/accessors, and can spawn all projectors as Tokio background tasks. Also includes object-safe erased wrapper traits for heterogeneous command, projector, and query handlers.
     - When To Use: Include this file when you need to understand or use the CQRS handler registry, register command/projector/query implementations, access registered handlers or the shared store, or run projectors concurrently.
     - Types: CqrsRegistry<S>, ErasedCommandHandler<S>, ErasedProjectorHandler<S>, ErasedQueryHandler<S>
     - Functions: CqrsRegistry::new, CqrsRegistry::register_command, CqrsRegistry::register_projector, CqrsRegistry::register_query, CqrsRegistry::command_handlers, CqrsRegistry::projector_handlers, CqrsRegistry::query_handlers, CqrsRegistry::store, CqrsRegistry::run_projectors
 
-- crates/esrc-cqrs/tests/integration_nats.rs
-    - Summary: Integration tests for esrc-cqrs against a live NATS JetStream server, covering command dispatch, durable event storage, projector behavior, error propagation, malformed payload handling, query handling, and registry accessors.
-    - When To Use: Include this file when you need to understand or verify the NATS/JetStream integration behavior of esrc-cqrs, especially request/reply command and query handling, projector execution, durability, or end-to-end test setup.
-    - Types: CounterState, Counter, CounterCommand, CounterEvent, CounterError, RecordingProjector, ProjectorError
-    - Functions: test_command_request_response_success, test_command_error_does_not_break_dispatcher, test_projector_receives_events, test_projector_acks_messages_no_redelivery, test_projector_error_propagates, test_multiple_commands_same_aggregate_occ, test_malformed_payload_returns_error, test_registry_accessors, test_query_returns_aggregate_state, test_query_default_state_for_new_aggregate, test_query_malformed_payload_returns_error, test_registry_query_handlers_accessor
-
 - crates/esrc-cqrs/src/nats/mod.rs
-    - Summary: NATS CQRS integration module that wires together command dispatching over core NATS request/reply and projector execution over JetStream durable pull consumers.
+    - Summary: NATS CQRS integration module that wires together command dispatching over core NATS request/reply, query dispatching, and projector execution over JetStream durable pull consumers.
     - When To Use: Include this file when you need the NATS-backed CQRS entry points, especially to understand or import the dispatcher and projector runner types re-exported from this module.
-    - Types: AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler, NatsCommandDispatcher, NatsProjectorRunner, AggregateQueryHandler, QueryEnvelope, QueryReply, NatsQueryDispatcher
+    - Types: AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler, AggregateQueryHandler, QueryEnvelope, QueryReply, NatsCommandDispatcher, NatsQueryDispatcher, NatsProjectorRunner
 

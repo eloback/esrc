@@ -46,18 +46,23 @@ dev:
 model: claude-sonnet-4-6
 ## (see PATH_TO_PRO_CODER_DIR/README.md for full pro@coder documentation)
 ```
-fix the documentation and exports of the crate, some parts like the query are new and not well documented.
+the esrc-cqrs/src/nats/mod.rs module it's not well documented, and some required for use modules are not exported fix it
 
 ====
->   Info: Duration: 36s | ~$0.08 | Prompt Tokens: 14,451 (cached: 0, cache_creation: 0) | Completion Tokens: 2,443 
+>   Info: Duration: 13s | ~$0.0248 | Prompt Tokens: 4,925 (cached: 0, cache_creation: 0) | Completion Tokens: 667 
 >  Model: claude-sonnet-4-6 | Adapter: Anthropic
->  Files: Context Files: 13 | Working Files: 0 | Knowledge Files: 0
+>  Files: Context Files: 3 | Working Files: 0 | Knowledge Files: 0
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
-I'll review the documentation and exports across the crate, focusing on the query-related parts that are new and under-documented, as well as ensuring the module-level docs and `lib.rs` exports are consistent.
+Looking at `crates/esrc-cqrs/src/nats/mod.rs`, I can see two issues:
+
+1. The module-level doc comments for `aggregate_command_handler`, `aggregate_projector_handler`, and `aggregate_query_handler` are missing (only `command_dispatcher`, `projector_runner`, and `query_dispatcher` have `pub mod` with docs).
+2. The private `mod` declarations for `aggregate_command_handler`, `aggregate_projector_handler`, and `aggregate_query_handler` are not documented, and more importantly, `query_dispatcher` is declared `pub mod` but the others that are re-exported via `pub use` are only private `mod` declarations, which is inconsistent and may cause visibility issues depending on usage. The re-exports should be sufficient, but the doc comments on the submodules are missing entirely.
+
+The main fix needed: add doc comments for `aggregate_command_handler`, `aggregate_projector_handler`, and `aggregate_query_handler` modules, and ensure `query_dispatcher` is consistently documented.
 
 
 
 <suggested_git_command>
-git commit -a -m "^ esrc-cqrs - Improve crate, module, and query-related documentation"
+git commit -a -m "^ esrc-cqrs/nats - Add missing module doc comments and fix query_dispatcher visibility"
 </suggested_git_command>

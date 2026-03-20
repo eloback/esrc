@@ -51,8 +51,8 @@
     },
     "crates/esrc-cqrs/src/lib.rs": {
       "file_path": "crates/esrc-cqrs/src/lib.rs",
-      "hash": "8b16fbbed54d537ae63f7c2ecfa26890e53fada625bcb2e5cb4a13cc4ebc0ecd",
-      "mtime": 1774044913737921,
+      "hash": "3c79a3791638d1a630f087efe482082d71983590667dd34427582aed5f0b2e1b",
+      "mtime": 1774046290529292,
       "public_functions": [],
       "public_types": [
         "CommandHandler",
@@ -96,8 +96,8 @@
     },
     "crates/esrc-cqrs/src/nats/aggregate_query_handler.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/aggregate_query_handler.rs",
-      "hash": "daa71d9be0cfcc7829dc3bd5b49f2d091e8b2f3bef0b1952212fcb4d482449c5",
-      "mtime": 1774044913736597,
+      "hash": "f43650908f6c5773050cc3f96987b819e9386e040a583cc43f74b4422446ac92",
+      "mtime": 1774046290529292,
       "public_functions": [
         "AggregateQueryHandler::new",
         "QueryHandler::name",
@@ -129,22 +129,21 @@
     },
     "crates/esrc-cqrs/src/nats/mod.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/mod.rs",
-      "hash": "1b075d2fbbea0b7332212e9566c36a675f6f757c2ec05bacfd881d902e88af3f",
-      "mtime": 1774046125972048,
-      "public_functions": [],
+      "hash": "5e3ca643ce6c416d36efaab252f8e4b5721839ab870760e74038593362f912b4",
+      "mtime": 1774046535413616,
       "public_types": [
         "AggregateCommandHandler",
         "CommandEnvelope",
         "CommandReply",
         "DurableProjectorHandler",
-        "NatsCommandDispatcher",
-        "NatsProjectorRunner",
         "AggregateQueryHandler",
         "QueryEnvelope",
         "QueryReply",
-        "NatsQueryDispatcher"
+        "NatsCommandDispatcher",
+        "NatsQueryDispatcher",
+        "NatsProjectorRunner"
       ],
-      "summary": "NATS CQRS integration module that wires together command dispatching over core NATS request/reply and projector execution over JetStream durable pull consumers.",
+      "summary": "NATS CQRS integration module that wires together command dispatching over core NATS request/reply, query dispatching, and projector execution over JetStream durable pull consumers.",
       "when_to_use": "Include this file when you need the NATS-backed CQRS entry points, especially to understand or import the dispatcher and projector runner types re-exported from this module."
     },
     "crates/esrc-cqrs/src/nats/projector_runner.rs": {
@@ -163,8 +162,8 @@
     },
     "crates/esrc-cqrs/src/nats/query_dispatcher.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/query_dispatcher.rs",
-      "hash": "6e831192821fd19d3e4f5d113524b02c4c06cc359d6322060f0bc5c0c0da73b4",
-      "mtime": 1774044913737921,
+      "hash": "5470a82cb7e2606b65003735a6119083ad5d29431e815699a226cff0a618e345",
+      "mtime": 1774046290529292,
       "public_functions": [
         "query_subject"
       ],
@@ -187,8 +186,8 @@
     },
     "crates/esrc-cqrs/src/query.rs": {
       "file_path": "crates/esrc-cqrs/src/query.rs",
-      "hash": "cc4c71221b5ba5fd44a1ae603ea8eca4213bfd185310b6e65b439266817087ef",
-      "mtime": 1774044913736597,
+      "hash": "eefabd5dbad7df339d50e5d900c72dcafd6d923193bdecb15d12f713475bf957",
+      "mtime": 1774046290529292,
       "public_functions": [],
       "public_types": [
         "QueryHandler"
@@ -198,8 +197,8 @@
     },
     "crates/esrc-cqrs/src/registry.rs": {
       "file_path": "crates/esrc-cqrs/src/registry.rs",
-      "hash": "5e421b1c8dc5ed999a69366134e7a49c79d5b0e76f40ca96ec1da1e1516b1d22",
-      "mtime": 1774044913737921,
+      "hash": "651bda8deb90ee081810c0ca59f18054f53bb41068bd11c79ca60387c5f7e383",
+      "mtime": 1774046290529292,
       "public_functions": [
         "CqrsRegistry::new",
         "CqrsRegistry::register_command",
