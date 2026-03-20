@@ -129,8 +129,8 @@
     },
     "crates/esrc-cqrs/src/nats/mod.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/mod.rs",
-      "hash": "b4f4d13ab751b596fab0e7432d59b0ddef78a80cc673ff5bed7106999f8f4bb2",
-      "mtime": 1774044913737921,
+      "hash": "1b075d2fbbea0b7332212e9566c36a675f6f757c2ec05bacfd881d902e88af3f",
+      "mtime": 1774046125972048,
       "public_functions": [],
       "public_types": [
         "AggregateCommandHandler",
@@ -222,8 +222,8 @@
     },
     "crates/esrc-cqrs/tests/integration_nats.rs": {
       "file_path": "crates/esrc-cqrs/tests/integration_nats.rs",
-      "hash": "081d9f8f447d6d8074975a66234ff6b631b941057321feab9662ea3ab1fecc3c",
-      "mtime": 1774045935985897,
+      "hash": "14e851bf8cf4aaa1c7a53fdc6a53c2214103633f492141fe91202f5ecf977aa7",
+      "mtime": 1774045986979110,
       "public_functions": [
         "test_command_request_response_success",
         "test_command_error_does_not_break_dispatcher",
@@ -232,9 +232,14 @@
         "test_projector_error_propagates",
         "test_multiple_commands_same_aggregate_occ",
         "test_malformed_payload_returns_error",
-        "test_registry_accessors"
+        "test_registry_accessors",
+        "test_query_returns_aggregate_state",
+        "test_query_default_state_for_new_aggregate",
+        "test_query_malformed_payload_returns_error",
+        "test_registry_query_handlers_accessor"
       ],
       "public_types": [
+        "CounterState",
         "Counter",
         "CounterCommand",
         "CounterEvent",
@@ -242,8 +247,8 @@
         "RecordingProjector",
         "ProjectorError"
       ],
-      "summary": "Integration tests for esrc-cqrs against a live NATS JetStream server, covering command dispatch, durable event storage, projector behavior, error propagation, malformed payload handling, and registry accessors.",
-      "when_to_use": "Include this file when you need to understand or verify the NATS/JetStream integration behavior of esrc-cqrs, especially request/reply command handling, projector execution, durability, or end-to-end test setup."
+      "summary": "Integration tests for esrc-cqrs against a live NATS JetStream server, covering command dispatch, durable event storage, projector behavior, error propagation, malformed payload handling, query handling, and registry accessors.",
+      "when_to_use": "Include this file when you need to understand or verify the NATS/JetStream integration behavior of esrc-cqrs, especially request/reply command and query handling, projector execution, durability, or end-to-end test setup."
     },
     "derive/Cargo.toml": {
       "file_path": "derive/Cargo.toml",

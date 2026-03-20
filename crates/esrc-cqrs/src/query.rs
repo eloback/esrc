@@ -13,6 +13,16 @@ use esrc::error;
 /// Queries are read-only by convention: a `QueryHandler` should never write
 /// events or mutate aggregate state. The store reference is therefore shared
 /// (`&S`) rather than exclusive (`&mut S`).
+///
+/// # Usage
+///
+/// For the common case of loading a single aggregate and projecting its state,
+/// use [`crate::nats::AggregateQueryHandler`] rather than implementing this
+/// trait directly.
+///
+/// For custom queries (e.g., cross-aggregate reads or external data sources),
+/// implement this trait directly and register the handler with
+/// [`crate::CqrsRegistry::register_query`].
 pub trait QueryHandler<S>: Send + Sync + 'static {
     /// The unique name for this query handler.
     ///

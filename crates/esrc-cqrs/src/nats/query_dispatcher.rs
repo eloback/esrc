@@ -19,6 +19,19 @@ pub const QUERY_SERVICE_VERSION: &str = "0.1.0";
 ///
 /// The store reference is shared (`&S`) across all query handlers because
 /// queries are read-only by convention.
+///
+/// # Subject Pattern
+///
+/// Subjects follow the pattern `<service_name>.<handler_name>`, where
+/// `handler_name` is the value returned by [`crate::query::QueryHandler::name`].
+/// Use [`query_subject`] to build the subject string for a given handler.
+///
+/// # Reply Shape
+///
+/// Each endpoint returns a serialized [`crate::nats::QueryReply`]. On success,
+/// `success` is `true` and `data` contains the handler's response as a JSON
+/// value. On failure, `success` is `false` and `error` is set to a
+/// [`crate::Error`] describing the problem.
 pub struct NatsQueryDispatcher {
     /// The NATS client used to create the service.
     client: async_nats::Client,

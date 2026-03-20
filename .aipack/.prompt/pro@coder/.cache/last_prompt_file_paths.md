@@ -6,13 +6,19 @@ file_content_mode: udiffx
 
 ## All resolve files(sent to AI with content, in this order)
 
+- crates/esrc-cqrs/src/command.rs
+- crates/esrc-cqrs/src/nats/projector_runner.rs
+- crates/esrc-cqrs/src/projector.rs
+- crates/esrc-cqrs/src/nats/aggregate_projector_handler.rs
+- crates/esrc-cqrs/src/nats/command_dispatcher.rs
+- crates/esrc-cqrs/src/nats/aggregate_command_handler.rs
+- crates/esrc-cqrs/src/error.rs
 - crates/esrc-cqrs/src/nats/aggregate_query_handler.rs
 - crates/esrc-cqrs/src/query.rs
 - crates/esrc-cqrs/src/lib.rs
-- crates/esrc-cqrs/src/nats/mod.rs
 - crates/esrc-cqrs/src/nats/query_dispatcher.rs
 - crates/esrc-cqrs/src/registry.rs
-- crates/esrc-cqrs/tests/integration_nats.rs
+- crates/esrc-cqrs/src/nats/mod.rs
 
 # Working Files
 

@@ -13,6 +13,14 @@ use crate::query::QueryHandler;
 ///
 /// `S` is the event store type shared across all handlers. The store must be
 /// `Clone` so that each command handler and projector can hold its own handle.
+///
+/// # Building a Registry
+///
+/// Use the builder-style `register_*` methods to attach handlers, then call
+/// [`CqrsRegistry::run_projectors`] to start projectors as background tasks.
+/// Pass the registry's handler slices to the appropriate dispatcher
+/// (e.g., [`crate::nats::NatsCommandDispatcher`] or
+/// [`crate::nats::NatsQueryDispatcher`]) to begin serving requests.
 pub struct CqrsRegistry<S> {
     store: S,
     command_handlers: Vec<Arc<dyn ErasedCommandHandler<S>>>,

@@ -24,6 +24,19 @@
 //! * Event projections must be durable and survive process restarts.
 //! * Pull consumers allow back-pressure and fine-grained acknowledgment.
 //! * Each projector gets its own consumer position so they progress independently.
+//!
+//! # Query Dispatcher
+//!
+//! Queries use NATS **core request/reply**, the same transport as commands, but
+//! with a shared (non-exclusive) store reference because queries are read-only.
+//! The dispatcher creates a service group and listens on subjects of the form
+//! `<service_name>.<handler_name>`. Each incoming request is dispatched to the
+//! matching [`QueryHandler`], and the reply is sent back to the caller.
+//!
+//! This is the correct transport choice for queries because:
+//! * Queries are point-in-time reads that expect an immediate response.
+//! * Sharing the store across handlers avoids unnecessary cloning of connections.
+//! * Core NATS request/reply naturally load-balances across service instances.
 
 /// NATS command dispatcher backed by core NATS request/reply service groups.
 pub mod command_dispatcher;

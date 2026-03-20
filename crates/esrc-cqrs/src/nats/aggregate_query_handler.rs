@@ -61,6 +61,13 @@ pub type ProjectFn<A, R> = fn(&Root<A>) -> R;
 ///     |root| MyReadModel::from(Root::state(root)),
 /// );
 /// ```
+///
+/// # Extending Queries
+///
+/// If a query requires parameters beyond the aggregate ID, implement
+/// [`crate::query::QueryHandler`] directly and deserialize a custom request
+/// envelope inside `handle`. Register the custom handler with
+/// [`crate::CqrsRegistry::register_query`] as usual.
 pub struct AggregateQueryHandler<A, R>
 where
     A: Aggregate,

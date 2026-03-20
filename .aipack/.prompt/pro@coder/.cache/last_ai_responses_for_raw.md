@@ -1,216 +1,198 @@
 ====
->   Info: Duration: 29s | ~$0.08 | Prompt Tokens: 15,275 (cached: 0, cache_creation: 0) | Completion Tokens: 2,280 
+>   Info: Duration: 36s | ~$0.08 | Prompt Tokens: 14,451 (cached: 0, cache_creation: 0) | Completion Tokens: 2,443 
 >  Model: claude-sonnet-4-6 | Adapter: Anthropic
->  Files: Context Files: 7 | Working Files: 0 | Knowledge Files: 0
+>  Files: Context Files: 13 | Working Files: 0 | Knowledge Files: 0
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
-Looking at the integration test file, I can see it imports and uses the query-related types but the test file itself doesn't have any tests for the query functionality. The user is saying that the query-related declarations (types, imports) are missing from the integration test file.
-
-Let me look more carefully. The test file imports:
-
-```rust
-use esrc_cqrs::nats::{
-    AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler,
-    NatsCommandDispatcher,
-};
-```
-
-It's missing imports for the query types (`AggregateQueryHandler`, `QueryEnvelope`, `QueryReply`, `NatsQueryDispatcher`) and there are no query tests defined.
-
-The user says "you forgot to declare the unit tests defined in `crates/esrc-cqrs/tests/integration_nats.rs`" - meaning the query integration tests need to be added to that file.
-
-I need to add:
-1. The missing query imports
-2. Query-related test cases (send a query, get a response)
-
-Let me write appropriate query integration tests that follow the same pattern as the command tests, using the `Counter` aggregate already defined there.
+I'll review the documentation and exports across the crate, focusing on the query-related parts that are new and under-documented, as well as ensuring the module-level docs and `lib.rs` exports are consistent.
 
 <FILE_CHANGES>
 
-<FILE_PATCH file_path="crates/esrc-cqrs/tests/integration_nats.rs">
+<FILE_PATCH file_path="crates/esrc-cqrs/src/lib.rs">
 @@
- use esrc_cqrs::nats::{
-     AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler,
-     NatsCommandDispatcher,
- };
-+use esrc_cqrs::nats::{AggregateQueryHandler, NatsQueryDispatcher, QueryEnvelope, QueryReply};
- use esrc_cqrs::CqrsRegistry;
-@@
- use uuid::Uuid;
-+
-+// -- Query read model --------------------------------------------------------
-+
-+/// A simple read model returned by query handlers in tests.
-+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-+struct CounterState {
-+    /// The current value of the counter.
-+    pub value: i64,
-+}
+ //! CQRS extension for `esrc`.
+ //!
+ //! Provides a registry for command handlers and event projectors, allowing
+ //! structured dispatch of commands and event projections over an event store.
+ //!
+ //! # Command Handlers
+ //!
+ //! A command handler receives a typed command, loads the target aggregate,
+ //! processes the command, and writes the resulting event back to the store.
+ //! Handlers are registered by aggregate type and dispatched by subject.
+ //!
+ //! # Event Handlers (Projectors)
+ //!
+ //! Event handlers are [`esrc::project::Project`] implementors. They are
+ //! registered and driven by the registry, which subscribes them to the
+ //! relevant event streams.
++//!
++//! # Query Handlers
++//!
++//! A query handler receives a typed query request, loads the required data
++//! (e.g., replaying aggregate state or reading a read model), and returns a
++//! serialized response. Queries are read-only: the store reference is shared
++//! rather than exclusive, so no events are written during query processing.
++//! Handlers are registered by name and dispatched by subject.
++//!
++//! # NATS Backend
++//!
++//! When the `nats` feature is enabled, concrete implementations are provided
++//! for all three handler kinds:
++//!
++//! - [`nats::NatsCommandDispatcher`] drives command handlers over core NATS
++//!   request/reply service groups.
++//! - [`nats::NatsQueryDispatcher`] drives query handlers over the same
++//!   mechanism, using a shared store reference.
++//! - [`nats::NatsProjectorRunner`] drives projectors via JetStream durable
++//!   pull consumers so they resume across restarts.
 </FILE_PATCH>
 
-<FILE_APPEND file_path="crates/esrc-cqrs/tests/integration_nats.rs">
+<FILE_PATCH file_path="crates/esrc-cqrs/src/nats/mod.rs">
+@@
+ //! NATS-backed CQRS dispatcher and projector runner.
+ //!
+ //! # Command Dispatcher
+ //!
+ //! Commands use NATS **core request/reply**: the dispatcher creates a service
+ //! group on the JetStream context and listens on subjects of the form
+ //! `<prefix>.cmd.<handler_name>`. Each incoming request is dispatched to the
+ //! matching [`CommandHandler`], and the reply is sent back to the caller.
+ //!
+ //! This is the correct transport choice for commands because:
+ //! * Commands are point-in-time requests that expect an immediate acknowledgment.
+ //! * Core NATS request/reply is low-latency and naturally load-balances across
+ //!   multiple service instances via queue groups.
+ //! * There is no need to persist commands; only the resulting events are durable.
+ //!
+ //! # Projector Runner
+ //!
+ //! Projectors use NATS **JetStream durable pull consumers** (the same mechanism
+ //! as the existing `Subscribe` / `durable_observe` in `NatsStore`). Each
+ //! projector runs as an independent task and resumes from its last position
+ //! across restarts using its durable consumer name.
+ //!
+ //! This is the correct transport choice for projectors because:
+ //! * Event projections must be durable and survive process restarts.
+ //! * Pull consumers allow back-pressure and fine-grained acknowledgment.
+ //! * Each projector gets its own consumer position so they progress independently.
++//!
++//! # Query Dispatcher
++//!
++//! Queries use NATS **core request/reply**, the same transport as commands, but
++//! with a shared (non-exclusive) store reference because queries are read-only.
++//! The dispatcher creates a service group and listens on subjects of the form
++//! `<service_name>.<handler_name>`. Each incoming request is dispatched to the
++//! matching [`QueryHandler`], and the reply is sent back to the caller.
++//!
++//! This is the correct transport choice for queries because:
++//! * Queries are point-in-time reads that expect an immediate response.
++//! * Sharing the store across handlers avoids unnecessary cloning of connections.
++//! * Core NATS request/reply naturally load-balances across service instances.
+</FILE_PATCH>
 
-/// Spawn the query dispatcher as a background task and wait briefly for it
-/// to register its service endpoints.
-async fn spawn_query_dispatcher(
-    ctx: &TestCtx,
-    handlers: Vec<Arc<dyn esrc_cqrs::registry::ErasedQueryHandler<NatsStore>>>,
-) {
-    let service_name = ctx.service_name();
-    let store = ctx.store.clone();
+<FILE_PATCH file_path="crates/esrc-cqrs/src/query.rs">
+@@
+ /// A handler for a single query type.
+ ///
+ /// Implementors receive a raw byte payload (the serialized query request),
+ /// perform all necessary data retrieval (e.g., loading a read model or
+ /// replaying aggregate state), and return a serialized response payload.
+ ///
+ /// The generic parameter `S` is the event store type (e.g., `NatsStore`).
+ ///
+ /// Queries are read-only by convention: a `QueryHandler` should never write
+ /// events or mutate aggregate state. The store reference is therefore shared
+ /// (`&S`) rather than exclusive (`&mut S`).
++///
++/// # Usage
++///
++/// For the common case of loading a single aggregate and projecting its state,
++/// use [`crate::nats::AggregateQueryHandler`] rather than implementing this
++/// trait directly.
++///
++/// For custom queries (e.g., cross-aggregate reads or external data sources),
++/// implement this trait directly and register the handler with
++/// [`crate::CqrsRegistry::register_query`].
+</FILE_PATCH>
 
-    let dispatcher = NatsQueryDispatcher::new(
-        async_nats::connect("nats://localhost:4222")
-            .await
-            .expect("connect"),
-        service_name,
-    );
+<FILE_PATCH file_path="crates/esrc-cqrs/src/nats/query_dispatcher.rs">
+@@
+ /// Version string for the NATS query service group.
+ pub const QUERY_SERVICE_VERSION: &str = "0.1.0";
+@@
+ /// NATS query dispatcher.
+ ///
+ /// Registers all query handlers as endpoints on a single NATS service,
+ /// using core NATS request/reply. Each handler name becomes one endpoint
+ /// within the service group named `<service_name>`.
+ ///
+ /// The store reference is shared (`&S`) across all query handlers because
+ /// queries are read-only by convention.
++///
++/// # Subject Pattern
++///
++/// Subjects follow the pattern `<service_name>.<handler_name>`, where
++/// `handler_name` is the value returned by [`crate::query::QueryHandler::name`].
++/// Use [`query_subject`] to build the subject string for a given handler.
++///
++/// # Reply Shape
++///
++/// Each endpoint returns a serialized [`crate::nats::QueryReply`]. On success,
++/// `success` is `true` and `data` contains the handler's response as a JSON
++/// value. On failure, `success` is `false` and `error` is set to a
++/// [`crate::Error`] describing the problem.
+</FILE_PATCH>
 
-    tokio::spawn(async move {
-        let _ = dispatcher.run(store, &handlers).await;
-    });
+<FILE_PATCH file_path="crates/esrc-cqrs/src/nats/aggregate_query_handler.rs">
+@@
+ /// A generic [`QueryHandler`] implementation for NATS-backed aggregates.
+ ///
+ /// This handler:
+ /// 1. Deserializes the incoming payload as a [`QueryEnvelope`].
+ /// 2. Loads the aggregate using [`ReplayOneExt::read`].
+ /// 3. Applies the user-supplied projection function to produce the response.
+ /// 4. Returns a serialized [`QueryReply`] containing the response as JSON.
+ ///
+ /// `A` is the aggregate type. `A::Event` must implement `DeserializeVersion`.
+ /// `R` is the response / read-model type and must implement `Serialize`.
+ ///
+ /// # Example
+ ///
+ /// ```rust,ignore
+ /// let handler = AggregateQueryHandler::<MyAggregate, MyReadModel>::new(
+ ///     "MyAggregate.GetState",
+ ///     |root| MyReadModel::from(Root::state(root)),
+ /// );
+ /// ```
++///
++/// # Extending Queries
++///
++/// If a query requires parameters beyond the aggregate ID, implement
++/// [`crate::query::QueryHandler`] directly and deserialize a custom request
++/// envelope inside `handle`. Register the custom handler with
++/// [`crate::CqrsRegistry::register_query`] as usual.
+</FILE_PATCH>
 
-    // Allow the NATS service endpoints to register before tests send queries.
-    sleep(Duration::from_millis(300)).await;
-}
-
-/// Send a single query through NATS request/reply, returning the raw reply.
-async fn send_query(
-    client: &async_nats::Client,
-    service_name: &str,
-    handler_name: &str,
-    id: Uuid,
-) -> QueryReply {
-    let subject = esrc_cqrs::nats::query_dispatcher::query_subject(service_name, handler_name);
-    let envelope = QueryEnvelope { id };
-    let payload = serde_json::to_vec(&envelope).expect("serialize query envelope");
-    let reply = client
-        .request(subject, payload.into())
-        .await
-        .expect("NATS request should succeed");
-    serde_json::from_slice(&reply.payload).expect("valid QueryReply")
-}
-
-/// Test that a query sent over NATS returns the correct aggregate state after
-/// one or more commands have been applied.
-#[tokio::test]
-async fn test_query_returns_aggregate_state() {
-    let ctx = TestCtx::new("qry-ok").await;
-
-    let registry = CqrsRegistry::new(ctx.store.clone())
-        .register_command(AggregateCommandHandler::<Counter>::new("Counter"))
-        .register_query(AggregateQueryHandler::<Counter, CounterState>::new(
-            "Counter.GetState",
-            |root| CounterState { value: root.value },
-        ));
-
-    spawn_dispatcher(&ctx, registry.command_handlers().to_vec()).await;
-    spawn_query_dispatcher(&ctx, registry.query_handlers().to_vec()).await;
-
-    let id = Uuid::new_v4();
-
-    // Apply two increments so the aggregate has a known value.
-    for by in [10i64, 5] {
-        let resp = send_command(&ctx.client, ctx.service_name(), "Counter", id, CounterCommand::Increment { by }).await;
-        assert!(resp.success, "command should succeed");
-    }
-
-    let reply = send_query(&ctx.client, ctx.service_name(), "Counter.GetState", id).await;
-
-    assert!(reply.success, "query should succeed");
-    assert!(reply.error.is_none());
-
-    let state: CounterState = serde_json::from_value(reply.data.expect("data present"))
-        .expect("CounterState should deserialize");
-    assert_eq!(state.value, 15, "query should reflect cumulative aggregate state");
-
-    ctx.cleanup().await;
-}
-
-/// Test that querying an aggregate that has never received a command returns
-/// the default (zero) state without an error.
-#[tokio::test]
-async fn test_query_default_state_for_new_aggregate() {
-    let ctx = TestCtx::new("qry-new").await;
-
-    let registry = CqrsRegistry::new(ctx.store.clone()).register_query(
-        AggregateQueryHandler::<Counter, CounterState>::new("Counter.GetState", |root| {
-            CounterState { value: root.value }
-        }),
-    );
-
-    spawn_query_dispatcher(&ctx, registry.query_handlers().to_vec()).await;
-
-    let id = Uuid::new_v4();
-    let reply = send_query(&ctx.client, ctx.service_name(), "Counter.GetState", id).await;
-
-    assert!(reply.success, "query on a new aggregate should succeed");
-    let state: CounterState = serde_json::from_value(reply.data.expect("data present"))
-        .expect("CounterState should deserialize");
-    assert_eq!(state.value, 0, "new aggregate should have default value of 0");
-
-    ctx.cleanup().await;
-}
-
-/// Test that a malformed query payload results in an error reply and the
-/// dispatcher keeps running for subsequent queries.
-#[tokio::test]
-async fn test_query_malformed_payload_returns_error() {
-    let ctx = TestCtx::new("qry-bad").await;
-
-    let registry = CqrsRegistry::new(ctx.store.clone()).register_query(
-        AggregateQueryHandler::<Counter, CounterState>::new("Counter.GetState", |root| {
-            CounterState { value: root.value }
-        }),
-    );
-
-    spawn_query_dispatcher(&ctx, registry.query_handlers().to_vec()).await;
-
-    let subject = esrc_cqrs::nats::query_dispatcher::query_subject(ctx.service_name(), "Counter.GetState");
-
-    // Send garbage bytes; we only care that we get a response, not a panic.
-    let bad_result = ctx
-        .client
-        .request(subject.clone(), b"this is not json"[..].into())
-        .await;
-    let _ = bad_result;
-
-    // Confirm the dispatcher is still alive by sending a well-formed query.
-    let id = Uuid::new_v4();
-    let reply = send_query(&ctx.client, ctx.service_name(), "Counter.GetState", id).await;
-    assert!(reply.success, "dispatcher should still handle valid queries after a bad payload");
-
-    ctx.cleanup().await;
-}
-
-/// Test that `CqrsRegistry::query_handlers()` reflects registered query handlers.
-#[tokio::test]
-async fn test_registry_query_handlers_accessor() {
-    let ctx = TestCtx::new("qry-reg").await;
-
-    let registry = CqrsRegistry::new(ctx.store.clone())
-        .register_query(AggregateQueryHandler::<Counter, CounterState>::new(
-            "Counter.GetState",
-            |root| CounterState { value: root.value },
-        ))
-        .register_query(AggregateQueryHandler::<Counter, CounterState>::new(
-            "Counter.GetStateAlt",
-            |root| CounterState { value: root.value },
-        ));
-
-    assert_eq!(
-        registry.query_handlers().len(),
-        2,
-        "two query handlers should be registered"
-    );
-
-    ctx.cleanup().await;
-}
-</FILE_APPEND>
+<FILE_PATCH file_path="crates/esrc-cqrs/src/registry.rs">
+@@
+ /// A registry that holds command handlers and event projectors.
+ ///
+ /// `S` is the event store type shared across all handlers. The store must be
+ /// `Clone` so that each command handler and projector can hold its own handle.
++///
++/// # Building a Registry
++///
++/// Use the builder-style `register_*` methods to attach handlers, then call
++/// [`CqrsRegistry::run_projectors`] to start projectors as background tasks.
++/// Pass the registry's handler slices to the appropriate dispatcher
++/// (e.g., [`crate::nats::NatsCommandDispatcher`] or
++/// [`crate::nats::NatsQueryDispatcher`]) to begin serving requests.
+</FILE_PATCH>
 
 </FILE_CHANGES>
 
 <suggested_git_command>
-git commit -a -m "+ esrc-cqrs - Add query integration tests to integration_nats.rs"
+git commit -a -m "^ esrc-cqrs - Improve crate, module, and query-related documentation"
 </suggested_git_command>
 

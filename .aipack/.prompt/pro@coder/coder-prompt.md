@@ -46,43 +46,18 @@ dev:
 model: claude-sonnet-4-6
 ## (see PATH_TO_PRO_CODER_DIR/README.md for full pro@coder documentation)
 ```
-in my last prompt i asked you implemented the following:
-- Add a `query.rs` module under `crates/esrc-cqrs/src/` defining the `QueryHandler` trait, mirroring `CommandHandler` but typed over a request and a response.
-- Add a `nats/aggregate_query_handler.rs` for the NATS-backed generic aggregate query handler (loads a read model / aggregate state and returns it serialized).
-- Add a `nats/query_dispatcher.rs` for the NATS service-based query dispatcher (same pattern as command dispatcher).
-- Wire everything up in `lib.rs`, `nats/mod.rs`, and `registry.rs`.
-
-but you forgot to declare the unit tests defined in crates/esrc-cqrs/tests/integration_nats.rs, fix that mistake
+fix the documentation and exports of the crate, some parts like the query are new and not well documented.
 
 ====
->   Info: Duration: 29s | ~$0.08 | Prompt Tokens: 15,275 (cached: 0, cache_creation: 0) | Completion Tokens: 2,280 
+>   Info: Duration: 36s | ~$0.08 | Prompt Tokens: 14,451 (cached: 0, cache_creation: 0) | Completion Tokens: 2,443 
 >  Model: claude-sonnet-4-6 | Adapter: Anthropic
->  Files: Context Files: 7 | Working Files: 0 | Knowledge Files: 0
+>  Files: Context Files: 13 | Working Files: 0 | Knowledge Files: 0
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
-Looking at the integration test file, I can see it imports and uses the query-related types but the test file itself doesn't have any tests for the query functionality. The user is saying that the query-related declarations (types, imports) are missing from the integration test file.
-
-Let me look more carefully. The test file imports:
-
-```rust
-use esrc_cqrs::nats::{
-    AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler,
-    NatsCommandDispatcher,
-};
-```
-
-It's missing imports for the query types (`AggregateQueryHandler`, `QueryEnvelope`, `QueryReply`, `NatsQueryDispatcher`) and there are no query tests defined.
-
-The user says "you forgot to declare the unit tests defined in `crates/esrc-cqrs/tests/integration_nats.rs`" - meaning the query integration tests need to be added to that file.
-
-I need to add:
-1. The missing query imports
-2. Query-related test cases (send a query, get a response)
-
-Let me write appropriate query integration tests that follow the same pattern as the command tests, using the `Counter` aggregate already defined there.
+I'll review the documentation and exports across the crate, focusing on the query-related parts that are new and under-documented, as well as ensuring the module-level docs and `lib.rs` exports are consistent.
 
 
 
 <suggested_git_command>
-git commit -a -m "+ esrc-cqrs - Add query integration tests to integration_nats.rs"
+git commit -a -m "^ esrc-cqrs - Improve crate, module, and query-related documentation"
 </suggested_git_command>
