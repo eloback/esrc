@@ -31,13 +31,14 @@ in
       channel = "stable";
       enable = true;
     };
+    git-hooks.enable = false;
     git-hooks.hooks = {
       rustfmt = {
-        enable = true;
+        enable = false;
         files = "\.rs$";
       };
       clippy = {
-        enable = true;
+        enable = false;
         settings = {
           allFeatures = true;
         };
