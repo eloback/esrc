@@ -42,8 +42,8 @@
     },
     "crates/esrc-cqrs/src/nats/aggregate_command_handler.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/aggregate_command_handler.rs",
-      "hash": "faf2203bacdb516096795170f0b9a33d5a7821a1e7e6ca81ffd9f696bce8728d",
-      "mtime": 1774017559804822,
+      "hash": "a52f090c619cb6a8900a34e822feebd476103e49238e4878c6c0e9c78f54e4f5",
+      "mtime": 1774040829284984,
       "public_functions": [
         "AggregateCommandHandler::new",
         "CommandHandler<NatsStore>::name",
@@ -72,8 +72,8 @@
     },
     "crates/esrc-cqrs/src/nats/command_dispatcher.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/command_dispatcher.rs",
-      "hash": "bce038f15bffe2f6aefa2a3642cedab8a3ff83fe6ee9bb4597fbb02b954dbc26",
-      "mtime": 1774017559804822,
+      "hash": "ff6beaa7cbdb9c70c24d1573970a647560126d6d878b6b4d4f6cf4e4e38ac594",
+      "mtime": 1774040829284984,
       "public_functions": [
         "NatsCommandDispatcher::new",
         "NatsCommandDispatcher::run",
@@ -88,7 +88,7 @@
     "crates/esrc-cqrs/src/nats/mod.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/mod.rs",
       "hash": "e670f61614aad1688a18638b27c8425c679e86a23d221627af82281d730579e6",
-      "mtime": 1773961994582920,
+      "mtime": 1774040829284984,
       "public_functions": [],
       "public_types": [
         "AggregateCommandHandler",
@@ -150,7 +150,7 @@
     "crates/esrc-cqrs/tests/integration_nats.rs": {
       "file_path": "crates/esrc-cqrs/tests/integration_nats.rs",
       "hash": "64ccba5853aaa7b59b03f0ff0788ea27b66084f1d9b1be2dd7bc1cb1556212c1",
-      "mtime": 1774037776599956,
+      "mtime": 1774040829284984,
       "public_functions": [
         "test_command_request_response_success",
         "test_command_error_does_not_break_dispatcher",

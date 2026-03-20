@@ -20,6 +20,8 @@
 
 /// Command handler trait and registry entry.
 pub mod command;
+/// Serializable CQRS error type transmitted in command replies.
+pub mod error;
 /// Event projector handler registry entry.
 pub mod projector;
 /// The top-level CQRS registry that holds and drives all handlers.
@@ -30,5 +32,6 @@ pub mod registry;
 pub mod nats;
 
 pub use command::CommandHandler;
+pub use error::Error;
 pub use projector::ProjectorHandler;
 pub use registry::CqrsRegistry;

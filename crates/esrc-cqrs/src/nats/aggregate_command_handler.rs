@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use esrc::aggregate::{Aggregate, Root};
-use esrc::error::{self, Error};
+use esrc::error;
 use esrc::event::publish::PublishExt;
 use esrc::event::replay::ReplayOneExt;
 use esrc::nats::NatsStore;
@@ -30,8 +30,8 @@ pub struct CommandReply {
     pub id: Uuid,
     /// Whether the command succeeded.
     pub success: bool,
-    /// An optional message (e.g., error description on failure).
-    pub message: Option<String>,
+    /// The structured CQRS error, present only when `success` is false.
+    pub error: Option<crate::Error>,
 }
 
 /// A generic [`CommandHandler`] implementation for NATS-backed aggregates.
@@ -73,6 +73,7 @@ where
     A: Aggregate + Send + Sync + 'static,
     A::Command: for<'de> Deserialize<'de> + Send,
     A::Event: SerializeVersion + DeserializeVersion + Send,
+    A::Error: Serialize,
 {
     fn name(&self) -> &'static str {
         self.handler_name
@@ -84,7 +85,7 @@ where
         payload: &'a [u8],
     ) -> error::Result<Vec<u8>> {
         let envelope: CommandEnvelope<A::Command> =
-            serde_json::from_slice(payload).map_err(|e| Error::Format(e.into()))?;
+            serde_json::from_slice(payload).map_err(|e| esrc::error::Error::Format(e.into()))?;
 
         let root: Root<A> = store.read(envelope.id).await?;
         let agg_id = envelope.id;
@@ -94,14 +95,52 @@ where
             Ok(written) => CommandReply {
                 id: Root::id(&written),
                 success: true,
-                message: None,
+                error: None,
             },
-            Err(e) => CommandReply {
-                id: agg_id,
-                success: false,
-                message: Some(format!("{e}")),
+            Err(e) => {
+                // Convert the esrc error into a serializable cqrs_error::Error.
+                // For the External variant the aggregate's Error must implement
+                // Serialize (enforced by the trait bound above). We serialize it
+                // into a serde_json::Value before boxing so that from_esrc_error
+                // can recover the structured value on the other side.
+                let cqrs_err = convert_esrc_error::<A>(e);
+                CommandReply {
+                    id: agg_id,
+                    success: false,
+                    error: Some(cqrs_err),
+                }
             },
         };
-        serde_json::to_vec(&reply).map_err(|e| Error::Format(e.into()))
+        serde_json::to_vec(&reply).map_err(|e| esrc::error::Error::Format(e.into()))
+    }
+}
+
+/// Convert an [`esrc::error::Error`] into a [`cqrs_error::Error`], serializing
+/// the aggregate's domain error for the `External` variant.
+///
+/// The `External` source produced by `try_write` is the aggregate's own `Error`
+/// type boxed as `Box<dyn std::error::Error + Send + Sync>`. We downcast it
+/// back to `A::Error` and serialize it. If the downcast fails (which would be a
+/// framework bug), we fall back to the Display representation. If serialization
+/// fails, we panic because a non-serializable aggregate error is a programming
+/// error when using the CQRS framework.
+fn convert_esrc_error<A>(err: esrc::error::Error) -> crate::Error
+where
+    A: Aggregate,
+    A::Error: Serialize,
+{
+    match err {
+        esrc::error::Error::Internal(e) => crate::Error::Internal(e.to_string()),
+        esrc::error::Error::External(e) => {
+            let value = match e.downcast::<A::Error>() {
+                Ok(agg_err) => serde_json::to_value(&*agg_err)
+                    .expect("aggregate Error must be serializable when used with esrc-cqrs"),
+                Err(e) => serde_json::Value::String(e.to_string()),
+            };
+            crate::Error::External(value)
+        },
+        esrc::error::Error::Format(e) => crate::Error::Format(e.to_string()),
+        esrc::error::Error::Invalid => crate::Error::Invalid,
+        esrc::error::Error::Conflict => crate::Error::Conflict,
     }
 }

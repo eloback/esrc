@@ -91,7 +91,7 @@ impl NatsCommandDispatcher {
                             let failure = CommandReply {
                                 id: uuid::Uuid::nil(),
                                 success: false,
-                                message: Some(format!("{e}")),
+                                error: Some(crate::error::Error::Internal(format!("{e}"))),
                             };
                             let body = serde_json::to_vec(&failure).unwrap_or_default();
                             let _ = request.respond(Ok(body.into())).await;

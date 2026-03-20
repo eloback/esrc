@@ -52,6 +52,23 @@ enum CounterError {
     ForcedFailure,
 }
 
+// CounterError must be serializable so it can be transmitted in CommandReply.
+impl serde::Serialize for CounterError {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str("ForcedFailure")
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for CounterError {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        match s.as_str() {
+            "ForcedFailure" => Ok(CounterError::ForcedFailure),
+            other => Err(serde::de::Error::unknown_variant(other, &["ForcedFailure"])),
+        }
+    }
+}
+
 impl Aggregate for Counter {
     type Command = CounterCommand;
     type Event = CounterEvent;
@@ -300,13 +317,27 @@ async fn test_command_error_does_not_break_dispatcher() {
     };
     let bad_payload = serde_json::to_vec(&bad_envelope).unwrap();
 
-    // The request itself resolves (the service replies with an error code) or
-    // returns a service-level error; either way we should not hang or panic.
-    let bad_result = ctx.client.request(subject.clone(), bad_payload.into()).await;
-    dbg!(&bad_result);
-    // The NATS service API sends an error status reply; async-nats surfaces
-    // this as an Err from `request`. We only assert the client did not hang.
-    let _ = bad_result;
+    // The dispatcher encodes the aggregate error as a CommandReply with success=false.
+    let raw = ctx
+        .client
+        .request(subject.clone(), bad_payload.into())
+        .await
+        .expect("NATS request should succeed");
+    let reply: CommandReply = serde_json::from_slice(&raw.payload).expect("valid CommandReply");
+
+    assert!(!reply.success, "AlwaysFail command should return success=false");
+    assert!(reply.error.is_some(), "error field should be populated");
+
+    // Recover the typed aggregate error from the External variant.
+    let cqrs_err = reply.error.as_ref().unwrap();
+    let agg_err: CounterError = cqrs_err
+        .downcast_external::<CounterError>()
+        .expect("External variant should be present and deserializable");
+    // Validate that the error we received is indeed the one the aggregate returned.
+    assert!(
+        matches!(agg_err, CounterError::ForcedFailure),
+        "deserialized aggregate error should be ForcedFailure, got: {agg_err:?}"
+    );
 
     // Now send a valid command to confirm the dispatcher is still running.
     let good_id = Uuid::new_v4();
