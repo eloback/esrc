@@ -6,19 +6,38 @@ file_content_mode: udiffx
 
 ## All resolve files(sent to AI with content, in this order)
 
+- examples/cafe/error.rs
+- examples/cafe/tab.rs
+- src/error.rs
+- examples/cafe/tab/tests.rs
+- src/event/replay.rs
+- src/envelope.rs
 - examples/cafe/table.rs
+- src/project.rs
+- src/event.rs
 - examples/cafe/projector.rs
-- Cargo.toml
-- crates/esrc-cqrs/Cargo.toml
-- crates/esrc-cqrs/src/error.rs
-- examples/cafe/domain.rs
-- examples/cafe/main.rs
 - crates/esrc-cqrs/src/lib.rs
-- crates/esrc-cqrs/src/nats/aggregate_query_handler.rs
-- crates/esrc-cqrs/src/nats/query_dispatcher.rs
 - crates/esrc-cqrs/src/query.rs
 - crates/esrc-cqrs/src/registry.rs
+- examples/cafe/domain.rs
+- src/lib.rs
+- crates/esrc-cqrs/src/nats/query_dispatcher.rs
+- crates/esrc-cqrs/tests/integration_nats.rs
+- examples/cafe/main.rs
+- src/aggregate.rs
 - crates/esrc-cqrs/src/nats/mod.rs
+- crates/esrc-cqrs/src/nats/aggregate_query_handler.rs
+- .aipack/.prompt/pro@coder/dev/plan/_plan-rules.md
+- .aipack/.prompt/pro@coder/dev/plan/plan-1-todo-steps.md
+- .aipack/.prompt/pro@coder/dev/plan/plan-2-active-step.md
+- .aipack/.prompt/pro@coder/dev/plan/plan-3-done-steps.md
+
+## Post (just for info, included in the All resolved files above)
+
+- .aipack/.prompt/pro@coder/dev/plan/_plan-rules.md
+- .aipack/.prompt/pro@coder/dev/plan/plan-1-todo-steps.md
+- .aipack/.prompt/pro@coder/dev/plan/plan-2-active-step.md
+- .aipack/.prompt/pro@coder/dev/plan/plan-3-done-steps.md
 
 # Working Files
 

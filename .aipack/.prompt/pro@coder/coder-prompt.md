@@ -16,12 +16,14 @@ context_globs:
   # - package.json  # for Node.js
   - Cargo.toml # for Rust
   # - README.md
+  - src/**/*.*
   - crates/esrc-cqrs/**/*.*
   - examples/**/*.*
   # - derive/**/*.*
   # - compilation_errors.txt
 
-context_globs_post: # Appended after auto-context selection
+context_globs_post:        # Appended after auto-context selection
+  - .aipack/.prompt/pro@coder/dev/plan/*.md  
 
 ## File paths to give AI a broader view of the project (paths only in prompt, relative only)
 structure_globs:
@@ -46,37 +48,24 @@ dev:
 model: claude-sonnet-4-6
 ## (see PATH_TO_PRO_CODER_DIR/README.md for full pro@coder documentation)
 ```
-Update the cafe example to feature queries the new feature of the esrc-cqrs crate.
-Update also the query dispatch logic in the example, we now that the erros are wrapped in our new esrc_cqrs::Error type.
+Following the plan rules, create a plan to do the following:
+1. Remove `AggregateQueryHandler` from `esrc-cqrs` (the "load aggregate and project" query pattern).
+2. Introduce a `View` trait (like `Aggregate` but without `Command`/`process`/`Error`) in the `esrc` crate.
+3. Introduce `LiveViewQuery`: a `QueryHandler` that replays events on each request to build a view.
+4. Introduce `MemoryViewQuery`: a `Project` implementation that keeps a view in memory, and a `QueryHandler` that reads from that memory.
+5. Update tests and cafe example accordingly.
 
 ====
->   Info: Duration: 38s | ~$0.0878 | Prompt Tokens: 14,864 (cached: 0, cache_creation: 0) | Completion Tokens: 2,881 
+>   Info: Duration: 40s | ~$0.142 | Prompt Tokens: 36,279 (cached: 0, cache_creation: 0) | Completion Tokens: 2,208 
 >  Model: claude-sonnet-4-6 | Adapter: Anthropic
->  Files: Context Files: 13 | Working Files: 0 | Knowledge Files: 0
+>  Files: Context Files: 25 | Working Files: 0 | Knowledge Files: 0
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
-Looking at the existing code, I need to:
-
-1. Update `examples/cafe/domain.rs` to add a query response type (`OrderState`).
-2. Update `examples/cafe/projector.rs` - no changes needed there.
-3. Add a new `examples/cafe/query.rs` with an `OrderQueryHandler` (or use `AggregateQueryHandler`).
-4. Update `examples/cafe/main.rs` to register a query handler and demonstrate sending a query, using the `NatsQueryDispatcher` and wrapping errors with `esrc_cqrs::Error`.
-
-I also need to check that the `NatsQueryDispatcher` is used properly and that errors are wrapped in `esrc_cqrs::Error` as noted.
-
-Looking at `main.rs`, it currently only shows commands. I need to:
-- Add a query to fetch order state after placing it.
-- Register a `AggregateQueryHandler` for `Order`.
-- Run a `NatsQueryDispatcher` alongside the command dispatcher.
-- Show that query errors come back as `esrc_cqrs::Error`.
-
-I also need to add an `OrderState` read model to `domain.rs` and derive the right traits.
-
-Let me also check what needs to be added to `Cargo.toml` for the example - it already has `esrc-cqrs` as a dev-dependency, so that's fine.
+I'll analyze the codebase and create a plan for the requested changes.
 
 
 
-<suggested_git_command>
+<suggested_git_commit>
 git add -A .
-git commit -a -m "^ cafe example - Add query handler registration and query dispatch with esrc_cqrs::Error"
-</suggested_git_command>
+git commit -a -m "+ plan - Add plan for View trait, LiveViewQuery, MemoryViewQuery, and AggregateQueryHandler removal"
+</suggested_git_commit>

@@ -97,7 +97,7 @@
     "crates/esrc-cqrs/src/nats/aggregate_query_handler.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/aggregate_query_handler.rs",
       "hash": "f43650908f6c5773050cc3f96987b819e9386e040a583cc43f74b4422446ac92",
-      "mtime": 1774046290529292,
+      "mtime": 1774050497112095,
       "public_functions": [
         "AggregateQueryHandler::new",
         "QueryHandler::name",
@@ -130,7 +130,7 @@
     "crates/esrc-cqrs/src/nats/mod.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/mod.rs",
       "hash": "d82b32053b0a2ab1e8751c4617484d00589045b92c3dfdf3c42dfca1f969038e",
-      "mtime": 1774047771324012,
+      "mtime": 1774050497112088,
       "public_types": [
         "AggregateCommandHandler",
         "CommandEnvelope",
@@ -163,7 +163,7 @@
     "crates/esrc-cqrs/src/nats/query_dispatcher.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/query_dispatcher.rs",
       "hash": "5470a82cb7e2606b65003735a6119083ad5d29431e815699a226cff0a618e345",
-      "mtime": 1774046290529292,
+      "mtime": 1774050497112047,
       "public_functions": [
         "query_subject"
       ],
@@ -222,7 +222,7 @@
     "crates/esrc-cqrs/tests/integration_nats.rs": {
       "file_path": "crates/esrc-cqrs/tests/integration_nats.rs",
       "hash": "14e851bf8cf4aaa1c7a53fdc6a53c2214103633f492141fe91202f5ecf977aa7",
-      "mtime": 1774045986979110,
+      "mtime": 1774050497112047,
       "public_functions": [
         "test_command_request_response_success",
         "test_command_error_does_not_break_dispatcher",
@@ -448,9 +448,10 @@
     },
     "examples/cafe/domain.rs": {
       "file_path": "examples/cafe/domain.rs",
-      "hash": "541cb11eea431e8e029d600d6046da247e34714350fa2bc8830a7257fb1e98eb",
-      "mtime": 1774043518810062,
+      "hash": "ea92015a2339765a7b9074e0b5de755630401eaebc3bdab7264b4ce9f698dff6",
+      "mtime": 1774050238770782,
       "public_functions": [
+        "from_root",
         "process",
         "apply"
       ],
@@ -459,7 +460,8 @@
         "Order",
         "OrderCommand",
         "OrderEvent",
-        "OrderError"
+        "OrderError",
+        "OrderState"
       ],
       "summary": "Defines a cafe order domain aggregate with order state, commands, events, error handling, and aggregate command/event application logic.",
       "when_to_use": "Include this file when you need the core domain model for the cafe example, especially order lifecycle behavior, command processing, event definitions, or aggregate state transitions."
@@ -476,14 +478,13 @@
     },
     "examples/cafe/main.rs": {
       "file_path": "examples/cafe/main.rs",
-      "hash": "4a7711c188b292f7babd18b3aaa0ab4f239df655910591a965cade898949d451",
-      "mtime": 1774043558821214,
+      "hash": "06346d91b3e601bac93af2206a199cafe455423701276d4484cd03de3173b978",
+      "mtime": 1774050497112047,
       "public_functions": [
         "main"
       ],
-      "public_types": [],
-      "summary": "Entry point for the cafe CQRS example using NATS/JetStream. It wires together the NATS store, command dispatcher, and durable projector, then sends sample order commands to demonstrate the flow.",
-      "when_to_use": "Include this file when you need the runnable example setup for the cafe domain, especially to understand how command dispatching and projectors are launched with `esrc-cqrs` and NATS."
+      "summary": "Entry point for the cafe CQRS example using NATS/JetStream. It wires together the NATS store, command dispatcher, query dispatcher, and durable projector, then sends sample order commands and queries to demonstrate the flow.",
+      "when_to_use": "Include this file when you need the runnable cafe domain example, especially to understand how `esrc-cqrs` components are assembled and executed with NATS, JetStream, commands, queries, and projectors."
     },
     "examples/cafe/projector.rs": {
       "file_path": "examples/cafe/projector.rs",
@@ -561,7 +562,7 @@
     "src/aggregate.rs": {
       "file_path": "src/aggregate.rs",
       "hash": "00a6f75b3dc8449f7be55893aacbd993ff922f3680e0e7dd3c61eb376814579a",
-      "mtime": 1757060552290792,
+      "mtime": 1774050497112047,
       "public_functions": [
         "Root::with_aggregate",
         "Root::id",
@@ -765,7 +766,7 @@
     "src/lib.rs": {
       "file_path": "src/lib.rs",
       "hash": "c349a4b532efa6b795ba5849084bc82a5f53e2a5b344c640042d45a2a4568005",
-      "mtime": 1756954095934874,
+      "mtime": 1774050497112035,
       "public_functions": [],
       "public_types": [
         "Aggregate",
