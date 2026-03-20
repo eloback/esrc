@@ -1,0 +1,10 @@
+error[E0277]: the trait bound `serde_json::Value: StdError` is not satisfied
+  --> crates/esrc-cqrs/src/error.rs:89:29
+   |
+89 |                 .downcast::<serde_json::Value>()
+   |                  --------   ^^^^^^^^^^^^^^^^^ the trait `StdError` is not implemented for `serde_json::Value`
+   |                  |
+   |                  required by a bound introduced by this call
+   |
+note: required by a bound in `boxed::convert::<impl (dyn StdError + std::marker::Send + Sync + 'static)>::downcast`
+  --> /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/alloc/src/boxed/convert.rs:741:4
