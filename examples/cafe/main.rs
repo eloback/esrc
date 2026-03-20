@@ -65,7 +65,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let subject = esrc_cqrs::nats::command_dispatcher::command_subject(SERVICE_NAME, "Order");
         match driver_client.request(subject.clone(), payload.into()).await {
             Ok(reply) => {
-                dbg!(&reply);
                 let r: CommandReply =
                     serde_json::from_slice(&reply.payload).expect("deserialize reply");
                 println!(

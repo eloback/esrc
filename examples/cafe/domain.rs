@@ -38,7 +38,7 @@ pub enum OrderEvent {
 }
 
 /// Errors that can occur when processing Order commands.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Serialize, Deserialize, thiserror::Error)]
 pub enum OrderError {
     #[error("order is already completed")]
     AlreadyCompleted,
