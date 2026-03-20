@@ -1,7 +1,6 @@
 use esrc::aggregate::Aggregate;
-use esrc::error::Error as EsrcError;
-use esrc::{Event, EventGroup};
 use esrc::version::{DeserializeVersion, SerializeVersion};
+use esrc::Event;
 use serde::{Deserialize, Serialize};
 
 /// The status of a cafe order.
@@ -21,6 +20,7 @@ pub struct Order {
 }
 
 /// Commands that can be applied to the Order aggregate.
+#[derive(Debug, Deserialize, Serialize)]
 pub enum OrderCommand {
     /// Place a new order for an item.
     PlaceOrder { item: String, quantity: u32 },

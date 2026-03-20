@@ -13,9 +13,11 @@ use std::time::Duration;
 
 use async_nats::ConnectOptions;
 use esrc::nats::NatsStore;
-use esrc_cqrs::nats::{AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler, NatsCommandDispatcher};
+use esrc_cqrs::nats::{
+    AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler,
+    NatsCommandDispatcher,
+};
 use esrc_cqrs::CqrsRegistry;
-use serde_json;
 use tokio::time::sleep;
 use uuid::Uuid;
 
