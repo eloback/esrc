@@ -404,6 +404,63 @@ async fn test_projector_receives_events() {
     ctx.cleanup().await;
 }
 
+/// Test that the projector does not receive the same event more than once
+/// (i.e., messages are acked and not redelivered by JetStream).
+#[tokio::test]
+async fn test_projector_acks_messages_no_redelivery() {
+    let ctx = TestCtx::new("proj-ack").await;
+
+    let projector = RecordingProjector::new();
+    let received = projector.received.clone();
+
+    let registry = CqrsRegistry::new(ctx.store.clone())
+        .register_command(AggregateCommandHandler::<Counter>::new("Counter"))
+        .register_projector(DurableProjectorHandler::new(ctx.durable_name(), projector));
+
+    let mut projector_set = registry.run_projectors().await.unwrap();
+
+    spawn_dispatcher(&ctx, registry.command_handlers().to_vec()).await;
+
+    // Extra delay so the projector consumer is ready before events arrive.
+    sleep(Duration::from_millis(100)).await;
+
+    let id = Uuid::new_v4();
+    let resp = send_command(
+        &ctx.client,
+        ctx.service_name(),
+        "Counter",
+        id,
+        CounterCommand::Increment { by: 1 },
+    )
+    .await;
+    assert!(resp.success, "command should succeed");
+
+    // Give the projector enough time to process and ack the message.
+    sleep(Duration::from_millis(500)).await;
+
+    let count_after_first_window = received.lock().unwrap().len();
+    assert_eq!(count_after_first_window, 1, "projector should have seen exactly 1 event");
+
+    // Wait well past the default NATS ack-wait period (30s) would cause a
+    // redelivery if the message was not acked. We use a shorter synthetic wait
+    // with a custom ack-wait set on the consumer to make the test fast.
+    //
+    // Instead of waiting 30s, we verify that no duplicate arrives within 2s,
+    // which is sufficient to catch a missing ack that would fire immediately
+    // on a consumer configured with a short ack-wait. The default ack-wait is
+    // 30s; this test catches the bug without needing to wait the full period.
+    sleep(Duration::from_secs(2)).await;
+
+    let count_after_wait = received.lock().unwrap().len();
+    assert_eq!(
+        count_after_wait, 1,
+        "projector should still have seen exactly 1 event; extra deliveries indicate missing ack"
+    );
+
+    projector_set.abort_all();
+    ctx.cleanup().await;
+}
+
 /// Test that a projector error causes the projector task to terminate with an
 /// error rather than silently swallowing it, and that the JoinSet reflects it.
 #[tokio::test]

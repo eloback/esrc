@@ -38,8 +38,8 @@
     },
     "crates/esrc-cqrs/src/error.rs": {
       "file_path": "crates/esrc-cqrs/src/error.rs",
-      "hash": "bdf9871f354878be8945239a9b20b229c7961bb00e6dd20fb097262b1a762631",
-      "mtime": 1774042753162443,
+      "hash": "6c86a7ee2f2e14ade8c1ed6922d1d9708cb628501551be85e27119bca713c437",
+      "mtime": 1774042888267990,
       "public_functions": [
         "from_esrc_error"
       ],
@@ -171,8 +171,8 @@
     },
     "crates/esrc-cqrs/tests/integration_nats.rs": {
       "file_path": "crates/esrc-cqrs/tests/integration_nats.rs",
-      "hash": "c8bfb6773d047c6d086c15635cdb5abb003033f615a8236cd1b215235154bdfb",
-      "mtime": 1774041581625754,
+      "hash": "e923e2adda280b7d014ca4c97bc50b997b1a55e1c63294925f0dad6318029e24",
+      "mtime": 1774043030004288,
       "public_functions": [
         "test_command_request_response_success",
         "test_command_error_does_not_break_dispatcher",
@@ -392,8 +392,8 @@
     },
     "examples/cafe/domain.rs": {
       "file_path": "examples/cafe/domain.rs",
-      "hash": "af9ddadf77248cb7c55d24ec8da684bc2963ab2208021abcfd5f76ea58023a34",
-      "mtime": 1774036915496474,
+      "hash": "541cb11eea431e8e029d600d6046da247e34714350fa2bc8830a7257fb1e98eb",
+      "mtime": 1774043518810062,
       "public_functions": [
         "process",
         "apply"
@@ -420,8 +420,8 @@
     },
     "examples/cafe/main.rs": {
       "file_path": "examples/cafe/main.rs",
-      "hash": "0652a94213af928068519d0c9134aaf028611d68a35cabdade5e89efd29d5393",
-      "mtime": 1774032919733210,
+      "hash": "4a7711c188b292f7babd18b3aaa0ab4f239df655910591a965cade898949d451",
+      "mtime": 1774043558821214,
       "public_functions": [
         "main"
       ],

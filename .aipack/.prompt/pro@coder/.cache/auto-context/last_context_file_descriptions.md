@@ -276,20 +276,9 @@
     - Summary: Workspace and root package manifest for the esrc Rust project, defining shared dependencies, feature flags, and member crates/examples.
     - When To Use: Use this file when you need to understand the project structure, enabled feature combinations, dependency versions, workspace members, or package metadata for builds and integration context.
 
-- examples/cafe/main.rs
-    - Summary: Entry point for the cafe CQRS example using NATS/JetStream. It wires together the NATS store, command dispatcher, and durable projector, then sends sample order commands to demonstrate the flow.
-    - When To Use: Include this file when you need the runnable example setup for the cafe domain, especially to understand how command dispatching and projectors are launched with `esrc-cqrs` and NATS.
-    - Functions: main
-
 - crates/esrc-cqrs/Cargo.toml
     - Summary: Cargo manifest for the esrc-cqrs crate, defining package metadata, feature flags, and dependencies for CQRS command/event handler registry support.
     - When To Use: Include this file when you need to understand the crate's build configuration, enabled features, or dependency relationships for the CQRS registry integration.
-
-- examples/cafe/domain.rs
-    - Summary: Defines a cafe order domain aggregate with order state, commands, events, error handling, and aggregate command/event application logic.
-    - When To Use: Include this file when you need the core domain model for the cafe example, especially order lifecycle behavior, command processing, event definitions, or aggregate state transitions.
-    - Types: OrderStatus, Order, OrderCommand, OrderEvent, OrderError
-    - Functions: process, apply
 
 - crates/esrc-cqrs/src/nats/mod.rs
     - Summary: NATS CQRS integration module that wires together command dispatching over core NATS request/reply and projector execution over JetStream durable pull consumers.
@@ -307,12 +296,6 @@
     - Types: NatsCommandDispatcher
     - Functions: NatsCommandDispatcher::new, NatsCommandDispatcher::run, command_subject
 
-- crates/esrc-cqrs/tests/integration_nats.rs
-    - Summary: Integration tests for esrc-cqrs against a live NATS JetStream server, covering command dispatch, durable event storage, projector behavior, error propagation, malformed payload handling, and registry accessors.
-    - When To Use: Include this file when you need to understand or verify the NATS/JetStream integration behavior of esrc-cqrs, especially request/reply command handling, projector execution, durability, or end-to-end test setup.
-    - Types: Counter, CounterCommand, CounterEvent, CounterError, RecordingProjector, ProjectorError
-    - Functions: test_command_request_response_success, test_command_error_does_not_break_dispatcher, test_projector_receives_events, test_projector_error_propagates, test_multiple_commands_same_aggregate_occ, test_malformed_payload_returns_error, test_registry_accessors
-
 - crates/esrc-cqrs/src/nats/aggregate_command_handler.rs
     - Summary: Defines a generic NATS-backed aggregate command handler plus request/reply envelopes for routing, deserializing, applying, and responding to aggregate commands.
     - When To Use: Use this file when you need to handle commands sent over NATS for an event-sourced aggregate, including loading the aggregate, applying a command, and returning a serialized success reply.
@@ -325,7 +308,20 @@
     - Types: Error
     - Functions: from_esrc_error
 
-- compilation_errors.txt
-    - Summary: Rust compiler error log showing a failed downcast to `serde_json::Value` because it does not implement `StdError`.
-    - When To Use: Use when diagnosing the specific compilation failure in `crates/esrc-cqrs/src/error.rs` around error downcasting and trait bounds.
+- crates/esrc-cqrs/tests/integration_nats.rs
+    - Summary: Integration tests for esrc-cqrs against a live NATS JetStream server, covering command dispatch, durable event storage, projector behavior, error propagation, malformed payload handling, and registry accessors.
+    - When To Use: Include this file when you need to understand or verify the NATS/JetStream integration behavior of esrc-cqrs, especially request/reply command handling, projector execution, durability, or end-to-end test setup.
+    - Types: Counter, CounterCommand, CounterEvent, CounterError, RecordingProjector, ProjectorError
+    - Functions: test_command_request_response_success, test_command_error_does_not_break_dispatcher, test_projector_receives_events, test_projector_error_propagates, test_multiple_commands_same_aggregate_occ, test_malformed_payload_returns_error, test_registry_accessors
+
+- examples/cafe/domain.rs
+    - Summary: Defines a cafe order domain aggregate with order state, commands, events, error handling, and aggregate command/event application logic.
+    - When To Use: Include this file when you need the core domain model for the cafe example, especially order lifecycle behavior, command processing, event definitions, or aggregate state transitions.
+    - Types: OrderStatus, Order, OrderCommand, OrderEvent, OrderError
+    - Functions: process, apply
+
+- examples/cafe/main.rs
+    - Summary: Entry point for the cafe CQRS example using NATS/JetStream. It wires together the NATS store, command dispatcher, and durable projector, then sends sample order commands to demonstrate the flow.
+    - When To Use: Include this file when you need the runnable example setup for the cafe domain, especially to understand how command dispatching and projectors are launched with `esrc-cqrs` and NATS.
+    - Functions: main
 
