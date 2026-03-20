@@ -171,12 +171,13 @@
     },
     "crates/esrc-cqrs/tests/integration_nats.rs": {
       "file_path": "crates/esrc-cqrs/tests/integration_nats.rs",
-      "hash": "e923e2adda280b7d014ca4c97bc50b997b1a55e1c63294925f0dad6318029e24",
-      "mtime": 1774043030004288,
+      "hash": "081d9f8f447d6d8074975a66234ff6b631b941057321feab9662ea3ab1fecc3c",
+      "mtime": 1774044152337561,
       "public_functions": [
         "test_command_request_response_success",
         "test_command_error_does_not_break_dispatcher",
         "test_projector_receives_events",
+        "test_projector_acks_messages_no_redelivery",
         "test_projector_error_propagates",
         "test_multiple_commands_same_aggregate_occ",
         "test_malformed_payload_returns_error",
@@ -751,7 +752,7 @@
     "src/nats/envelope.rs": {
       "file_path": "src/nats/envelope.rs",
       "hash": "e2d4b139becd274aae6edc47e09afdaefea5b35fa7263572f2edbd933f4c9ec8",
-      "mtime": 1773239772192278,
+      "mtime": 1774044552993027,
       "public_functions": [
         "NatsEnvelope::try_from_message",
         "NatsEnvelope::attach_span_context",
@@ -765,8 +766,8 @@
     },
     "src/nats/event.rs": {
       "file_path": "src/nats/event.rs",
-      "hash": "6a61ae575ec30977e6102dec82cab96dc08a61285954a75b93628c630eaad486",
-      "mtime": 1774016881595885,
+      "hash": "2fb4e07d92e0504febb6e394d0f363554d2e1ed09bd1d6a0679e0a883240640e",
+      "mtime": 1774043918833173,
       "public_functions": [
         "NatsStore::durable_observe",
         "Replay::replay",

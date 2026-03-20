@@ -32,8 +32,12 @@ pub mod projector_runner;
 
 pub use aggregate_command_handler::{AggregateCommandHandler, CommandEnvelope, CommandReply};
 pub use aggregate_projector_handler::DurableProjectorHandler;
+pub use aggregate_query_handler::{AggregateQueryHandler, QueryEnvelope, QueryReply};
 pub use command_dispatcher::NatsCommandDispatcher;
+pub use query_dispatcher::NatsQueryDispatcher;
 pub use projector_runner::NatsProjectorRunner;
 
 mod aggregate_command_handler;
 mod aggregate_projector_handler;
+mod aggregate_query_handler;
+mod query_dispatcher;

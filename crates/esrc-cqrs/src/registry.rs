@@ -7,6 +7,7 @@ use esrc::error;
 
 use crate::command::CommandHandler;
 use crate::projector::ProjectorHandler;
+use crate::query::QueryHandler;
 
 /// A registry that holds command handlers and event projectors.
 ///
@@ -16,6 +17,7 @@ pub struct CqrsRegistry<S> {
     store: S,
     command_handlers: Vec<Arc<dyn ErasedCommandHandler<S>>>,
     projector_handlers: Vec<Arc<dyn ErasedProjectorHandler<S>>>,
+    query_handlers: Vec<Arc<dyn ErasedQueryHandler<S>>>,
 }
 
 impl<S> CqrsRegistry<S>
@@ -28,6 +30,7 @@ where
             store,
             command_handlers: Vec::new(),
             projector_handlers: Vec::new(),
+            query_handlers: Vec::new(),
         }
     }
 
@@ -54,6 +57,18 @@ where
         self
     }
 
+    /// Register a query handler.
+    ///
+    /// The handler will be invoked when a query matching its `name()` is
+    /// dispatched through the registry's query listener.
+    pub fn register_query<H>(mut self, handler: H) -> Self
+    where
+        H: QueryHandler<S> + 'static,
+    {
+        self.query_handlers.push(Arc::new(handler));
+        self
+    }
+
     /// Return a reference to the registered command handlers.
     pub fn command_handlers(&self) -> &[Arc<dyn ErasedCommandHandler<S>>] {
         &self.command_handlers
@@ -62,6 +77,11 @@ where
     /// Return a reference to the registered projector handlers.
     pub fn projector_handlers(&self) -> &[Arc<dyn ErasedProjectorHandler<S>>] {
         &self.projector_handlers
+    }
+
+    /// Return a reference to the registered query handlers.
+    pub fn query_handlers(&self) -> &[Arc<dyn ErasedQueryHandler<S>>] {
+        &self.query_handlers
     }
 
     /// Return a clone of the backing store.
@@ -143,5 +163,35 @@ where
         store: &'a S,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = error::Result<()>> + Send + 'a>> {
         Box::pin(self.run(store))
+    }
+}
+
+/// Object-safe wrapper for [`QueryHandler`].
+pub trait ErasedQueryHandler<S>: Send + Sync + 'static {
+    /// The name of the query this handler processes.
+    fn name(&self) -> &'static str;
+    /// Handle the raw payload and return a reply.
+    fn handle_erased<'a>(
+        &'a self,
+        store: &'a S,
+        payload: &'a [u8],
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = error::Result<Vec<u8>>> + Send + 'a>>;
+}
+
+impl<S, H> ErasedQueryHandler<S> for H
+where
+    H: QueryHandler<S> + Send + Sync + 'static,
+{
+    fn name(&self) -> &'static str {
+        QueryHandler::name(self)
+    }
+
+    fn handle_erased<'a>(
+        &'a self,
+        store: &'a S,
+        payload: &'a [u8],
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = error::Result<Vec<u8>>> + Send + 'a>>
+    {
+        Box::pin(self.handle(store, payload))
     }
 }

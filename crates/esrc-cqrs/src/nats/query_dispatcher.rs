@@ -1,0 +1,116 @@
+use std::sync::Arc;
+
+use async_nats::service::ServiceExt;
+use futures::StreamExt;
+use tracing::instrument;
+
+use esrc::error::{self, Error};
+
+use crate::registry::ErasedQueryHandler;
+
+/// Version string for the NATS query service group.
+pub const QUERY_SERVICE_VERSION: &str = "0.1.0";
+
+/// NATS query dispatcher.
+///
+/// Registers all query handlers as endpoints on a single NATS service,
+/// using core NATS request/reply. Each handler name becomes one endpoint
+/// within the service group named `<service_name>`.
+///
+/// The store reference is shared (`&S`) across all query handlers because
+/// queries are read-only by convention.
+pub struct NatsQueryDispatcher {
+    /// The NATS client used to create the service.
+    client: async_nats::Client,
+    /// The service group name (e.g. `"myapp-query"`).
+    service_name: String,
+}
+
+impl NatsQueryDispatcher {
+    /// Create a new dispatcher using the given NATS client and service name.
+    pub fn new(client: async_nats::Client, service_name: impl Into<String>) -> Self {
+        Self {
+            client,
+            service_name: service_name.into(),
+        }
+    }
+
+    /// Start the query dispatcher and listen for incoming queries.
+    ///
+    /// This method creates one NATS service endpoint per registered query
+    /// handler. Each endpoint is named after the handler's `name()`. The
+    /// dispatcher runs until an error occurs or the NATS connection is closed.
+    ///
+    /// The store is shared across all endpoint tasks via [`Arc`] because
+    /// query handlers only require a shared reference.
+    #[instrument(skip_all, level = "debug")]
+    pub async fn run<S>(
+        &self,
+        store: S,
+        handlers: &[Arc<dyn ErasedQueryHandler<S>>],
+    ) -> error::Result<()>
+    where
+        S: Clone + Send + Sync + 'static,
+    {
+        let store = Arc::new(store);
+
+        let service = self
+            .client
+            .service_builder()
+            .description("esrc-cqrs query dispatcher")
+            .start(&self.service_name, QUERY_SERVICE_VERSION)
+            .await
+            .map_err(|e| Error::Internal(e.into()))?;
+
+        let group = service.group(&self.service_name);
+
+        // Build one endpoint per handler and spawn a task for each.
+        let mut tasks = tokio::task::JoinSet::new();
+
+        for handler in handlers {
+            let handler = Arc::clone(handler);
+            let store = Arc::clone(&store);
+
+            let mut endpoint = group
+                .endpoint(handler.name())
+                .await
+                .map_err(|e| Error::Internal(e.into()))?;
+
+            tasks.spawn(async move {
+                while let Some(request) = endpoint.next().await {
+                    let payload = request.message.payload.as_ref();
+                    match handler.handle_erased(&*store, payload).await {
+                        Ok(reply) => {
+                            let _ = request.respond(Ok(reply.into())).await;
+                        },
+                        Err(e) => {
+                            use crate::nats::aggregate_query_handler::QueryReply;
+                            let failure = QueryReply {
+                                success: false,
+                                data: None,
+                                error: Some(crate::error::Error::Internal(format!("{e}"))),
+                            };
+                            let body = serde_json::to_vec(&failure).unwrap_or_default();
+                            let _ = request.respond(Ok(body.into())).await;
+                        },
+                    }
+                }
+                error::Result::Ok(())
+            });
+        }
+
+        // Wait for all endpoint tasks; return the first error encountered.
+        while let Some(result) = tasks.join_next().await {
+            result.map_err(|e| Error::Internal(e.into()))??;
+        }
+
+        Ok(())
+    }
+}
+
+/// Build the full NATS subject for a query endpoint.
+///
+/// Pattern: `<service_name>.<handler_name>`
+pub fn query_subject(service_name: &str, handler_name: &str) -> String {
+    format!("{service_name}.{handler_name}")
+}
