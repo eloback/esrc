@@ -85,10 +85,7 @@ pub fn from_esrc_error(err: esrc::error::Error) -> Error {
             //
             // At this point the error has already been serialized into the box
             // as a serde_json::Value by the handler shim. We recover it here.
-            let value: serde_json::Value = e
-                .downcast::<serde_json::Value>()
-                .map(|v| *v)
-                .unwrap_or_else(|e| serde_json::Value::String(e.to_string()));
+            let value: serde_json::Value = serde_json::Value::String(e.to_string());
             Error::External(value)
         },
         esrc::error::Error::Format(e) => Error::Format(e.to_string()),

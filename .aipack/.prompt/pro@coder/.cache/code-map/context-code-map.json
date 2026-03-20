@@ -9,6 +9,15 @@
       "summary": "Workspace and root package manifest for the esrc Rust project, defining shared dependencies, feature flags, and member crates/examples.",
       "when_to_use": "Use this file when you need to understand the project structure, enabled feature combinations, dependency versions, workspace members, or package metadata for builds and integration context."
     },
+    "compilation_errors.txt": {
+      "file_path": "compilation_errors.txt",
+      "hash": "fa0fa6419664bd717926d08595bc35ae308b9930df366f4fedda7fa6fd8df875",
+      "mtime": 1774042790421594,
+      "public_functions": [],
+      "public_types": [],
+      "summary": "Rust compiler error log showing a failed downcast to `serde_json::Value` because it does not implement `StdError`.",
+      "when_to_use": "Use when diagnosing the specific compilation failure in `crates/esrc-cqrs/src/error.rs` around error downcasting and trait bounds."
+    },
     "crates/esrc-cqrs/Cargo.toml": {
       "file_path": "crates/esrc-cqrs/Cargo.toml",
       "hash": "1a4fe95fb4fc4f5178d9006096399f3218efe246eec1b524ea55bd4f90e0ac99",
@@ -27,10 +36,23 @@
       "summary": "Defines the CQRS command-handling trait used to route and process incoming command messages against an event store.",
       "when_to_use": "Include this file when working with command dispatch, implementing new command handlers, or understanding how raw command payloads are handled and replied to in the CQRS layer."
     },
+    "crates/esrc-cqrs/src/error.rs": {
+      "file_path": "crates/esrc-cqrs/src/error.rs",
+      "hash": "bdf9871f354878be8945239a9b20b229c7961bb00e6dd20fb097262b1a762631",
+      "mtime": 1774042753162443,
+      "public_functions": [
+        "from_esrc_error"
+      ],
+      "public_types": [
+        "Error"
+      ],
+      "summary": "Defines the serializable CQRS error type used for transport over NATS, plus conversion from the core esrc error type and helpers to recover typed external errors.",
+      "when_to_use": "Use when handling CQRS command errors, serializing/deserializing errors across the transport boundary, or converting between esrc::error::Error and the CQRS-specific serializable Error type."
+    },
     "crates/esrc-cqrs/src/lib.rs": {
       "file_path": "crates/esrc-cqrs/src/lib.rs",
-      "hash": "433609d355602a8795d1634c316d9b4f9bc7f4dd47c9f735a90f9c0704c6f426",
-      "mtime": 1773961994295803,
+      "hash": "4ee67d83f478b5d09bd711615db448f763545908afccd065b3da64b8acbbe7d5",
+      "mtime": 1774041581625754,
       "public_functions": [],
       "public_types": [
         "CommandHandler",
@@ -42,8 +64,8 @@
     },
     "crates/esrc-cqrs/src/nats/aggregate_command_handler.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/aggregate_command_handler.rs",
-      "hash": "a52f090c619cb6a8900a34e822feebd476103e49238e4878c6c0e9c78f54e4f5",
-      "mtime": 1774040829284984,
+      "hash": "586c848d172a9524b0ea33ac59bf88d49c8e3def8467b969aebcd1791bbb8aed",
+      "mtime": 1774042634672365,
       "public_functions": [
         "AggregateCommandHandler::new",
         "CommandHandler<NatsStore>::name",
@@ -72,8 +94,8 @@
     },
     "crates/esrc-cqrs/src/nats/command_dispatcher.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/command_dispatcher.rs",
-      "hash": "ff6beaa7cbdb9c70c24d1573970a647560126d6d878b6b4d4f6cf4e4e38ac594",
-      "mtime": 1774040829284984,
+      "hash": "560a8dae308ae943a1604f7dd5ac21a792c9975a430e16aac4bfb9abace74408",
+      "mtime": 1774041581625754,
       "public_functions": [
         "NatsCommandDispatcher::new",
         "NatsCommandDispatcher::run",
@@ -149,8 +171,8 @@
     },
     "crates/esrc-cqrs/tests/integration_nats.rs": {
       "file_path": "crates/esrc-cqrs/tests/integration_nats.rs",
-      "hash": "64ccba5853aaa7b59b03f0ff0788ea27b66084f1d9b1be2dd7bc1cb1556212c1",
-      "mtime": 1774040829284984,
+      "hash": "c8bfb6773d047c6d086c15635cdb5abb003033f615a8236cd1b215235154bdfb",
+      "mtime": 1774041581625754,
       "public_functions": [
         "test_command_request_response_success",
         "test_command_error_does_not_break_dispatcher",

@@ -238,11 +238,6 @@
     - When To Use: Include this file when working with command dispatch, implementing new command handlers, or understanding how raw command payloads are handled and replied to in the CQRS layer.
     - Types: CommandHandler
 
-- crates/esrc-cqrs/src/lib.rs
-    - Summary: Top-level library module for the `esrc-cqrs` crate. It documents the CQRS extension, exposes modules for command handling, projectors, and the main registry, and re-exports the primary CQRS traits and registry type.
-    - When To Use: Include this file when you need the crate’s public API surface, an overview of CQRS support, or to find where command handlers, projector handlers, and the registry are defined and re-exported.
-    - Types: CommandHandler, ProjectorHandler, CqrsRegistry
-
 - crates/esrc-cqrs/src/nats/projector_runner.rs
     - Summary: Defines a NATS-specific projector runner that wraps a ProjectorHandler and executes it against a NatsStore, typically in its own Tokio task for concurrent projector execution.
     - When To Use: Use when working with NATS-backed CQRS projector execution, especially to start or invoke a projector handler against a NatsStore.
@@ -296,11 +291,15 @@
     - Types: OrderStatus, Order, OrderCommand, OrderEvent, OrderError
     - Functions: process, apply
 
-- crates/esrc-cqrs/src/nats/aggregate_command_handler.rs
-    - Summary: Defines a generic NATS-backed aggregate command handler plus request/reply envelopes for routing, deserializing, applying, and responding to aggregate commands.
-    - When To Use: Use this file when you need to handle commands sent over NATS for an event-sourced aggregate, including loading the aggregate, applying a command, and returning a serialized success reply.
-    - Types: CommandEnvelope<C>, CommandReply, AggregateCommandHandler<A>
-    - Functions: AggregateCommandHandler::new, CommandHandler<NatsStore>::name, CommandHandler<NatsStore>::handle
+- crates/esrc-cqrs/src/nats/mod.rs
+    - Summary: NATS CQRS integration module that wires together command dispatching over core NATS request/reply and projector execution over JetStream durable pull consumers.
+    - When To Use: Include this file when you need the NATS-backed CQRS entry points, especially to understand or import the dispatcher and projector runner types re-exported from this module.
+    - Types: AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler, NatsCommandDispatcher, NatsProjectorRunner
+
+- crates/esrc-cqrs/src/lib.rs
+    - Summary: Top-level library module for the `esrc-cqrs` crate. It documents the CQRS extension, exposes modules for command handling, projectors, and the main registry, and re-exports the primary CQRS traits and registry type.
+    - When To Use: Include this file when you need the crate’s public API surface, an overview of CQRS support, or to find where command handlers, projector handlers, and the registry are defined and re-exported.
+    - Types: CommandHandler, ProjectorHandler, CqrsRegistry
 
 - crates/esrc-cqrs/src/nats/command_dispatcher.rs
     - Summary: Implements a NATS-based command dispatcher that registers erased command handlers as request/reply endpoints on a NATS service and forwards requests to them, plus a helper for building command subjects.
@@ -308,14 +307,25 @@
     - Types: NatsCommandDispatcher
     - Functions: NatsCommandDispatcher::new, NatsCommandDispatcher::run, command_subject
 
-- crates/esrc-cqrs/src/nats/mod.rs
-    - Summary: NATS CQRS integration module that wires together command dispatching over core NATS request/reply and projector execution over JetStream durable pull consumers.
-    - When To Use: Include this file when you need the NATS-backed CQRS entry points, especially to understand or import the dispatcher and projector runner types re-exported from this module.
-    - Types: AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler, NatsCommandDispatcher, NatsProjectorRunner
-
 - crates/esrc-cqrs/tests/integration_nats.rs
     - Summary: Integration tests for esrc-cqrs against a live NATS JetStream server, covering command dispatch, durable event storage, projector behavior, error propagation, malformed payload handling, and registry accessors.
     - When To Use: Include this file when you need to understand or verify the NATS/JetStream integration behavior of esrc-cqrs, especially request/reply command handling, projector execution, durability, or end-to-end test setup.
     - Types: Counter, CounterCommand, CounterEvent, CounterError, RecordingProjector, ProjectorError
     - Functions: test_command_request_response_success, test_command_error_does_not_break_dispatcher, test_projector_receives_events, test_projector_error_propagates, test_multiple_commands_same_aggregate_occ, test_malformed_payload_returns_error, test_registry_accessors
+
+- crates/esrc-cqrs/src/nats/aggregate_command_handler.rs
+    - Summary: Defines a generic NATS-backed aggregate command handler plus request/reply envelopes for routing, deserializing, applying, and responding to aggregate commands.
+    - When To Use: Use this file when you need to handle commands sent over NATS for an event-sourced aggregate, including loading the aggregate, applying a command, and returning a serialized success reply.
+    - Types: CommandEnvelope<C>, CommandReply, AggregateCommandHandler<A>
+    - Functions: AggregateCommandHandler::new, CommandHandler<NatsStore>::name, CommandHandler<NatsStore>::handle
+
+- crates/esrc-cqrs/src/error.rs
+    - Summary: Defines the serializable CQRS error type used for transport over NATS, plus conversion from the core esrc error type and helpers to recover typed external errors.
+    - When To Use: Use when handling CQRS command errors, serializing/deserializing errors across the transport boundary, or converting between esrc::error::Error and the CQRS-specific serializable Error type.
+    - Types: Error
+    - Functions: from_esrc_error
+
+- compilation_errors.txt
+    - Summary: Rust compiler error log showing a failed downcast to `serde_json::Value` because it does not implement `StdError`.
+    - When To Use: Use when diagnosing the specific compilation failure in `crates/esrc-cqrs/src/error.rs` around error downcasting and trait bounds.
 

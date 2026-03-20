@@ -288,7 +288,7 @@ async fn test_command_request_response_success() {
 
     assert!(response.success, "command should succeed");
     assert_eq!(response.id, aggregate_id);
-    assert!(response.message.is_none());
+    assert!(response.error.is_none());
 
     // Verify the event was actually persisted.
     let root: esrc::aggregate::Root<Counter> = ctx.store.read(aggregate_id).await.unwrap();
