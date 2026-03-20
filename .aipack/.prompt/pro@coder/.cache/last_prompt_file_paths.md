@@ -2,12 +2,6 @@
 ====
 file_content_mode: udiffx
 
-# Knowledge Files
-
-## All resolve files(sent to AI with content, in this order)
-
-- nats_service.md
-
 # Context Files
 
 ## All resolve files(sent to AI with content, in this order)
@@ -54,17 +48,7 @@ file_content_mode: udiffx
 - examples/cafe/tab.rs
 - examples/cafe/tab/tests.rs
 - examples/cafe/table.rs
-- .aipack/.prompt/pro@coder/dev/plan/_plan-rules.md
-- .aipack/.prompt/pro@coder/dev/plan/plan-1-todo-steps.md
-- .aipack/.prompt/pro@coder/dev/plan/plan-2-active-step.md
-- .aipack/.prompt/pro@coder/dev/plan/plan-3-done-steps.md
-
-## Post (just for info, included in the All resolved files above)
-
-- .aipack/.prompt/pro@coder/dev/plan/_plan-rules.md
-- .aipack/.prompt/pro@coder/dev/plan/plan-1-todo-steps.md
-- .aipack/.prompt/pro@coder/dev/plan/plan-2-active-step.md
-- .aipack/.prompt/pro@coder/dev/plan/plan-3-done-steps.md
+- examples/zero_copy/main.rs
 
 # Working Files
 
@@ -74,6 +58,7 @@ None
 
 (Only file paths, not their content)
 
+- compilation_errors.txt
 - derive/
   - Cargo.toml
 - derive/src/

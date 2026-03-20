@@ -65,8 +65,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let subject = esrc_cqrs::nats::command_dispatcher::command_subject(SERVICE_NAME, "Order");
         match driver_client.request(subject.clone(), payload.into()).await {
             Ok(reply) => {
-                let r: CommandReply = serde_json::from_slice(&reply.payload).expect("deserialize reply");
-                println!("[client] PlaceOrder reply: success={}, id={}", r.success, r.id);
+                dbg!(&reply);
+                let r: CommandReply =
+                    serde_json::from_slice(&reply.payload).expect("deserialize reply");
+                println!(
+                    "[client] PlaceOrder reply: success={}, id={}",
+                    r.success, r.id
+                );
             },
             Err(e) => eprintln!("[client] PlaceOrder error: {e}"),
         }
@@ -81,8 +86,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let payload = serde_json::to_vec(&complete_cmd).expect("serialize complete command");
         match driver_client.request(subject, payload.into()).await {
             Ok(reply) => {
-                let r: CommandReply = serde_json::from_slice(&reply.payload).expect("deserialize reply");
-                println!("[client] CompleteOrder reply: success={}, id={}", r.success, r.id);
+                let r: CommandReply =
+                    serde_json::from_slice(&reply.payload).expect("deserialize reply");
+                println!(
+                    "[client] CompleteOrder reply: success={}, id={}",
+                    r.success, r.id
+                );
             },
             Err(e) => eprintln!("[client] CompleteOrder error: {e}"),
         }
@@ -93,9 +102,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Build and run the command dispatcher (blocks until NATS closes or an error occurs).
     let dispatcher = NatsCommandDispatcher::new(client.clone(), SERVICE_NAME);
-    dispatcher
-        .run(store, registry.command_handlers())
-        .await?;
+    dispatcher.run(store, registry.command_handlers()).await?;
 
     // Wait for projectors to finish (they run indefinitely in normal operation).
     while let Some(result) = projector_set.join_next().await {

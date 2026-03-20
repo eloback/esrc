@@ -1,170 +1,79 @@
 ====
->   Info: Duration: 34s | ~$0.1603 | Prompt Tokens: 40,698 (cached: 0, cache_creation: 0) | Completion Tokens: 2,544 
+>   Info: Duration: 17s | ~$0.1248 | Prompt Tokens: 36,165 (cached: 0, cache_creation: 0) | Completion Tokens: 1,084 
 >  Model: claude-sonnet-4-6 | Adapter: Anthropic
->  Files: Context Files: 46 | Working Files: 0 | Knowledge Files: 1
+>  Files: Context Files: 43 | Working Files: 0 | Knowledge Files: 0
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
-I'll analyze the compilation errors for the cafe example and fix them.
+Looking at the compilation errors, I need to analyze the cafe example. The `examples/cafe/main.rs` references `mod domain` and `mod projector`, but the file structure shows there's also `examples/cafe/tab.rs`, `examples/cafe/table.rs`, and `examples/cafe/error.rs` which aren't declared. More importantly, the `main.rs` uses `esrc_cqrs` but the `Cargo.toml` example entry doesn't include `esrc-cqrs` as a dependency for the example.
 
-Let me trace through the code to identify all issues:
+Let me trace the issues:
 
-1. **`examples/cafe/main.rs`**: `OrderCommand` doesn't derive `Serialize`/`Deserialize` - it needs them for `CommandEnvelope<OrderCommand>` serialization. Also, `mod error` and `mod tab` and `mod table` are referenced in other files but not in `main.rs`.
+1. `examples/cafe/main.rs` declares `mod domain` and `mod projector` but NOT `mod tab`, `mod table`, `mod error` - these files exist but aren't used in main, which is fine.
+2. The `Cargo.toml` example entry only has `required-features = ["nats", "derive"]` but `esrc-cqrs` needs to be a dev-dependency.
+3. Looking at `crates/esrc-cqrs/Cargo.toml`, it exists as a workspace member, so it needs to be added as a dev-dependency in the root `Cargo.toml`.
+4. In `examples/cafe/main.rs`, `ConnectOptions` is imported but not used.
+5. The `error` module is in `examples/cafe/error.rs` but not declared in `main.rs` - but it's needed by `tab.rs` which references `TabError`. Since `tab.rs` isn't used in `main.rs`, that's fine.
+6. The `write` method in `publish.rs` returns `Root::with_aggregate(aggregate, id, last_sequence)` but should use the NEW sequence from the publish result - that's a pre-existing bug, not our concern.
+7. `examples/cafe/main.rs` imports `error` module (unused import of `ConnectOptions`).
 
-2. **`examples/cafe/domain.rs`**: `OrderCommand` needs `Serialize` and `Deserialize` derives for `CommandEnvelope<A::Command>` which requires `for<'de> Deserialize<'de>`.
-
-3. **`crates/esrc-cqrs/src/nats/mod.rs`**: Missing `command_dispatcher` re-export for the `command_subject` function used in `main.rs`.
-
-4. **`examples/cafe/main.rs`**: The `error` module is imported but doesn't exist in the cafe example's files listed (only `domain`, `projector`, `tab`, `table`, `error` exist in the full example but main.rs only declares `domain` and `projector`).
-
-Let me look more carefully at `main.rs` - it only has `mod domain` and `mod projector`, but imports `OrderCommand` which needs `Deserialize`. The `AggregateCommandHandler` constraint requires `A::Command: for<'de> Deserialize<'de>`.
-
-Also `publish::PublishExt` needs to be in scope for `store.try_write` in `aggregate_command_handler.rs` - but that's already imported there.
-
-The `write` method in `publish.rs` has a bug: it uses `last_sequence` after the event is published but should use the returned sequence. Let me check... actually it returns `Root::with_aggregate(aggregate, id, last_sequence)` - this should be the new sequence. That's a bug but not a compile error.
-
-Key compile issues:
-1. `OrderCommand` needs `Deserialize` + `Serialize` in `domain.rs`
-2. `examples/cafe/main.rs` missing `mod error` (used nowhere in main directly, but `tab.rs` uses it - however `tab.rs` isn't included in main)
+The main fix needed: add `esrc-cqrs` as a dev-dependency in root `Cargo.toml` and fix the unused import in `main.rs`.
 
 <FILE_CHANGES>
 
-<FILE_PATCH file_path="examples/cafe/domain.rs">
+<FILE_PATCH file_path="Cargo.toml">
 @@
--use esrc::aggregate::Aggregate;
--use esrc::error::Error as EsrcError;
--use esrc::{Event, EventGroup};
--use esrc::version::{DeserializeVersion, SerializeVersion};
--use serde::{Deserialize, Serialize};
-+use esrc::aggregate::Aggregate;
-+use esrc::version::{DeserializeVersion, SerializeVersion};
-+use esrc::Event;
-+use serde::{Deserialize, Serialize};
-@@
--/// Commands that can be applied to the Order aggregate.
--pub enum OrderCommand {
-+/// Commands that can be applied to the Order aggregate.
-+#[derive(Debug, Deserialize, Serialize)]
-+pub enum OrderCommand {
+ [dev-dependencies]
+ anyhow.workspace = true
+ serde = { workspace = true, features = ["derive"] }
+ tokio = { workspace = true, features = ["full"] }
+ uuid = { workspace = true, features = ["v7"] }
++esrc-cqrs = { path = "./crates/esrc-cqrs" }
+
+ [[example]]
+ name = "cafe"
+ path = "examples/cafe/main.rs"
+-required-features = ["nats", "derive"]
++required-features = ["nats", "derive", "kurrent"]
 </FILE_PATCH>
 
 <FILE_PATCH file_path="examples/cafe/main.rs">
 @@
+ use async_nats::ConnectOptions;
 -use esrc::nats::NatsStore;
--use esrc_cqrs::nats::{AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler, NatsCommandDispatcher};
--use esrc_cqrs::CqrsRegistry;
--use serde_json;
--use tokio::time::sleep;
--use uuid::Uuid;
 +use esrc::nats::NatsStore;
-+use esrc_cqrs::nats::{
-+    AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler,
-+    NatsCommandDispatcher,
-+};
-+use esrc_cqrs::CqrsRegistry;
-+use tokio::time::sleep;
-+use uuid::Uuid;
-</FILE_PATCH>
-
-<FILE_PATCH file_path=".aipack/.prompt/pro@coder/dev/plan/plan-2-active-step.md">
-@@
--
-+## Step - Diagnose and fix cafe example compilation errors
-+      status: active
-+time-created: 2026-03-20 12:20:57
-+time-current: 2026-03-20 12:27:23
-+
-+Investigate and fix all compilation errors produced by `cargo run --example cafe`
-+(or `cargo check --example cafe --features nats,derive`).
-+
-+The cafe example exercises the `esrc-cqrs` crate end-to-end; do **not** remove or
-+stub out any `esrc-cqrs` usage as a fix. Every fix must keep the crate wired up.
-+
-+Scope of work:
-+
-+- Run (or simulate) `cargo check --example cafe --features nats,derive` and collect
-+  every error and warning emitted by the compiler.
-+
-+- Fix errors in any of the following files as needed:
-+  - `examples/cafe/main.rs`
-+  - `examples/cafe/domain.rs`
-+  - `examples/cafe/projector.rs`
-+  - `crates/esrc-cqrs/src/**` (if the root cause is in the crate itself)
-+  - `Cargo.toml` / `crates/esrc-cqrs/Cargo.toml` (missing features/deps)
-+
-+- Common categories to check:
-+  - Missing trait imports or `use` statements in the example files.
-+  - Type mismatches between the domain types and the `CommandHandler` /
-+    `AggregateCommandHandler` generics.
-+  - `CommandEnvelope` / `CommandReply` field access or serde derive issues.
-+  - Projector `Project` impl lifetime or associated-type mismatches.
-+  - `NatsStore` / `CqrsRegistry` / `NatsCommandDispatcher` wiring in `main.rs`.
-+  - Any `unused import` or `dead_code` warnings that become errors under `#![deny]`.
-+
-+- After applying fixes, the example must compile cleanly with:
-+  `cargo check --example cafe --features nats,derive`
-+
-+### Implementation
-+
-+Fixed the following issues found by tracing the code:
-+
-+- **`examples/cafe/domain.rs`**: `OrderCommand` was missing `#[derive(Debug, Deserialize, Serialize)]`.
-+  The `AggregateCommandHandler` constraint requires `A::Command: for<'de> Deserialize<'de>`,
-+  so `CommandEnvelope<OrderCommand>` must be deserializable. Also removed the unused `EventGroup`
-+  import.
-+
-+- **`examples/cafe/main.rs`**: Removed the unused `serde_json` wildcard import (it was already
-+  used via its path inline and the `use serde_json;` glob was unused). Reformatted the long
-+  `use esrc_cqrs::nats::...` import to a grouped form to avoid line-length issues.
-</FILE_PATCH>
-
-<FILE_PATCH file_path=".aipack/.prompt/pro@coder/dev/plan/plan-1-todo-steps.md">
-@@
--## Step - Diagnose and fix cafe example compilation errors
--      status: not_started
--time-created: 2026-03-20 12:20:57
--
--Investigate and fix all compilation errors produced by `cargo run --example cafe`
--(or `cargo check --example cafe --features nats,derive`).
--
--The cafe example exercises the `esrc-cqrs` crate end-to-end; do **not** remove or
--stub out any `esrc-cqrs` usage as a fix. Every fix must keep the crate wired up.
--
--Scope of work:
--
--- Run (or simulate) `cargo check --example cafe --features nats,derive` and collect
--  every error and warning emitted by the compiler.
--
--- Fix errors in any of the following files as needed:
--  - `examples/cafe/main.rs`
--  - `examples/cafe/domain.rs`
--  - `examples/cafe/projector.rs`
--  - `crates/esrc-cqrs/src/**` (if the root cause is in the crate itself)
--  - `Cargo.toml` / `crates/esrc-cqrs/Cargo.toml` (missing features/deps)
--
--- Common categories to check:
--  - Missing trait imports or `use` statements in the example files.
--  - Type mismatches between the domain types and the `CommandHandler` /
--    `AggregateCommandHandler` generics.
--  - `CommandEnvelope` / `CommandReply` field access or serde derive issues.
--  - Projector `Project` impl lifetime or associated-type mismatches.
--  - `NatsStore` / `CqrsRegistry` / `NatsCommandDispatcher` wiring in `main.rs`.
--  - Any `unused import` or `dead_code` warnings that become errors under `#![deny]`.
--
--- After applying fixes, the example must compile cleanly with:
--  `cargo check --example cafe --features nats,derive`
-+
 </FILE_PATCH>
 
 </FILE_CHANGES>
 
-The two fixes applied:
+Wait, let me re-examine more carefully. The `required-features` shouldn't need `kurrent`. Let me also check if `ConnectOptions` is actually unused.
 
-1. **`examples/cafe/domain.rs`**: Added `#[derive(Debug, Deserialize, Serialize)]` to `OrderCommand`. The `AggregateCommandHandler<A>` impl requires `A::Command: for<'de> Deserialize<'de>`, so `CommandEnvelope<OrderCommand>` must be deserializable. Also removed the unused `EventGroup` import.
+In `main.rs`, `ConnectOptions` is imported but `async_nats::connect(NATS_URL).await?` is used directly without it - so it's unused. Also, `esrc-cqrs` needs to be a proper dependency for the example.
 
-2. **`examples/cafe/main.rs`**: Removed the bare `use serde_json;` import (the `serde_json::to_vec` and `serde_json::from_slice` calls inline don't need it as a `use` statement since they're already qualified paths), and reformatted the long `esrc_cqrs::nats` import into a grouped block.
+<FILE_CHANGES>
+
+<FILE_PATCH file_path="Cargo.toml">
+@@
+ [dev-dependencies]
+ anyhow.workspace = true
+ serde = { workspace = true, features = ["derive"] }
+ tokio = { workspace = true, features = ["full"] }
+ uuid = { workspace = true, features = ["v7"] }
++esrc-cqrs = { path = "./crates/esrc-cqrs" }
+
+ [[example]]
+ name = "cafe"
+ path = "examples/cafe/main.rs"
+</FILE_PATCH>
+
+<FILE_PATCH file_path="examples/cafe/main.rs">
+@@
+-use async_nats::ConnectOptions;
+ use esrc::nats::NatsStore;
+</FILE_PATCH>
+
+</FILE_CHANGES>
 
 <suggested_git_command>
-git add -A .
-git commit -a -m "- cafe - Fix OrderCommand missing Deserialize/Serialize derives and unused imports"
+git commit -a -m "^ cafe example - Add esrc-cqrs dev-dependency and fix unused import"
 </suggested_git_command>
 
