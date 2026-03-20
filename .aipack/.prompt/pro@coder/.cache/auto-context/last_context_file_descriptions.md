@@ -271,18 +271,6 @@
     - Types: DurableProjectorHandler<P>
     - Functions: DurableProjectorHandler::new(durable_name: &'static str, projector: P) -> Self
 
-- crates/esrc-cqrs/src/nats/aggregate_command_handler.rs
-    - Summary: Defines a generic NATS-backed aggregate command handler plus request/reply envelopes for routing, deserializing, applying, and responding to aggregate commands.
-    - When To Use: Use this file when you need to handle commands sent over NATS for an event-sourced aggregate, including loading the aggregate, applying a command, and returning a serialized success reply.
-    - Types: CommandEnvelope<C>, CommandReply, AggregateCommandHandler<A>
-    - Functions: AggregateCommandHandler::new, CommandHandler<NatsStore>::name, CommandHandler<NatsStore>::handle
-
-- crates/esrc-cqrs/src/nats/command_dispatcher.rs
-    - Summary: Implements a NATS-based command dispatcher that registers erased command handlers as request/reply endpoints on a NATS service and forwards requests to them, plus a helper for building command subjects.
-    - When To Use: Include this file when you need to understand or modify how CQRS command handlers are exposed over NATS, how requests are dispatched to handlers, or how command subject names are constructed.
-    - Types: NatsCommandDispatcher
-    - Functions: NatsCommandDispatcher::new, NatsCommandDispatcher::run, command_subject
-
 - crates/esrc-cqrs/src/registry.rs
     - Summary: Defines a CQRS registry that stores command handlers and projector handlers, provides registration/accessors, and can spawn all projectors as Tokio background tasks. Also includes object-safe erased wrapper traits for heterogeneous command and projector handlers.
     - When To Use: Include this file when you need to understand or use the CQRS handler registry, register command/projector implementations, access registered handlers or the shared store, or run projectors concurrently.
@@ -318,4 +306,16 @@
     - When To Use: Include this file when you need to understand or verify the NATS/JetStream integration behavior of esrc-cqrs, especially request/reply command handling, projector execution, durability, or end-to-end test setup.
     - Types: Counter, CounterCommand, CounterEvent, CounterError, RecordingProjector, ProjectorError
     - Functions: test_command_request_response_success, test_command_error_does_not_break_dispatcher, test_projector_receives_events, test_projector_error_propagates, test_multiple_commands_same_aggregate_occ, test_malformed_payload_returns_error, test_registry_accessors
+
+- crates/esrc-cqrs/src/nats/aggregate_command_handler.rs
+    - Summary: Defines a generic NATS-backed aggregate command handler plus request/reply envelopes for routing, deserializing, applying, and responding to aggregate commands.
+    - When To Use: Use this file when you need to handle commands sent over NATS for an event-sourced aggregate, including loading the aggregate, applying a command, and returning a serialized success reply.
+    - Types: CommandEnvelope<C>, CommandReply, AggregateCommandHandler<A>
+    - Functions: AggregateCommandHandler::new, CommandHandler<NatsStore>::name, CommandHandler<NatsStore>::handle
+
+- crates/esrc-cqrs/src/nats/command_dispatcher.rs
+    - Summary: Implements a NATS-based command dispatcher that registers erased command handlers as request/reply endpoints on a NATS service and forwards requests to them, plus a helper for building command subjects.
+    - When To Use: Include this file when you need to understand or modify how CQRS command handlers are exposed over NATS, how requests are dispatched to handlers, or how command subject names are constructed.
+    - Types: NatsCommandDispatcher
+    - Functions: NatsCommandDispatcher::new, NatsCommandDispatcher::run, command_subject
 
