@@ -6,8 +6,18 @@ file_content_mode: udiffx
 
 ## All resolve files(sent to AI with content, in this order)
 
+- examples/cafe/table.rs
+- examples/cafe/projector.rs
+- Cargo.toml
 - crates/esrc-cqrs/Cargo.toml
+- crates/esrc-cqrs/src/error.rs
+- examples/cafe/domain.rs
+- examples/cafe/main.rs
 - crates/esrc-cqrs/src/lib.rs
+- crates/esrc-cqrs/src/nats/aggregate_query_handler.rs
+- crates/esrc-cqrs/src/nats/query_dispatcher.rs
+- crates/esrc-cqrs/src/query.rs
+- crates/esrc-cqrs/src/registry.rs
 - crates/esrc-cqrs/src/nats/mod.rs
 
 # Working Files

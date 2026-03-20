@@ -129,8 +129,8 @@
     },
     "crates/esrc-cqrs/src/nats/mod.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/mod.rs",
-      "hash": "5e3ca643ce6c416d36efaab252f8e4b5721839ab870760e74038593362f912b4",
-      "mtime": 1774046535413616,
+      "hash": "d82b32053b0a2ab1e8751c4617484d00589045b92c3dfdf3c42dfca1f969038e",
+      "mtime": 1774047771324012,
       "public_types": [
         "AggregateCommandHandler",
         "CommandEnvelope",

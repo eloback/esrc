@@ -1,4 +1,5 @@
 use esrc::aggregate::Aggregate;
+use esrc::aggregate::Root;
 use esrc::version::{DeserializeVersion, SerializeVersion};
 use esrc::Event;
 use serde::{Deserialize, Serialize};
@@ -44,6 +45,29 @@ pub enum OrderError {
     AlreadyCompleted,
     #[error("order has not been placed yet")]
     NotPlaced,
+}
+
+/// A read-model snapshot of an Order aggregate, returned by queries.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OrderState {
+    /// The current status of the order.
+    pub status: String,
+    /// The item that was ordered, if any.
+    pub item: Option<String>,
+    /// The quantity ordered.
+    pub quantity: u32,
+}
+
+impl OrderState {
+    /// Project an [`Order`] aggregate root into an [`OrderState`] read-model.
+    pub fn from_root(root: &Root<Order>) -> Self {
+        let order = Root::state(root);
+        Self {
+            status: format!("{:?}", order.status),
+            item: order.item.clone(),
+            quantity: order.quantity,
+        }
+    }
 }
 
 impl Aggregate for Order {

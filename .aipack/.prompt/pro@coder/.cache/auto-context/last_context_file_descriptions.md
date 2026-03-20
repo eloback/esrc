@@ -1,5 +1,32 @@
 # Context Files Descriptions (Sent to AI for selection)
 
+- examples/cafe/error.rs
+    - Summary: Defines the Cafe example's tab-related error type used for tab state and payment validation.
+    - When To Use: Include when working with the cafe example's error handling or any code that matches on or returns tab-related errors.
+    - Types: TabError
+
+- examples/cafe/tab.rs
+    - Summary: Defines a cafe tab aggregate with commands, events, and state transitions for opening a tab, placing orders, marking items served, and closing the tab with payment validation.
+    - When To Use: Use when you need the domain model and business rules for the cafe tab example, especially the command/event definitions or how the aggregate validates and applies tab lifecycle changes.
+    - Types: Item, TabCommand, TabEvent, Tab
+
+- examples/cafe/tab/tests.rs
+    - Summary: Unit tests for the cafe tab aggregate, covering opening a tab, placing orders, marking items served, and closing tabs with both success and error cases.
+    - When To Use: Include this file when you need to understand or validate the expected behavior of the Tab domain logic, event transitions, and error handling in the cafe example.
+    - Functions: open_tab, order_with_unopened_tab, order, serve_twice, serve, close_with_underpayment, close
+
+- examples/zero_copy/main.rs
+    - Summary: Example showing how to define a zero-copy event type and a simple projector that observes events from a NATS JetStream-backed event store.
+    - When To Use: Include this file when you need an example of event-store usage with serde zero-copy deserialization, the Project trait implementation, or wiring up a NATS store and observer in an async main.
+    - Types: ZeroCopyEvent, NamePrinter, NamePrinterError
+    - Functions: main
+
+- examples/cafe/table.rs
+    - Summary: Defines ActiveTables, a project state manager that tracks open cafe tables by UUID and table number, with helper queries for active tables.
+    - When To Use: Use when you need to understand or modify how table open/close events are stored, queried, or projected into shared state in the cafe example.
+    - Types: ActiveTables
+    - Functions: new, is_active, get_table_numbers, project
+
 - crates/esrc-cqrs/src/command.rs
     - Summary: Defines the CQRS command-handling trait used to route and process incoming command messages against an event store.
     - When To Use: Include this file when working with command dispatch, implementing new command handlers, or understanding how raw command payloads are handled and replied to in the CQRS layer.
@@ -21,6 +48,11 @@
     - When To Use: Include this file when working with NATS-based CQRS projection handlers, durable consumer setup, or the `ProjectorHandler` implementation for resuming projectors from persisted stream positions.
     - Types: DurableProjectorHandler<P>
     - Functions: DurableProjectorHandler::new(durable_name: &'static str, projector: P) -> Self
+
+- examples/cafe/projector.rs
+    - Summary: Defines `OrderProjector`, a `Project` implementation that handles `OrderEvent`s and prints order activity to stdout.
+    - When To Use: Use this file when you need the projection logic for cafe order events, especially to understand how order events are rendered/logged during event handling.
+    - Types: OrderProjector
 
 - Cargo.toml
     - Summary: Workspace and root package manifest for the esrc Rust project, defining shared dependencies, feature flags, and member crates/examples.
@@ -47,6 +79,17 @@
     - When To Use: Use when handling CQRS command errors, serializing/deserializing errors across the transport boundary, or converting between esrc::error::Error and the CQRS-specific serializable Error type.
     - Types: Error
     - Functions: from_esrc_error
+
+- examples/cafe/domain.rs
+    - Summary: Defines a cafe order domain aggregate with order state, commands, events, error handling, and aggregate command/event application logic.
+    - When To Use: Include this file when you need the core domain model for the cafe example, especially order lifecycle behavior, command processing, event definitions, or aggregate state transitions.
+    - Types: OrderStatus, Order, OrderCommand, OrderEvent, OrderError
+    - Functions: process, apply
+
+- examples/cafe/main.rs
+    - Summary: Entry point for the cafe CQRS example using NATS/JetStream. It wires together the NATS store, command dispatcher, and durable projector, then sends sample order commands to demonstrate the flow.
+    - When To Use: Include this file when you need the runnable example setup for the cafe domain, especially to understand how command dispatching and projectors are launched with `esrc-cqrs` and NATS.
+    - Functions: main
 
 - crates/esrc-cqrs/tests/integration_nats.rs
     - Summary: Integration tests for esrc-cqrs against a live NATS JetStream server, covering command dispatch, durable event storage, projector behavior, error propagation, malformed payload handling, query handling, and registry accessors.

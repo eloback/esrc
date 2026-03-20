@@ -17,8 +17,8 @@ context_globs:
   - Cargo.toml # for Rust
   # - README.md
   - crates/esrc-cqrs/**/*.*
+  - examples/**/*.*
   # - derive/**/*.*
-  # - examples/**/*.*
   # - compilation_errors.txt
 
 context_globs_post: # Appended after auto-context selection
@@ -46,23 +46,37 @@ dev:
 model: claude-sonnet-4-6
 ## (see PATH_TO_PRO_CODER_DIR/README.md for full pro@coder documentation)
 ```
-the esrc-cqrs/src/nats/mod.rs module it's not well documented, and some required for use modules are not exported fix it
+Update the cafe example to feature queries the new feature of the esrc-cqrs crate.
+Update also the query dispatch logic in the example, we now that the erros are wrapped in our new esrc_cqrs::Error type.
 
 ====
->   Info: Duration: 13s | ~$0.0248 | Prompt Tokens: 4,925 (cached: 0, cache_creation: 0) | Completion Tokens: 667 
+>   Info: Duration: 38s | ~$0.0878 | Prompt Tokens: 14,864 (cached: 0, cache_creation: 0) | Completion Tokens: 2,881 
 >  Model: claude-sonnet-4-6 | Adapter: Anthropic
->  Files: Context Files: 3 | Working Files: 0 | Knowledge Files: 0
+>  Files: Context Files: 13 | Working Files: 0 | Knowledge Files: 0
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
-Looking at `crates/esrc-cqrs/src/nats/mod.rs`, I can see two issues:
+Looking at the existing code, I need to:
 
-1. The module-level doc comments for `aggregate_command_handler`, `aggregate_projector_handler`, and `aggregate_query_handler` are missing (only `command_dispatcher`, `projector_runner`, and `query_dispatcher` have `pub mod` with docs).
-2. The private `mod` declarations for `aggregate_command_handler`, `aggregate_projector_handler`, and `aggregate_query_handler` are not documented, and more importantly, `query_dispatcher` is declared `pub mod` but the others that are re-exported via `pub use` are only private `mod` declarations, which is inconsistent and may cause visibility issues depending on usage. The re-exports should be sufficient, but the doc comments on the submodules are missing entirely.
+1. Update `examples/cafe/domain.rs` to add a query response type (`OrderState`).
+2. Update `examples/cafe/projector.rs` - no changes needed there.
+3. Add a new `examples/cafe/query.rs` with an `OrderQueryHandler` (or use `AggregateQueryHandler`).
+4. Update `examples/cafe/main.rs` to register a query handler and demonstrate sending a query, using the `NatsQueryDispatcher` and wrapping errors with `esrc_cqrs::Error`.
 
-The main fix needed: add doc comments for `aggregate_command_handler`, `aggregate_projector_handler`, and `aggregate_query_handler` modules, and ensure `query_dispatcher` is consistently documented.
+I also need to check that the `NatsQueryDispatcher` is used properly and that errors are wrapped in `esrc_cqrs::Error` as noted.
+
+Looking at `main.rs`, it currently only shows commands. I need to:
+- Add a query to fetch order state after placing it.
+- Register a `AggregateQueryHandler` for `Order`.
+- Run a `NatsQueryDispatcher` alongside the command dispatcher.
+- Show that query errors come back as `esrc_cqrs::Error`.
+
+I also need to add an `OrderState` read model to `domain.rs` and derive the right traits.
+
+Let me also check what needs to be added to `Cargo.toml` for the example - it already has `esrc-cqrs` as a dev-dependency, so that's fine.
 
 
 
 <suggested_git_command>
-git commit -a -m "^ esrc-cqrs/nats - Add missing module doc comments and fix query_dispatcher visibility"
+git add -A .
+git commit -a -m "^ cafe example - Add query handler registration and query dispatch with esrc_cqrs::Error"
 </suggested_git_command>
