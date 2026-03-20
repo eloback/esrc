@@ -1,81 +1,14 @@
-#![allow(clippy::unnecessary_literal_unwrap)]
-#![allow(unused)]
+//! Cafe example demonstrating `esrc-cqrs` with a NATS backend.
+//!
+//! Run with:
+//! ```sh
+//! cargo run --example cafe --features nats
+//! ```
+//! A local NATS server must be reachable at `nats://localhost:4222`.
 
-use std::task;
+mod domain;
 
-use async_nats::jetstream;
-use esrc::aggregate::Root;
-use esrc::event::{PublishExt, ReplayOne, ReplayOneExt, SubscribeExt};
-use esrc::nats::NatsStore;
-use tab::{Tab, TabCommand};
-use table::ActiveTables;
-use uuid::Uuid;
-
-mod error;
-mod tab;
-mod table;
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let client = async_nats::connect("localhost").await?;
-    let context = jetstream::new(client);
-
-    let mut store = NatsStore::try_new(context, "cafe").await?;
-    // let mut store = store.enable_mirror("cafe_mirror").await?;
-    let task_tracker = store.get_task_tracker();
-
-    let active_tables = ActiveTables::new();
-
-    let id = Uuid::now_v7();
-    let root: Root<Tab> = store.read(id).await?;
-    let command = TabCommand::Open {
-        table_number: 1,
-        waiter: "teste".to_string(),
-    };
-    store.try_write(root, command, None).await?;
-
-    let id = Uuid::now_v7();
-    let command = TabCommand::Open {
-        table_number: 2,
-        waiter: "teste".to_string(),
-    };
-    let root: Root<Tab> = store.read(id).await?;
-    let headers =
-        std::collections::HashMap::from([("correlation-id".to_string(), "123".to_string())]);
-    let root = store.try_write(root, command, Some(headers)).await?;
-
-    // Place the `store` and `active_tables` objects inside shared state for
-    // your chosen web application / interface framework (such as
-    // `axum::extract::State<S>`). Both the NatsStore and any Project impl
-    // will be Clone and can be used in this way.
-
-    store.wait_graceful_shutdown().await;
-
-    let table_numbers = active_tables.get_table_numbers().await;
-    println!("Active tables: {:#?}", table_numbers);
-
-    Ok(())
-}
-
-async fn on_open(table_number: u64, waiter: String) -> anyhow::Result<Uuid> {
-    // Replace with actual access to the shared state.
-    let shared_store: Result<NatsStore, ()> = Err(());
-
-    let id = Uuid::now_v7();
-    let tab = Root::<Tab>::new(id);
-
-    let command = TabCommand::Open {
-        table_number,
-        waiter,
-    };
-    shared_store.unwrap().try_write(tab, command, None).await?;
-
-    Ok(id)
-}
-
-async fn is_open(table_number: u64) -> Result<bool, ()> {
-    // Replace with actual access to the shared state.
-    let shared_project: Result<ActiveTables, ()> = Err(());
-
-    Ok(shared_project.unwrap().is_active(table_number).await)
+fn main() {
+    // Placeholder: wiring will be added in the next step.
+    println!("cafe example – domain types compiled successfully");
 }

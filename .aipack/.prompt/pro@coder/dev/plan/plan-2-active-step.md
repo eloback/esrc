@@ -1,16 +1,18 @@
-## Step - Fix cargo check errors and warnings in esrc-cqrs
+## Step - Create the cafe example skeleton with domain types
       status: active
-time-created: 2026-03-19 19:23:51
-time-current: 2026-03-19 20:02:40
+time-created: 2026-03-20 11:53:33
+time-current: 2026-03-20 11:57:13
 
-Fix all errors and warnings reported by `cargo check`:
+Create the `examples/cafe/` directory structure with the core domain types for
+a cafe ordering system that will demonstrate `esrc-cqrs` usage.
 
-- **`crates/esrc-cqrs/Cargo.toml`**: add `uuid` with the `serde` feature so that `Uuid` implements `Serialize`/`Deserialize`.
-
-- **`crates/esrc-cqrs/src/nats/aggregate_command_handler.rs`**: remove the unused imports (`std::pin::pin`, `Error`, `IntoSendFuture`, `Context`, `futures::StreamExt`).
-
-- **`crates/esrc-cqrs/src/nats/aggregate_projector_handler.rs`**: remove unused imports (`std::pin::pin`, `Error`, `IntoSendFuture`, `Context`, `futures::StreamExt`). Fix the missing `durable_observe` method: `NatsStore` does not expose a `durable_observe` method (only `KurrentStore` does, in `src/kurrent/event.rs`). Implement `durable_observe` as an inherent method on `NatsStore` in `src/nats/event.rs` (mirroring the pattern from `KurrentStore::durable_observe` in the `custom` block), using the existing `durable_consumer` infrastructure already on `NatsStore`. Then call it from `DurableProjectorHandler`.
-
-- **`crates/esrc-cqrs/src/nats/command_dispatcher.rs`**: remove unused import `esrc::nats::NatsStore`.
-
-- **`crates/esrc-cqrs/src/registry.rs`**: add `+ Sync` bound to `register_projector`'s `H` type parameter to satisfy `ErasedProjectorHandler`.
+- Create `examples/cafe/main.rs` as the entry point (can be mostly empty stubs at this stage).
+- Create `examples/cafe/domain.rs` with:
+  - `Order` aggregate (fields: `status: OrderStatus`, etc.)
+  - `OrderCommand` enum (e.g., `PlaceOrder { item: String, quantity: u32 }`, `CompleteOrder`)
+  - `OrderEvent` enum deriving `Event`, `SerializeVersion`, `DeserializeVersion`, `Serialize`, `Deserialize`
+    (variants: `OrderPlaced { item: String, quantity: u32 }`, `OrderCompleted`)
+  - `impl Aggregate for Order`
+- Add the example entry in `Cargo.toml` under `[[example]]` pointing to `examples/cafe/main.rs`,
+  with `required-features = ["nats"]` (or similar).
+- Ensure the file compiles (`cargo check --example cafe`).
