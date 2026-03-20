@@ -7,6 +7,31 @@ file_content_mode: udiffx
 ## All resolve files(sent to AI with content, in this order)
 
 - Cargo.toml
+- crates/esrc-cqrs/Cargo.toml
+- crates/esrc-cqrs/src/command.rs
+- crates/esrc-cqrs/src/lib.rs
+- crates/esrc-cqrs/src/nats/aggregate_command_handler.rs
+- crates/esrc-cqrs/src/nats/aggregate_projector_handler.rs
+- crates/esrc-cqrs/src/nats/command_dispatcher.rs
+- crates/esrc-cqrs/src/nats/mod.rs
+- crates/esrc-cqrs/src/nats/projector_runner.rs
+- crates/esrc-cqrs/src/projector.rs
+- crates/esrc-cqrs/src/registry.rs
+- derive/Cargo.toml
+- derive/src/envelope.rs
+- derive/src/event.rs
+- derive/src/lib.rs
+- derive/src/util.rs
+- derive/src/util/lifetime.rs
+- derive/src/util/variant.rs
+- derive/src/version.rs
+- derive/tests/fixtures/envelope.rs
+- derive/tests/fixtures/event.rs
+- derive/tests/fixtures/mod.rs
+- derive/tests/fixtures/version.rs
+- derive/tests/test_envelope.rs
+- derive/tests/test_event.rs
+- derive/tests/test_version.rs
 - src/aggregate.rs
 - src/envelope.rs
 - src/error.rs
@@ -31,16 +56,6 @@ file_content_mode: udiffx
 - src/nats/subject.rs
 - src/project.rs
 - src/version.rs
-- crates/esrc-cqrs/Cargo.toml
-- crates/esrc-cqrs/src/command.rs
-- crates/esrc-cqrs/src/lib.rs
-- crates/esrc-cqrs/src/nats/aggregate_command_handler.rs
-- crates/esrc-cqrs/src/nats/aggregate_projector_handler.rs
-- crates/esrc-cqrs/src/nats/command_dispatcher.rs
-- crates/esrc-cqrs/src/nats/mod.rs
-- crates/esrc-cqrs/src/nats/projector_runner.rs
-- crates/esrc-cqrs/src/projector.rs
-- crates/esrc-cqrs/src/registry.rs
 - examples/cafe/domain.rs
 - examples/cafe/error.rs
 - examples/cafe/main.rs
@@ -56,27 +71,5 @@ None
 
 # Structure Files
 
-(Only file paths, not their content)
-
-- compilation_errors.txt
-- derive/
-  - Cargo.toml
-- derive/src/
-  - envelope.rs
-  - event.rs
-  - lib.rs
-  - util.rs
-  - version.rs
-- derive/src/util/
-  - lifetime.rs
-  - variant.rs
-- derive/tests/
-  - test_envelope.rs
-  - test_event.rs
-  - test_version.rs
-- derive/tests/fixtures/
-  - envelope.rs
-  - event.rs
-  - mod.rs
-  - version.rs
+None
 

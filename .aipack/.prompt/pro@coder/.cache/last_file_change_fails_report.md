@@ -4,11 +4,13 @@ See full AI response at:
 
 Below are the search misses by file:
 
-# examples/cafe/main.rs
+# crates/esrc-cqrs/Cargo.toml
 
 Failed searches:
 
 ````
-UDIFFX Block failed: No changes applied to 'examples/cafe/main.rs'
+UDIFFX Block failed: patch completion error: Could not find patch context in original file (starting search from line 1)
+Context lines:
+[dev-dependencies]
 ````
 
