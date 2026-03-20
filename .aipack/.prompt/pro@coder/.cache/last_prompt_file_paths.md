@@ -49,11 +49,13 @@ file_content_mode: udiffx
 - crates/esrc-cqrs/src/registry.rs
 - .aipack/.prompt/pro@coder/dev/plan/_plan-rules.md
 - .aipack/.prompt/pro@coder/dev/plan/plan-1-todo-steps.md
+- .aipack/.prompt/pro@coder/dev/plan/plan-2-active-step.md
 
 ## Post (just for info, included in the All resolved files above)
 
 - .aipack/.prompt/pro@coder/dev/plan/_plan-rules.md
 - .aipack/.prompt/pro@coder/dev/plan/plan-1-todo-steps.md
+- .aipack/.prompt/pro@coder/dev/plan/plan-2-active-step.md
 
 # Working Files
 
