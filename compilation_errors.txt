@@ -1,0 +1,87 @@
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `esrc_cqrs`
+  --> examples/cafe/main.rs:16:5
+   |
+16 | use esrc_cqrs::nats::{
+   |     ^^^^^^^^^ use of unresolved module or unlinked crate `esrc_cqrs`
+   |
+   = help: if you wanted to use a crate named `esrc_cqrs`, use `cargo add esrc_cqrs` to add it to your `Cargo.toml`
+
+error[E0432]: unresolved import `esrc_cqrs`
+  --> examples/cafe/main.rs:20:5
+   |
+20 | use esrc_cqrs::CqrsRegistry;
+   |     ^^^^^^^^^ use of unresolved module or unlinked crate `esrc_cqrs`
+   |
+   = help: if you wanted to use a crate named `esrc_cqrs`, use `cargo add esrc_cqrs` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `esrc_cqrs`
+  --> examples/cafe/main.rs:65:23
+   |
+65 |         let subject = esrc_cqrs::nats::command_dispatcher::command_subject(SERVICE_NAME, "Order");
+   |                       ^^^^^^^^^ use of unresolved module or unlinked crate `esrc_cqrs`
+   |
+   = help: if you wanted to use a crate named `esrc_cqrs`, use `cargo add esrc_cqrs` to add it to your `Cargo.toml`
+
+warning: unused import: `esrc::error`
+ --> examples/cafe/projector.rs:2:5
+  |
+2 | use esrc::error;
+  |     ^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `async_nats::ConnectOptions`
+  --> examples/cafe/main.rs:14:5
+   |
+14 | use async_nats::ConnectOptions;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no function or associated item named `new_v4` found for struct `Uuid` in the current scope
+   --> examples/cafe/main.rs:54:30
+    |
+ 54 |         let order_id = Uuid::new_v4();
+    |                              ^^^^^^ function or associated item not found in `Uuid`
+    |
+note: if you're trying to build a new `Uuid` consider using one of the following associated functions:
+      uuid::builder::<impl Uuid>::nil
+      uuid::builder::<impl Uuid>::max
+      uuid::builder::<impl Uuid>::from_fields
+      uuid::builder::<impl Uuid>::from_fields_le
+      and 12 others
+   --> /home/eloback/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.22.0/src/builder.rs:72:5
+    |
+ 72 |     pub const fn nil() -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 98 |     pub const fn max() -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+122 |     pub const fn from_fields(d1: u32, d2: u16, d3: u16, d4: &[u8; 8]) -> Uuid {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+168 |     pub const fn from_fields_le(d1: u32, d2: u16, d3: u16, d4: &[u8; 8]) -> Uuid {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+help: there is an associated function `new_v7` with a similar name
+   --> /home/eloback/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.22.0/src/v7.rs:63:5
+    |
+ 63 |     pub fn new_v7(ts: Timestamp) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0282]: type annotations needed
+   --> examples/cafe/main.rs:46:9
+    |
+ 46 |     let mut projector_set = registry.run_projectors().await?;
+    |         ^^^^^^^^^^^^^^^^^
+...
+101 |     while let Some(result) = projector_set.join_next().await {
+    |                              ------------- type must be known at this point
+    |
+help: consider giving `projector_set` an explicit type
+    |
+ 46 |     let mut projector_set: /* Type */ = registry.run_projectors().await?;
+    |                          ++++++++++++
+
+Some errors have detailed explanations: E0282, E0432, E0433, E0599.
+For more information about an error, try `rustc --explain E0282`.
+warning: `esrc` (example "cafe") generated 2 warnings
+error: could not compile `esrc` (example "cafe") due to 5 previous errors; 2 warnings emitted
