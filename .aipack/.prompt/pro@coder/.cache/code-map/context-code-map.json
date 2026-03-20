@@ -42,8 +42,8 @@
     },
     "crates/esrc-cqrs/src/nats/aggregate_command_handler.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/aggregate_command_handler.rs",
-      "hash": "a52f090c619cb6a8900a34e822feebd476103e49238e4878c6c0e9c78f54e4f5",
-      "mtime": 1774039558418166,
+      "hash": "faf2203bacdb516096795170f0b9a33d5a7821a1e7e6ca81ffd9f696bce8728d",
+      "mtime": 1774017559804822,
       "public_functions": [
         "AggregateCommandHandler::new",
         "CommandHandler<NatsStore>::name",
@@ -72,8 +72,8 @@
     },
     "crates/esrc-cqrs/src/nats/command_dispatcher.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/command_dispatcher.rs",
-      "hash": "ff6beaa7cbdb9c70c24d1573970a647560126d6d878b6b4d4f6cf4e4e38ac594",
-      "mtime": 1774039558420166,
+      "hash": "bce038f15bffe2f6aefa2a3642cedab8a3ff83fe6ee9bb4597fbb02b954dbc26",
+      "mtime": 1774017559804822,
       "public_functions": [
         "NatsCommandDispatcher::new",
         "NatsCommandDispatcher::run",
