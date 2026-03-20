@@ -50,12 +50,14 @@ file_content_mode: udiffx
 - .aipack/.prompt/pro@coder/dev/plan/_plan-rules.md
 - .aipack/.prompt/pro@coder/dev/plan/plan-1-todo-steps.md
 - .aipack/.prompt/pro@coder/dev/plan/plan-2-active-step.md
+- .aipack/.prompt/pro@coder/dev/plan/plan-3-done-steps.md
 
 ## Post (just for info, included in the All resolved files above)
 
 - .aipack/.prompt/pro@coder/dev/plan/_plan-rules.md
 - .aipack/.prompt/pro@coder/dev/plan/plan-1-todo-steps.md
 - .aipack/.prompt/pro@coder/dev/plan/plan-2-active-step.md
+- .aipack/.prompt/pro@coder/dev/plan/plan-3-done-steps.md
 
 # Working Files
 

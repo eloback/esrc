@@ -1,18 +1,27 @@
-## Step - Create the cafe example skeleton with domain types
+## Step - Add a client driver to the cafe example
       status: active
 time-created: 2026-03-20 11:53:33
-time-current: 2026-03-20 11:57:13
+time-current: 2026-03-20 12:02:53
 
-Create the `examples/cafe/` directory structure with the core domain types for
-a cafe ordering system that will demonstrate `esrc-cqrs` usage.
+Add a small async block (or second binary / separate task spawned before the dispatcher) that
+acts as a client, sending commands over NATS request/reply so the example is fully self-contained
+and runnable with a local NATS server.
 
-- Create `examples/cafe/main.rs` as the entry point (can be mostly empty stubs at this stage).
-- Create `examples/cafe/domain.rs` with:
-  - `Order` aggregate (fields: `status: OrderStatus`, etc.)
-  - `OrderCommand` enum (e.g., `PlaceOrder { item: String, quantity: u32 }`, `CompleteOrder`)
-  - `OrderEvent` enum deriving `Event`, `SerializeVersion`, `DeserializeVersion`, `Serialize`, `Deserialize`
-    (variants: `OrderPlaced { item: String, quantity: u32 }`, `OrderCompleted`)
-  - `impl Aggregate for Order`
-- Add the example entry in `Cargo.toml` under `[[example]]` pointing to `examples/cafe/main.rs`,
-  with `required-features = ["nats"]` (or similar).
-- Ensure the file compiles (`cargo check --example cafe`).
+References: wiring from plan-3-done-steps.md step "Step - Implement command handlers and
+projector for the cafe example".
+
+- In `main.rs`, before starting the dispatcher loop, spawn a Tokio task that:
+  - Sends a `PlaceOrder` command for a couple of items using `async_nats::Client::request`.
+  - Prints the `CommandReply` received.
+  - Sends a `CompleteOrder` command and prints the reply.
+  - Sleeps briefly so the projector has time to process the events.
+- Add a `README` section (or doc comment at the top of `main.rs`) explaining how to run
+  the example (`cargo run --example cafe`).
+- Ensure the full example compiles and the happy path works end-to-end.
+
+### Implementation Considerations
+
+The client driver task is already included in the `main.rs` created during the previous step.
+The doc comment at the top of `main.rs` explains how to run the example. Both the projector
+and the client driver are implemented together with the dispatcher in a single binary,
+making the example fully self-contained.

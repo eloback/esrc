@@ -1,23 +1,3 @@
-## Step - Implement command handlers and projector for the cafe example
-      status: not_started
-time-created: 2026-03-20 11:53:33
-
-Add the CQRS wiring using `esrc-cqrs` types. References: domain types defined in
-plan-2-active-step.md (or plan-3-done-steps.md once done), step "Step - Create the cafe
-example skeleton with domain types".
-
-- Create `examples/cafe/projector.rs` with a `OrderProjector` struct implementing
-  `esrc::project::Project` for `OrderEvent`, printing or accumulating order activity.
-- Create `examples/cafe/handlers.rs` (or inline in `main.rs`) wiring up:
-  - `AggregateCommandHandler::<Order>::new("Order")` registered via `CqrsRegistry::register_command`.
-  - `DurableProjectorHandler::new("cafe-orders", OrderProjector::default())` registered via
-    `CqrsRegistry::register_projector`.
-- In `main.rs`:
-  - Connect to NATS, build `NatsStore`, build `NatsCommandDispatcher`, build `CqrsRegistry`.
-  - Spawn projectors via `registry.run_projectors()`.
-  - Start command dispatcher via `NatsCommandDispatcher::run(...)`.
-- Ensure the example compiles.
-
 ## Step - Add a client driver to the cafe example
       status: not_started
 time-created: 2026-03-20 11:53:33
