@@ -82,8 +82,3 @@ uuid = { workspace = true, features = ["v7"] }
 name = "cafe"
 path = "examples/cafe/main.rs"
 required-features = ["nats", "derive"]
-
-[[example]]
-name = "cafe"
-path = "examples/cafe/main.rs"
-required-features = ["nats", "derive"]

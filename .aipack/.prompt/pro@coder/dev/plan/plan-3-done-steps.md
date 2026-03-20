@@ -43,3 +43,22 @@ Wired up the CQRS layer and completed the cafe example:
     via `async_nats::Client::request` and prints the `CommandReply`.
   - Runs the command dispatcher (blocks until NATS closes).
 
+
+## Step - Add a client driver to the cafe example
+      status: done
+time-created: 2026-03-20 11:53:33
+   time-done: 2026-03-20 12:05:28
+
+Add a self-contained client driver to the cafe example so it can be run end-to-end
+against a local NATS server.
+
+- The client driver task was included in `examples/cafe/main.rs` as part of the previous
+  step's implementation; no additional files needed to be created.
+- A doc comment at the top of `main.rs` explains how to run the example with
+  `cargo run --example cafe --features nats,derive`.
+- The projector, command dispatcher, and client driver all run in the same binary,
+  making the example fully self-contained.
+- The client driver spawns a Tokio task before the dispatcher loop that:
+  - Sends a `PlaceOrder` command via `async_nats::Client::request` and prints the reply.
+  - Sends a `CompleteOrder` command and prints the reply.
+  - Sleeps briefly to allow the projector to process the emitted events.
