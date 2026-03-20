@@ -6,7 +6,6 @@
 //! Run with:
 //!   cargo test -p esrc-cqrs --test integration_nats -- --test-threads=1
 
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -16,13 +15,13 @@ use esrc::event::replay::ReplayOneExt;
 use esrc::nats::NatsStore;
 use esrc::project::{Context, Project};
 use esrc::version::{DeserializeVersion, SerializeVersion};
+use serde::{Deserialize, Serialize};
 use esrc::{Envelope, Event};
 use esrc_cqrs::nats::{
     AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler,
     NatsCommandDispatcher,
 };
 use esrc_cqrs::CqrsRegistry;
-use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
 use uuid::Uuid;
 
@@ -139,29 +138,112 @@ impl Project for RecordingProjector {
     }
 }
 
-// -- Helpers -----------------------------------------------------------------
+// -- Test context ------------------------------------------------------------
 
-/// Build a unique prefix and durable name so parallel test runs do not clash.
-fn unique_prefix(test_name: &str) -> String {
-    // Use the first 8 chars of a random UUID to keep stream names short.
-    let tag = &Uuid::new_v4().to_string()[..8];
-    format!("{test_name}-{tag}")
+/// All resources needed by a single test case.
+///
+/// Holds a store scoped to a unique subject prefix and a connected NATS client.
+/// On drop the JetStream stream created for this test is deleted so that
+/// stream names do not accumulate across runs.
+struct TestCtx {
+    store: NatsStore,
+    client: async_nats::Client,
+    /// The unique prefix / stream name used for this test.
+    prefix: &'static str,
+    /// JetStream context kept for cleanup on drop.
+    js: jetstream::Context,
 }
 
-/// Connect to the local NATS server and create a `NatsStore` under `prefix`.
-async fn make_store(prefix: &'static str) -> NatsStore {
-    let client = async_nats::connect("localhost:4222")
-        .await
-        .expect("NATS server must be reachable at localhost:4222");
-    let js = jetstream::new(client);
-    NatsStore::try_new(js, prefix)
-        .await
-        .expect("NatsStore creation failed")
+impl TestCtx {
+    /// Build a `TestCtx` for one test case.
+    ///
+    /// `label` should be a short, human-readable identifier (ASCII letters and
+    /// hyphens). A random 8-hex-character suffix is appended to guarantee
+    /// uniqueness even when tests run in parallel.
+    async fn new(label: &str) -> Self {
+        let tag = &Uuid::new_v4().to_string()[..8];
+        let prefix_string = format!("t-{label}-{tag}");
+        // Leak once per test; acceptable in short-lived test processes.
+        let prefix: &'static str = Box::leak(prefix_string.into_boxed_str());
+
+        let client = async_nats::connect("nats://localhost:4222")
+            .await
+            .expect("NATS server must be reachable at localhost:4222");
+        let js = jetstream::new(client.clone());
+
+        let store = NatsStore::try_new(js.clone(), prefix)
+            .await
+            .expect("NatsStore creation failed");
+
+        Self {
+            store,
+            client,
+            prefix,
+            js,
+        }
+    }
+
+    /// Derive a unique service name for this test context.
+    fn service_name(&self) -> &'static str {
+        let s = format!("{}-svc", self.prefix);
+        Box::leak(s.into_boxed_str())
+    }
+
+    /// Derive a unique durable consumer name for this test context.
+    fn durable_name(&self) -> &'static str {
+        let s = format!("{}-dur", self.prefix);
+        Box::leak(s.into_boxed_str())
+    }
+
+    /// Delete the JetStream stream created for this test, suppressing errors.
+    async fn cleanup(self) {
+        let _ = self.js.delete_stream(self.prefix).await;
+    }
 }
 
-/// Leak a `String` so we get a `&'static str`. Acceptable in short-lived tests.
-fn leak(s: String) -> &'static str {
-    Box::leak(s.into_boxed_str())
+/// Spawn the command dispatcher as a background task and wait briefly for it
+/// to register its service endpoints.
+async fn spawn_dispatcher(
+    ctx: &TestCtx,
+    handlers: Vec<Arc<dyn esrc_cqrs::registry::ErasedCommandHandler<NatsStore>>>,
+) {
+    let service_name = ctx.service_name();
+    let store = ctx.store.clone();
+
+    let dispatcher = NatsCommandDispatcher::new(
+        async_nats::connect("nats://localhost:4222")
+            .await
+            .expect("connect"),
+        service_name,
+    );
+
+    tokio::spawn(async move {
+        let _ = dispatcher.run(store, &handlers).await;
+    });
+
+    // Allow the NATS service endpoints to register before tests send commands.
+    sleep(Duration::from_millis(300)).await;
+}
+
+/// Send a single command through NATS request/reply, returning the reply.
+async fn send_command<C>(
+    client: &async_nats::Client,
+    service_name: &str,
+    handler_name: &str,
+    id: Uuid,
+    command: C,
+) -> CommandReply
+where
+    C: serde::Serialize,
+{
+    let subject = esrc_cqrs::nats::command_dispatcher::command_subject(service_name, handler_name);
+    let envelope = CommandEnvelope { id, command };
+    let payload = serde_json::to_vec(&envelope).expect("serialize command envelope");
+    let reply = client
+        .request(subject, payload.into())
+        .await
+        .expect("NATS request should succeed");
+    serde_json::from_slice(&reply.payload).expect("valid CommandReply")
 }
 
 // -- Tests -------------------------------------------------------------------
@@ -170,92 +252,46 @@ fn leak(s: String) -> &'static str {
 /// event is durably stored (readable via replay).
 #[tokio::test]
 async fn test_command_request_response_success() {
-    let prefix = leak(unique_prefix("cmd-ok"));
-    let service_name = leak(format!("{prefix}-svc"));
-    let durable = leak(format!("{prefix}-proj"));
+    let ctx = TestCtx::new("cmd-ok").await;
 
-    let store = make_store(prefix).await;
-
-    let registry = CqrsRegistry::new(store.clone())
+    let registry = CqrsRegistry::new(ctx.store.clone())
         .register_command(AggregateCommandHandler::<Counter>::new("Counter"));
 
-    let dispatcher = NatsCommandDispatcher::new(
-        async_nats::connect("localhost:4222")
-            .await
-            .expect("connect"),
-        service_name,
-    );
-
-    // Run the dispatcher in the background.
-    let dispatch_store = store.clone();
-    let handlers: Vec<_> = registry.command_handlers().to_vec();
-    tokio::spawn(async move {
-        let _ = dispatcher.run(dispatch_store, &handlers).await;
-    });
-
-    // Allow the service endpoints to register.
-    sleep(Duration::from_millis(300)).await;
+    spawn_dispatcher(&ctx, registry.command_handlers().to_vec()).await;
 
     let aggregate_id = Uuid::new_v4();
-    let envelope = CommandEnvelope {
-        id: aggregate_id,
-        command: CounterCommand::Increment { by: 5 },
-    };
-    let payload = serde_json::to_vec(&envelope).unwrap();
+    let response = send_command(
+        &ctx.client,
+        ctx.service_name(),
+        "Counter",
+        aggregate_id,
+        CounterCommand::Increment { by: 5 },
+    )
+    .await;
 
-    let client = async_nats::connect("localhost:4222")
-        .await
-        .expect("connect");
-    let subject = esrc_cqrs::nats::command_dispatcher::command_subject(service_name, "Counter");
-    let reply = client
-        .request(subject, payload.into())
-        .await
-        .expect("request should succeed");
-
-    let response: CommandReply =
-        serde_json::from_slice(&reply.payload).expect("valid CommandReply");
     assert!(response.success, "command should succeed");
     assert_eq!(response.id, aggregate_id);
     assert!(response.message.is_none());
 
     // Verify the event was actually persisted.
-    let root: esrc::aggregate::Root<Counter> = store.read(aggregate_id).await.unwrap();
+    let root: esrc::aggregate::Root<Counter> = ctx.store.read(aggregate_id).await.unwrap();
     assert_eq!(root.value, 5, "aggregate value should reflect the event");
 
-    let _ = durable; // suppress unused warning
+    ctx.cleanup().await;
 }
 
 /// Test that a failing command returns a NATS service error (non-2xx code).
 /// The framework should not crash and subsequent commands should still work.
 #[tokio::test]
 async fn test_command_error_does_not_break_dispatcher() {
-    let prefix = leak(unique_prefix("cmd-err"));
-    let service_name = leak(format!("{prefix}-svc"));
+    let ctx = TestCtx::new("cmd-err").await;
 
-    let store = make_store(prefix).await;
-
-    let registry = CqrsRegistry::new(store.clone())
+    let registry = CqrsRegistry::new(ctx.store.clone())
         .register_command(AggregateCommandHandler::<Counter>::new("Counter"));
 
-    let dispatcher = NatsCommandDispatcher::new(
-        async_nats::connect("localhost:4222")
-            .await
-            .expect("connect"),
-        service_name,
-    );
+    spawn_dispatcher(&ctx, registry.command_handlers().to_vec()).await;
 
-    let dispatch_store = store.clone();
-    let handlers: Vec<_> = registry.command_handlers().to_vec();
-    tokio::spawn(async move {
-        let _ = dispatcher.run(dispatch_store, &handlers).await;
-    });
-
-    sleep(Duration::from_millis(300)).await;
-
-    let client = async_nats::connect("localhost:4222")
-        .await
-        .expect("connect");
-    let subject = esrc_cqrs::nats::command_dispatcher::command_subject(service_name, "Counter");
+    let subject = esrc_cqrs::nats::command_dispatcher::command_subject(ctx.service_name(), "Counter");
 
     // Send a command that will always fail.
     let bad_envelope = CommandEnvelope {
@@ -266,70 +302,49 @@ async fn test_command_error_does_not_break_dispatcher() {
 
     // The request itself resolves (the service replies with an error code) or
     // returns a service-level error; either way we should not hang or panic.
-    let bad_result = client
-        .request(subject.clone(), bad_payload.into())
-        .await;
+    let bad_result = ctx.client.request(subject.clone(), bad_payload.into()).await;
+    dbg!(&bad_result);
     // The NATS service API sends an error status reply; async-nats surfaces
     // this as an Err from `request`. We only assert the client did not hang.
     let _ = bad_result;
 
     // Now send a valid command to confirm the dispatcher is still running.
     let good_id = Uuid::new_v4();
-    let good_envelope = CommandEnvelope {
-        id: good_id,
-        command: CounterCommand::Increment { by: 3 },
-    };
-    let good_payload = serde_json::to_vec(&good_envelope).unwrap();
-    let good_reply = client
-        .request(subject, good_payload.into())
-        .await
-        .expect("dispatcher must still accept commands after a previous error");
+    let response = send_command(
+        &ctx.client,
+        ctx.service_name(),
+        "Counter",
+        good_id,
+        CounterCommand::Increment { by: 3 },
+    )
+    .await;
 
-    let response: CommandReply =
-        serde_json::from_slice(&good_reply.payload).expect("valid CommandReply");
     assert!(response.success);
     assert_eq!(response.id, good_id);
+
+    ctx.cleanup().await;
 }
 
 /// Test that the projector receives events after they are published via the
 /// command handler, and that its internal state reflects those events.
 #[tokio::test]
 async fn test_projector_receives_events() {
-    let prefix = leak(unique_prefix("proj-recv"));
-    let service_name = leak(format!("{prefix}-svc"));
-    let durable = leak(format!("{prefix}-proj"));
-
-    let store = make_store(prefix).await;
+    let ctx = TestCtx::new("proj-recv").await;
 
     let projector = RecordingProjector::new();
     let received = projector.received.clone();
 
-    let registry = CqrsRegistry::new(store.clone())
+    let registry = CqrsRegistry::new(ctx.store.clone())
         .register_command(AggregateCommandHandler::<Counter>::new("Counter"))
-        .register_projector(DurableProjectorHandler::new(durable, projector));
+        .register_projector(DurableProjectorHandler::new(ctx.durable_name(), projector));
 
     // Start projectors.
     let mut projector_set = registry.run_projectors().await.unwrap();
 
-    let dispatcher = NatsCommandDispatcher::new(
-        async_nats::connect("localhost:4222")
-            .await
-            .expect("connect"),
-        service_name,
-    );
+    spawn_dispatcher(&ctx, registry.command_handlers().to_vec()).await;
 
-    let dispatch_store = store.clone();
-    let handlers: Vec<_> = registry.command_handlers().to_vec();
-    tokio::spawn(async move {
-        let _ = dispatcher.run(dispatch_store, &handlers).await;
-    });
-
-    sleep(Duration::from_millis(400)).await;
-
-    let client = async_nats::connect("localhost:4222")
-        .await
-        .expect("connect");
-    let subject = esrc_cqrs::nats::command_dispatcher::command_subject(service_name, "Counter");
+    // Extra delay so the projector consumer is ready before events arrive.
+    sleep(Duration::from_millis(100)).await;
 
     let id1 = Uuid::new_v4();
     let id2 = Uuid::new_v4();
@@ -339,10 +354,7 @@ async fn test_projector_receives_events() {
         (id2, CounterCommand::Decrement { by: 3 }),
         (id1, CounterCommand::Increment { by: 1 }),
     ] {
-        let env = CommandEnvelope { id, command: cmd };
-        let payload = serde_json::to_vec(&env).unwrap();
-        let reply = client.request(subject.clone(), payload.into()).await.unwrap();
-        let resp: CommandReply = serde_json::from_slice(&reply.payload).unwrap();
+        let resp = send_command(&ctx.client, ctx.service_name(), "Counter", id, cmd).await;
         assert!(resp.success, "command {id} should succeed");
     }
 
@@ -358,56 +370,36 @@ async fn test_projector_receives_events() {
     assert_eq!(events[2], (id1, "Incremented(1)".to_string()));
 
     projector_set.abort_all();
+    ctx.cleanup().await;
 }
 
 /// Test that a projector error causes the projector task to terminate with an
 /// error rather than silently swallowing it, and that the JoinSet reflects it.
 #[tokio::test]
 async fn test_projector_error_propagates() {
-    let prefix = leak(unique_prefix("proj-err"));
-    let service_name = leak(format!("{prefix}-svc"));
-    let durable = leak(format!("{prefix}-proj-err"));
-
-    let store = make_store(prefix).await;
+    let ctx = TestCtx::new("proj-err").await;
 
     let projector = RecordingProjector::new();
     // Pre-arm the projector to fail on the first event it receives.
     projector.set_fail_next();
 
-    let registry = CqrsRegistry::new(store.clone())
+    let registry = CqrsRegistry::new(ctx.store.clone())
         .register_command(AggregateCommandHandler::<Counter>::new("Counter"))
-        .register_projector(DurableProjectorHandler::new(durable, projector));
+        .register_projector(DurableProjectorHandler::new(ctx.durable_name(), projector));
 
     let mut projector_set = registry.run_projectors().await.unwrap();
 
-    let dispatcher = NatsCommandDispatcher::new(
-        async_nats::connect("localhost:4222")
-            .await
-            .expect("connect"),
-        service_name,
-    );
-
-    let dispatch_store = store.clone();
-    let handlers: Vec<_> = registry.command_handlers().to_vec();
-    tokio::spawn(async move {
-        let _ = dispatcher.run(dispatch_store, &handlers).await;
-    });
-
-    sleep(Duration::from_millis(400)).await;
-
-    let client = async_nats::connect("localhost:4222")
-        .await
-        .expect("connect");
-    let subject = esrc_cqrs::nats::command_dispatcher::command_subject(service_name, "Counter");
+    spawn_dispatcher(&ctx, registry.command_handlers().to_vec()).await;
 
     // Publish one event; the projector will fail on it.
-    let env = CommandEnvelope {
-        id: Uuid::new_v4(),
-        command: CounterCommand::Increment { by: 7 },
-    };
-    let payload = serde_json::to_vec(&env).unwrap();
-    let reply = client.request(subject, payload.into()).await.unwrap();
-    let resp: CommandReply = serde_json::from_slice(&reply.payload).unwrap();
+    let resp = send_command(
+        &ctx.client,
+        ctx.service_name(),
+        "Counter",
+        Uuid::new_v4(),
+        CounterCommand::Increment { by: 7 },
+    )
+    .await;
     assert!(resp.success, "command must succeed regardless of projector state");
 
     // The projector task should finish (with an error) within a reasonable time.
@@ -426,99 +418,67 @@ async fn test_projector_error_propagates() {
         }
     }
     projector_set.abort_all();
+
     assert!(
         found_error,
         "projector error should surface through the JoinSet"
     );
+
+    ctx.cleanup().await;
 }
 
 /// Test that multiple commands for the same aggregate result in correct
 /// cumulative state, confirming optimistic concurrency is handled correctly.
 #[tokio::test]
 async fn test_multiple_commands_same_aggregate_occ() {
-    let prefix = leak(unique_prefix("occ"));
-    let service_name = leak(format!("{prefix}-svc"));
+    let ctx = TestCtx::new("occ").await;
 
-    let store = make_store(prefix).await;
-
-    let registry = CqrsRegistry::new(store.clone())
+    let registry = CqrsRegistry::new(ctx.store.clone())
         .register_command(AggregateCommandHandler::<Counter>::new("Counter"));
 
-    let dispatcher = NatsCommandDispatcher::new(
-        async_nats::connect("localhost:4222")
-            .await
-            .expect("connect"),
-        service_name,
-    );
-
-    let dispatch_store = store.clone();
-    let handlers: Vec<_> = registry.command_handlers().to_vec();
-    tokio::spawn(async move {
-        let _ = dispatcher.run(dispatch_store, &handlers).await;
-    });
-
-    sleep(Duration::from_millis(300)).await;
-
-    let client = async_nats::connect("localhost:4222")
-        .await
-        .expect("connect");
-    let subject = esrc_cqrs::nats::command_dispatcher::command_subject(service_name, "Counter");
+    spawn_dispatcher(&ctx, registry.command_handlers().to_vec()).await;
 
     let id = Uuid::new_v4();
     // Send 5 sequential increments to the same aggregate.
     for i in 1i64..=5 {
-        let env = CommandEnvelope {
+        let resp = send_command(
+            &ctx.client,
+            ctx.service_name(),
+            "Counter",
             id,
-            command: CounterCommand::Increment { by: i },
-        };
-        let payload = serde_json::to_vec(&env).unwrap();
-        let reply = client.request(subject.clone(), payload.into()).await.unwrap();
-        let resp: CommandReply = serde_json::from_slice(&reply.payload).unwrap();
+            CounterCommand::Increment { by: i },
+        )
+        .await;
         assert!(resp.success, "increment {i} should succeed");
     }
 
     // Expected: 1 + 2 + 3 + 4 + 5 = 15
-    let root: esrc::aggregate::Root<Counter> = store.read(id).await.unwrap();
+    let root: esrc::aggregate::Root<Counter> = ctx.store.read(id).await.unwrap();
     assert_eq!(
         root.value, 15,
         "aggregate should reflect all 5 sequential increments"
     );
+
+    ctx.cleanup().await;
 }
 
 /// Test that sending a malformed (unparseable) payload to a command endpoint
 /// results in an error reply and the dispatcher keeps running.
 #[tokio::test]
 async fn test_malformed_payload_returns_error() {
-    let prefix = leak(unique_prefix("malformed"));
-    let service_name = leak(format!("{prefix}-svc"));
+    let ctx = TestCtx::new("malformed").await;
 
-    let store = make_store(prefix).await;
-
-    let registry = CqrsRegistry::new(store.clone())
+    let registry = CqrsRegistry::new(ctx.store.clone())
         .register_command(AggregateCommandHandler::<Counter>::new("Counter"));
 
-    let dispatcher = NatsCommandDispatcher::new(
-        async_nats::connect("localhost:4222")
-            .await
-            .expect("connect"),
-        service_name,
-    );
+    spawn_dispatcher(&ctx, registry.command_handlers().to_vec()).await;
 
-    let dispatch_store = store.clone();
-    let handlers: Vec<_> = registry.command_handlers().to_vec();
-    tokio::spawn(async move {
-        let _ = dispatcher.run(dispatch_store, &handlers).await;
-    });
-
-    sleep(Duration::from_millis(300)).await;
-
-    let client = async_nats::connect("localhost:4222")
-        .await
-        .expect("connect");
-    let subject = esrc_cqrs::nats::command_dispatcher::command_subject(service_name, "Counter");
+    let subject =
+        esrc_cqrs::nats::command_dispatcher::command_subject(ctx.service_name(), "Counter");
 
     // Send garbage bytes.
-    let bad_result = client
+    let bad_result = ctx
+        .client
         .request(subject.clone(), b"this is not json"[..].into())
         .await;
     // The NATS service will reply with an error status; async-nats returns Err.
@@ -527,30 +487,30 @@ async fn test_malformed_payload_returns_error() {
 
     // Confirm the dispatcher is still alive.
     let good_id = Uuid::new_v4();
-    let env = CommandEnvelope {
-        id: good_id,
-        command: CounterCommand::Decrement { by: 2 },
-    };
-    let payload = serde_json::to_vec(&env).unwrap();
-    let reply = client
-        .request(subject, payload.into())
-        .await
-        .expect("dispatcher must still respond after a malformed request");
-    let resp: CommandReply = serde_json::from_slice(&reply.payload).unwrap();
+    let resp = send_command(
+        &ctx.client,
+        ctx.service_name(),
+        "Counter",
+        good_id,
+        CounterCommand::Decrement { by: 2 },
+    )
+    .await;
+
     assert!(resp.success);
     assert_eq!(resp.id, good_id);
+
+    ctx.cleanup().await;
 }
 
 /// Test that `CqrsRegistry::store()` returns a clone of the backing store and
 /// that `command_handlers()` / `projector_handlers()` reflect registrations.
 #[tokio::test]
 async fn test_registry_accessors() {
-    let prefix = leak(unique_prefix("registry"));
+    let ctx = TestCtx::new("registry").await;
 
-    let store = make_store(prefix).await;
     let projector = RecordingProjector::new();
 
-    let registry = CqrsRegistry::new(store.clone())
+    let registry = CqrsRegistry::new(ctx.store.clone())
         .register_command(AggregateCommandHandler::<Counter>::new("Counter"))
         .register_projector(DurableProjectorHandler::new("reg-proj", projector));
 
@@ -567,4 +527,6 @@ async fn test_registry_accessors() {
 
     // store() should return without panicking (it's a Clone).
     let _store_clone = registry.store();
+
+    ctx.cleanup().await;
 }
