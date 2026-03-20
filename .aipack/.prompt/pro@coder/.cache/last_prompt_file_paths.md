@@ -47,6 +47,13 @@ file_content_mode: udiffx
 - crates/esrc-cqrs/src/nats/projector_runner.rs
 - crates/esrc-cqrs/src/projector.rs
 - crates/esrc-cqrs/src/registry.rs
+- examples/cafe/domain.rs
+- examples/cafe/error.rs
+- examples/cafe/main.rs
+- examples/cafe/projector.rs
+- examples/cafe/tab.rs
+- examples/cafe/tab/tests.rs
+- examples/cafe/table.rs
 - .aipack/.prompt/pro@coder/dev/plan/_plan-rules.md
 - .aipack/.prompt/pro@coder/dev/plan/plan-1-todo-steps.md
 - .aipack/.prompt/pro@coder/dev/plan/plan-2-active-step.md
@@ -87,32 +94,4 @@ None
   - event.rs
   - mod.rs
   - version.rs
-- src/
-  - aggregate.rs
-  - envelope.rs
-  - error.rs
-  - event.rs
-  - kurrent.rs
-  - lib.rs
-  - nats.rs
-  - project.rs
-  - version.rs
-- src/event/
-  - future.rs
-  - publish.rs
-  - replay.rs
-  - subscribe.rs
-  - truncate.rs
-- src/kurrent/
-  - convert.rs
-  - envelope.rs
-  - event.rs
-  - header.rs
-  - subject.rs
-- src/nats/
-  - convert.rs
-  - envelope.rs
-  - event.rs
-  - header.rs
-  - subject.rs
 
