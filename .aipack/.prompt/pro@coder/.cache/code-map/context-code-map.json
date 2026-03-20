@@ -149,12 +149,9 @@
     },
     "crates/esrc-cqrs/tests/integration_nats.rs": {
       "file_path": "crates/esrc-cqrs/tests/integration_nats.rs",
-      "hash": "e2e64c851d86910232d96ef9b1cdec40efc64708a57cd737b656e6766b3d3405",
-      "mtime": 1774037018389579,
+      "hash": "64ccba5853aaa7b59b03f0ff0788ea27b66084f1d9b1be2dd7bc1cb1556212c1",
+      "mtime": 1774037776599956,
       "public_functions": [
-        "unique_prefix",
-        "make_store",
-        "leak",
         "test_command_request_response_success",
         "test_command_error_does_not_break_dispatcher",
         "test_projector_receives_events",

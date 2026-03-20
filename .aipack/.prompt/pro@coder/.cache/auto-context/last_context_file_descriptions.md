@@ -317,5 +317,5 @@
     - Summary: Integration tests for esrc-cqrs against a live NATS JetStream server, covering command dispatch, durable event storage, projector behavior, error propagation, malformed payload handling, and registry accessors.
     - When To Use: Include this file when you need to understand or verify the NATS/JetStream integration behavior of esrc-cqrs, especially request/reply command handling, projector execution, durability, or end-to-end test setup.
     - Types: Counter, CounterCommand, CounterEvent, CounterError, RecordingProjector, ProjectorError
-    - Functions: unique_prefix, make_store, leak, test_command_request_response_success, test_command_error_does_not_break_dispatcher, test_projector_receives_events, test_projector_error_propagates, test_multiple_commands_same_aggregate_occ, test_malformed_payload_returns_error, test_registry_accessors
+    - Functions: test_command_request_response_success, test_command_error_does_not_break_dispatcher, test_projector_receives_events, test_projector_error_propagates, test_multiple_commands_same_aggregate_occ, test_malformed_payload_returns_error, test_registry_accessors
 

@@ -87,12 +87,20 @@ where
             serde_json::from_slice(payload).map_err(|e| Error::Format(e.into()))?;
 
         let root: Root<A> = store.read(envelope.id).await?;
-        let root = store.try_write(root, envelope.command, None).await?;
+        let agg_id = envelope.id;
+        let root = store.try_write(root, envelope.command, None).await;
 
-        let reply = CommandReply {
-            id: Root::id(&root),
-            success: true,
-            message: None,
+        let reply = match root {
+            Ok(written) => CommandReply {
+                id: Root::id(&written),
+                success: true,
+                message: None,
+            },
+            Err(e) => CommandReply {
+                id: agg_id,
+                success: false,
+                message: Some(format!("{e}")),
+            },
         };
         serde_json::to_vec(&reply).map_err(|e| Error::Format(e.into()))
     }

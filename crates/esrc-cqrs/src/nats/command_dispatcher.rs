@@ -5,6 +5,7 @@ use futures::StreamExt;
 use tracing::instrument;
 
 use esrc::error::{self, Error};
+use super::aggregate_command_handler::CommandReply;
 
 use crate::registry::ErasedCommandHandler;
 
@@ -85,14 +86,15 @@ impl NatsCommandDispatcher {
                             let _ = request.respond(Ok(reply.into())).await;
                         },
                         Err(e) => {
-                            // Send an error reply so the caller is not left waiting.
-                            let msg = format!("{e}");
-                            let _ = request
-                                .respond(Err(async_nats::service::error::Error {
-                                    code: 500,
-                                    status: msg,
-                                }))
-                                .await;
+                            // Encode the failure as a CommandReply so callers always
+                            // deserialize the same shape regardless of outcome.
+                            let failure = CommandReply {
+                                id: uuid::Uuid::nil(),
+                                success: false,
+                                message: Some(format!("{e}")),
+                            };
+                            let body = serde_json::to_vec(&failure).unwrap_or_default();
+                            let _ = request.respond(Ok(body.into())).await;
                         },
                     }
                 }
