@@ -121,7 +121,7 @@ pub mod custom {
 
                 let subjects = names
                     .iter()
-                    .map(|&n| super::subject::NatsSubject::Event(n.into()).into_string(self.prefix))
+                    .map(|&n| NatsSubject::Event(n.into()).into_string(self.prefix))
                     .collect();
                 (durable_name.to_owned(), subjects)
             };

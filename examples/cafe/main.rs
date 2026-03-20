@@ -5,7 +5,6 @@ use std::task;
 
 use async_nats::jetstream;
 use esrc::aggregate::Root;
-use esrc::event::event_model::{Automation, ViewAutomation};
 use esrc::event::{PublishExt, ReplayOne, ReplayOneExt, SubscribeExt};
 use esrc::nats::NatsStore;
 use tab::{Tab, TabCommand};
