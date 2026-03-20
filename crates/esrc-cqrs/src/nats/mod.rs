@@ -40,4 +40,4 @@ pub use projector_runner::NatsProjectorRunner;
 mod aggregate_command_handler;
 mod aggregate_projector_handler;
 mod aggregate_query_handler;
-mod query_dispatcher;
+pub mod query_dispatcher;

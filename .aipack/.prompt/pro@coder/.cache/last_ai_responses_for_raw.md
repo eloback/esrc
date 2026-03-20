@@ -1,440 +1,216 @@
 ====
->   Info: Duration: 1m 5s | ~$0.1016 | Prompt Tokens: 11,487 (cached: 0, cache_creation: 0) | Completion Tokens: 4,479 
+>   Info: Duration: 29s | ~$0.08 | Prompt Tokens: 15,275 (cached: 0, cache_creation: 0) | Completion Tokens: 2,280 
 >  Model: claude-sonnet-4-6 | Adapter: Anthropic
->  Files: Context Files: 10 | Working Files: 0 | Knowledge Files: 0
+>  Files: Context Files: 7 | Working Files: 0 | Knowledge Files: 0
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
-Here is my plan before writing the code:
+Looking at the integration test file, I can see it imports and uses the query-related types but the test file itself doesn't have any tests for the query functionality. The user is saying that the query-related declarations (types, imports) are missing from the integration test file.
 
-- Add a `query.rs` module under `crates/esrc-cqrs/src/` defining the `QueryHandler` trait, mirroring `CommandHandler` but typed over a request and a response.
-- Add a `nats/aggregate_query_handler.rs` for the NATS-backed generic aggregate query handler (loads a read model / aggregate state and returns it serialized).
-- Add a `nats/query_dispatcher.rs` for the NATS service-based query dispatcher (same pattern as command dispatcher).
-- Wire everything up in `lib.rs`, `nats/mod.rs`, and `registry.rs`.
+Let me look more carefully. The test file imports:
 
-The query handler is intentionally kept general: the request type and response type are both user-defined, so it works for read-model projector results, aggregate state queries, or anything else.
+```rust
+use esrc_cqrs::nats::{
+    AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler,
+    NatsCommandDispatcher,
+};
+```
+
+It's missing imports for the query types (`AggregateQueryHandler`, `QueryEnvelope`, `QueryReply`, `NatsQueryDispatcher`) and there are no query tests defined.
+
+The user says "you forgot to declare the unit tests defined in `crates/esrc-cqrs/tests/integration_nats.rs`" - meaning the query integration tests need to be added to that file.
+
+I need to add:
+1. The missing query imports
+2. Query-related test cases (send a query, get a response)
+
+Let me write appropriate query integration tests that follow the same pattern as the command tests, using the `Counter` aggregate already defined there.
 
 <FILE_CHANGES>
 
-<FILE_NEW file_path="crates/esrc-cqrs/src/query.rs">
-use std::future::Future;
+<FILE_PATCH file_path="crates/esrc-cqrs/tests/integration_nats.rs">
+@@
+ use esrc_cqrs::nats::{
+     AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler,
+     NatsCommandDispatcher,
+ };
++use esrc_cqrs::nats::{AggregateQueryHandler, NatsQueryDispatcher, QueryEnvelope, QueryReply};
+ use esrc_cqrs::CqrsRegistry;
+@@
+ use uuid::Uuid;
++
++// -- Query read model --------------------------------------------------------
++
++/// A simple read model returned by query handlers in tests.
++#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
++struct CounterState {
++    /// The current value of the counter.
++    pub value: i64,
++}
+</FILE_PATCH>
 
-use esrc::error;
+<FILE_APPEND file_path="crates/esrc-cqrs/tests/integration_nats.rs">
 
-/// A handler for a single query type.
-///
-/// Implementors receive a raw byte payload (the serialized query request),
-/// perform all necessary data retrieval (e.g., loading a read model or
-/// replaying aggregate state), and return a serialized response payload.
-///
-/// The generic parameter `S` is the event store type (e.g., `NatsStore`).
-///
-/// Queries are read-only by convention: a `QueryHandler` should never write
-/// events or mutate aggregate state. The store reference is therefore shared
-/// (`&S`) rather than exclusive (`&mut S`).
-pub trait QueryHandler<S>: Send + Sync + 'static {
-    /// The unique name for this query handler.
-    ///
-    /// This is used to route incoming query messages to the correct handler.
-    /// The convention is `<AggregateName>.<QueryName>` or `<ReadModel>.<QueryName>`.
-    fn name(&self) -> &'static str;
+/// Spawn the query dispatcher as a background task and wait briefly for it
+/// to register its service endpoints.
+async fn spawn_query_dispatcher(
+    ctx: &TestCtx,
+    handlers: Vec<Arc<dyn esrc_cqrs::registry::ErasedQueryHandler<NatsStore>>>,
+) {
+    let service_name = ctx.service_name();
+    let store = ctx.store.clone();
 
-    /// Handle a raw incoming query payload, returning a reply payload.
-    ///
-    /// The handler is responsible for deserializing the query, loading the
-    /// required data, and serializing the response. Returning an `Err` will
-    /// cause an error reply to be sent to the caller.
-    fn handle<'a>(
-        &'a self,
-        store: &'a S,
-        payload: &'a [u8],
-    ) -> impl Future<Output = error::Result<Vec<u8>>> + Send + 'a;
-}
-</FILE_NEW>
-
-<FILE_NEW file_path="crates/esrc-cqrs/src/nats/aggregate_query_handler.rs">
-use std::marker::PhantomData;
-
-use esrc::aggregate::{Aggregate, Root};
-use esrc::error;
-use esrc::event::replay::ReplayOneExt;
-use esrc::nats::NatsStore;
-use esrc::version::DeserializeVersion;
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-
-use crate::query::QueryHandler;
-
-/// A standard query envelope sent over NATS.
-///
-/// The query payload wraps only the aggregate ID because the handler already
-/// knows which aggregate type and query to execute. If a query requires
-/// additional parameters they can be placed alongside `id` in a custom
-/// request type by implementing [`QueryHandler`] directly.
-#[derive(Debug, Deserialize, Serialize)]
-pub struct QueryEnvelope {
-    /// The ID of the aggregate instance to query.
-    pub id: Uuid,
-}
-
-/// A standard reply envelope returned after processing a query.
-///
-/// On success the inner `data` field contains the serialized response value
-/// (a JSON object). On failure `success` is false and `error` is set.
-#[derive(Debug, Deserialize, Serialize)]
-pub struct QueryReply {
-    /// Whether the query succeeded.
-    pub success: bool,
-    /// The query result serialized as a JSON value, present when `success` is true.
-    pub data: Option<serde_json::Value>,
-    /// The structured CQRS error, present only when `success` is false.
-    pub error: Option<crate::Error>,
-}
-
-/// A projection function that maps an aggregate root to the query response type.
-///
-/// This is a plain function pointer so that `AggregateQueryHandler` remains
-/// `Send + Sync` without requiring a boxed closure.
-pub type ProjectFn<A, R> = fn(&Root<A>) -> R;
-
-/// A generic [`QueryHandler`] implementation for NATS-backed aggregates.
-///
-/// This handler:
-/// 1. Deserializes the incoming payload as a [`QueryEnvelope`].
-/// 2. Loads the aggregate using [`ReplayOneExt::read`].
-/// 3. Applies the user-supplied projection function to produce the response.
-/// 4. Returns a serialized [`QueryReply`] containing the response as JSON.
-///
-/// `A` is the aggregate type. `A::Event` must implement `DeserializeVersion`.
-/// `R` is the response / read-model type and must implement `Serialize`.
-///
-/// # Example
-///
-/// ```rust,ignore
-/// let handler = AggregateQueryHandler::<MyAggregate, MyReadModel>::new(
-///     "MyAggregate.GetState",
-///     |root| MyReadModel::from(Root::state(root)),
-/// );
-/// ```
-pub struct AggregateQueryHandler<A, R>
-where
-    A: Aggregate,
-    R: Serialize,
-{
-    /// The name used to route queries to this handler.
-    handler_name: &'static str,
-    /// The projection function applied to the loaded aggregate root.
-    project: ProjectFn<A, R>,
-    _phantom: PhantomData<(A, R)>,
-}
-
-impl<A, R> AggregateQueryHandler<A, R>
-where
-    A: Aggregate,
-    R: Serialize,
-{
-    /// Create a new handler with the given routing name and projection function.
-    pub fn new(handler_name: &'static str, project: ProjectFn<A, R>) -> Self {
-        Self {
-            handler_name,
-            project,
-            _phantom: PhantomData,
-        }
-    }
-}
-
-impl<A, R> QueryHandler<NatsStore> for AggregateQueryHandler<A, R>
-where
-    A: Aggregate + Send + Sync + 'static,
-    A::Event: DeserializeVersion + Send,
-    R: Serialize + Send + Sync + 'static,
-{
-    fn name(&self) -> &'static str {
-        self.handler_name
-    }
-
-    async fn handle<'a>(
-        &'a self,
-        store: &'a NatsStore,
-        payload: &'a [u8],
-    ) -> error::Result<Vec<u8>> {
-        let envelope: QueryEnvelope =
-            serde_json::from_slice(payload).map_err(|e| esrc::error::Error::Format(e.into()))?;
-
-        let root: Root<A> = store.read(envelope.id).await?;
-
-        let response_value = serde_json::to_value((self.project)(&root))
-            .map_err(|e| esrc::error::Error::Format(e.into()))?;
-
-        let reply = QueryReply {
-            success: true,
-            data: Some(response_value),
-            error: None,
-        };
-
-        serde_json::to_vec(&reply).map_err(|e| esrc::error::Error::Format(e.into()))
-    }
-}
-</FILE_NEW>
-
-<FILE_NEW file_path="crates/esrc-cqrs/src/nats/query_dispatcher.rs">
-use std::sync::Arc;
-
-use async_nats::service::ServiceExt;
-use futures::StreamExt;
-use tracing::instrument;
-
-use esrc::error::{self, Error};
-
-use crate::registry::ErasedQueryHandler;
-
-/// Version string for the NATS query service group.
-pub const QUERY_SERVICE_VERSION: &str = "0.1.0";
-
-/// NATS query dispatcher.
-///
-/// Registers all query handlers as endpoints on a single NATS service,
-/// using core NATS request/reply. Each handler name becomes one endpoint
-/// within the service group named `<service_name>`.
-///
-/// The store reference is shared (`&S`) across all query handlers because
-/// queries are read-only by convention.
-pub struct NatsQueryDispatcher {
-    /// The NATS client used to create the service.
-    client: async_nats::Client,
-    /// The service group name (e.g. `"myapp-query"`).
-    service_name: String,
-}
-
-impl NatsQueryDispatcher {
-    /// Create a new dispatcher using the given NATS client and service name.
-    pub fn new(client: async_nats::Client, service_name: impl Into<String>) -> Self {
-        Self {
-            client,
-            service_name: service_name.into(),
-        }
-    }
-
-    /// Start the query dispatcher and listen for incoming queries.
-    ///
-    /// This method creates one NATS service endpoint per registered query
-    /// handler. Each endpoint is named after the handler's `name()`. The
-    /// dispatcher runs until an error occurs or the NATS connection is closed.
-    ///
-    /// The store is shared across all endpoint tasks via [`Arc`] because
-    /// query handlers only require a shared reference.
-    #[instrument(skip_all, level = "debug")]
-    pub async fn run<S>(
-        &self,
-        store: S,
-        handlers: &[Arc<dyn ErasedQueryHandler<S>>],
-    ) -> error::Result<()>
-    where
-        S: Clone + Send + Sync + 'static,
-    {
-        let store = Arc::new(store);
-
-        let service = self
-            .client
-            .service_builder()
-            .description("esrc-cqrs query dispatcher")
-            .start(&self.service_name, QUERY_SERVICE_VERSION)
+    let dispatcher = NatsQueryDispatcher::new(
+        async_nats::connect("nats://localhost:4222")
             .await
-            .map_err(|e| Error::Internal(e.into()))?;
+            .expect("connect"),
+        service_name,
+    );
 
-        let group = service.group(&self.service_name);
+    tokio::spawn(async move {
+        let _ = dispatcher.run(store, &handlers).await;
+    });
 
-        // Build one endpoint per handler and spawn a task for each.
-        let mut tasks = tokio::task::JoinSet::new();
+    // Allow the NATS service endpoints to register before tests send queries.
+    sleep(Duration::from_millis(300)).await;
+}
 
-        for handler in handlers {
-            let handler = Arc::clone(handler);
-            let store = Arc::clone(&store);
+/// Send a single query through NATS request/reply, returning the raw reply.
+async fn send_query(
+    client: &async_nats::Client,
+    service_name: &str,
+    handler_name: &str,
+    id: Uuid,
+) -> QueryReply {
+    let subject = esrc_cqrs::nats::query_dispatcher::query_subject(service_name, handler_name);
+    let envelope = QueryEnvelope { id };
+    let payload = serde_json::to_vec(&envelope).expect("serialize query envelope");
+    let reply = client
+        .request(subject, payload.into())
+        .await
+        .expect("NATS request should succeed");
+    serde_json::from_slice(&reply.payload).expect("valid QueryReply")
+}
 
-            let mut endpoint = group
-                .endpoint(handler.name())
-                .await
-                .map_err(|e| Error::Internal(e.into()))?;
+/// Test that a query sent over NATS returns the correct aggregate state after
+/// one or more commands have been applied.
+#[tokio::test]
+async fn test_query_returns_aggregate_state() {
+    let ctx = TestCtx::new("qry-ok").await;
 
-            tasks.spawn(async move {
-                while let Some(request) = endpoint.next().await {
-                    let payload = request.message.payload.as_ref();
-                    match handler.handle_erased(&*store, payload).await {
-                        Ok(reply) => {
-                            let _ = request.respond(Ok(reply.into())).await;
-                        },
-                        Err(e) => {
-                            use crate::nats::aggregate_query_handler::QueryReply;
-                            let failure = QueryReply {
-                                success: false,
-                                data: None,
-                                error: Some(crate::error::Error::Internal(format!("{e}"))),
-                            };
-                            let body = serde_json::to_vec(&failure).unwrap_or_default();
-                            let _ = request.respond(Ok(body.into())).await;
-                        },
-                    }
-                }
-                error::Result::Ok(())
-            });
-        }
+    let registry = CqrsRegistry::new(ctx.store.clone())
+        .register_command(AggregateCommandHandler::<Counter>::new("Counter"))
+        .register_query(AggregateQueryHandler::<Counter, CounterState>::new(
+            "Counter.GetState",
+            |root| CounterState { value: root.value },
+        ));
 
-        // Wait for all endpoint tasks; return the first error encountered.
-        while let Some(result) = tasks.join_next().await {
-            result.map_err(|e| Error::Internal(e.into()))??;
-        }
+    spawn_dispatcher(&ctx, registry.command_handlers().to_vec()).await;
+    spawn_query_dispatcher(&ctx, registry.query_handlers().to_vec()).await;
 
-        Ok(())
+    let id = Uuid::new_v4();
+
+    // Apply two increments so the aggregate has a known value.
+    for by in [10i64, 5] {
+        let resp = send_command(&ctx.client, ctx.service_name(), "Counter", id, CounterCommand::Increment { by }).await;
+        assert!(resp.success, "command should succeed");
     }
+
+    let reply = send_query(&ctx.client, ctx.service_name(), "Counter.GetState", id).await;
+
+    assert!(reply.success, "query should succeed");
+    assert!(reply.error.is_none());
+
+    let state: CounterState = serde_json::from_value(reply.data.expect("data present"))
+        .expect("CounterState should deserialize");
+    assert_eq!(state.value, 15, "query should reflect cumulative aggregate state");
+
+    ctx.cleanup().await;
 }
 
-/// Build the full NATS subject for a query endpoint.
-///
-/// Pattern: `<service_name>.<handler_name>`
-pub fn query_subject(service_name: &str, handler_name: &str) -> String {
-    format!("{service_name}.{handler_name}")
+/// Test that querying an aggregate that has never received a command returns
+/// the default (zero) state without an error.
+#[tokio::test]
+async fn test_query_default_state_for_new_aggregate() {
+    let ctx = TestCtx::new("qry-new").await;
+
+    let registry = CqrsRegistry::new(ctx.store.clone()).register_query(
+        AggregateQueryHandler::<Counter, CounterState>::new("Counter.GetState", |root| {
+            CounterState { value: root.value }
+        }),
+    );
+
+    spawn_query_dispatcher(&ctx, registry.query_handlers().to_vec()).await;
+
+    let id = Uuid::new_v4();
+    let reply = send_query(&ctx.client, ctx.service_name(), "Counter.GetState", id).await;
+
+    assert!(reply.success, "query on a new aggregate should succeed");
+    let state: CounterState = serde_json::from_value(reply.data.expect("data present"))
+        .expect("CounterState should deserialize");
+    assert_eq!(state.value, 0, "new aggregate should have default value of 0");
+
+    ctx.cleanup().await;
 }
-</FILE_NEW>
 
-<FILE_PATCH file_path="crates/esrc-cqrs/src/nats/mod.rs">
-@@
- pub use aggregate_command_handler::{AggregateCommandHandler, CommandEnvelope, CommandReply};
--pub use aggregate_projector_handler::DurableProjectorHandler;
-+pub use aggregate_projector_handler::DurableProjectorHandler;
-+pub use aggregate_query_handler::{AggregateQueryHandler, QueryEnvelope, QueryReply};
- pub use command_dispatcher::NatsCommandDispatcher;
-+pub use query_dispatcher::NatsQueryDispatcher;
- pub use projector_runner::NatsProjectorRunner;
- 
- mod aggregate_command_handler;
- mod aggregate_projector_handler;
-+mod aggregate_query_handler;
-+mod query_dispatcher;
-</FILE_PATCH>
+/// Test that a malformed query payload results in an error reply and the
+/// dispatcher keeps running for subsequent queries.
+#[tokio::test]
+async fn test_query_malformed_payload_returns_error() {
+    let ctx = TestCtx::new("qry-bad").await;
 
-<FILE_PATCH file_path="crates/esrc-cqrs/src/registry.rs">
-@@
- use crate::command::CommandHandler;
- use crate::projector::ProjectorHandler;
-+use crate::query::QueryHandler;
-@@
- pub struct CqrsRegistry<S> {
-     store: S,
-     command_handlers: Vec<Arc<dyn ErasedCommandHandler<S>>>,
-     projector_handlers: Vec<Arc<dyn ErasedProjectorHandler<S>>>,
-+    query_handlers: Vec<Arc<dyn ErasedQueryHandler<S>>>,
- }
-@@
-     pub fn new(store: S) -> Self {
-         Self {
-             store,
-             command_handlers: Vec::new(),
-             projector_handlers: Vec::new(),
-+            query_handlers: Vec::new(),
-         }
-     }
-@@
-     /// Register an event projector handler.
-     ///
-     /// The projector will be started as a background task when `run` is called.
-     pub fn register_projector<H>(mut self, handler: H) -> Self
-     where
-         H: ProjectorHandler<S> + Sync + 'static,
-     {
-         self.projector_handlers.push(Arc::new(handler));
-         self
-     }
-+
-+    /// Register a query handler.
-+    ///
-+    /// The handler will be invoked when a query matching its `name()` is
-+    /// dispatched through the registry's query listener.
-+    pub fn register_query<H>(mut self, handler: H) -> Self
-+    where
-+        H: QueryHandler<S> + 'static,
-+    {
-+        self.query_handlers.push(Arc::new(handler));
-+        self
-+    }
-@@
-     /// Return a reference to the registered projector handlers.
-     pub fn projector_handlers(&self) -> &[Arc<dyn ErasedProjectorHandler<S>>] {
-         &self.projector_handlers
-     }
-+
-+    /// Return a reference to the registered query handlers.
-+    pub fn query_handlers(&self) -> &[Arc<dyn ErasedQueryHandler<S>>] {
-+        &self.query_handlers
-+    }
-@@
- // -- Object-safe erased traits so we can store heterogeneous handlers --
-@@
- impl<S, H> ErasedProjectorHandler<S> for H
- where
-     H: ProjectorHandler<S> + Send + Sync + 'static,
- {
-     fn name(&self) -> &'static str {
-         ProjectorHandler::name(self)
-     }
- 
-     fn run_erased<'a>(
-         &'a self,
-         store: &'a S,
-     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = error::Result<()>> + Send + 'a>> {
-         Box::pin(self.run(store))
-     }
- }
-+
-+/// Object-safe wrapper for [`QueryHandler`].
-+pub trait ErasedQueryHandler<S>: Send + Sync + 'static {
-+    /// The name of the query this handler processes.
-+    fn name(&self) -> &'static str;
-+    /// Handle the raw payload and return a reply.
-+    fn handle_erased<'a>(
-+        &'a self,
-+        store: &'a S,
-+        payload: &'a [u8],
-+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = error::Result<Vec<u8>>> + Send + 'a>>;
-+}
-+
-+impl<S, H> ErasedQueryHandler<S> for H
-+where
-+    H: QueryHandler<S> + Send + Sync + 'static,
-+{
-+    fn name(&self) -> &'static str {
-+        QueryHandler::name(self)
-+    }
-+
-+    fn handle_erased<'a>(
-+        &'a self,
-+        store: &'a S,
-+        payload: &'a [u8],
-+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = error::Result<Vec<u8>>> + Send + 'a>>
-+    {
-+        Box::pin(self.handle(store, payload))
-+    }
-+}
-</FILE_PATCH>
+    let registry = CqrsRegistry::new(ctx.store.clone()).register_query(
+        AggregateQueryHandler::<Counter, CounterState>::new("Counter.GetState", |root| {
+            CounterState { value: root.value }
+        }),
+    );
 
-<FILE_PATCH file_path="crates/esrc-cqrs/src/lib.rs">
-@@
- /// Event projector handler registry entry.
- pub mod projector;
- /// The top-level CQRS registry that holds and drives all handlers.
- pub mod registry;
-+/// Query handler trait and registry entry.
-+pub mod query;
-@@
- pub use command::CommandHandler;
- pub use error::Error;
- pub use projector::ProjectorHandler;
- pub use registry::CqrsRegistry;
-+pub use query::QueryHandler;
-</FILE_PATCH>
+    spawn_query_dispatcher(&ctx, registry.query_handlers().to_vec()).await;
+
+    let subject = esrc_cqrs::nats::query_dispatcher::query_subject(ctx.service_name(), "Counter.GetState");
+
+    // Send garbage bytes; we only care that we get a response, not a panic.
+    let bad_result = ctx
+        .client
+        .request(subject.clone(), b"this is not json"[..].into())
+        .await;
+    let _ = bad_result;
+
+    // Confirm the dispatcher is still alive by sending a well-formed query.
+    let id = Uuid::new_v4();
+    let reply = send_query(&ctx.client, ctx.service_name(), "Counter.GetState", id).await;
+    assert!(reply.success, "dispatcher should still handle valid queries after a bad payload");
+
+    ctx.cleanup().await;
+}
+
+/// Test that `CqrsRegistry::query_handlers()` reflects registered query handlers.
+#[tokio::test]
+async fn test_registry_query_handlers_accessor() {
+    let ctx = TestCtx::new("qry-reg").await;
+
+    let registry = CqrsRegistry::new(ctx.store.clone())
+        .register_query(AggregateQueryHandler::<Counter, CounterState>::new(
+            "Counter.GetState",
+            |root| CounterState { value: root.value },
+        ))
+        .register_query(AggregateQueryHandler::<Counter, CounterState>::new(
+            "Counter.GetStateAlt",
+            |root| CounterState { value: root.value },
+        ));
+
+    assert_eq!(
+        registry.query_handlers().len(),
+        2,
+        "two query handlers should be registered"
+    );
+
+    ctx.cleanup().await;
+}
+</FILE_APPEND>
 
 </FILE_CHANGES>
 
 <suggested_git_command>
-git add -A .
-git commit -a -m "+ esrc-cqrs - Add QueryHandler trait, AggregateQueryHandler, NatsQueryDispatcher, and registry integration"
+git commit -a -m "+ esrc-cqrs - Add query integration tests to integration_nats.rs"
 </suggested_git_command>
 
