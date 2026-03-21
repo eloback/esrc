@@ -129,18 +129,17 @@
     },
     "crates/esrc-cqrs/src/nats/mod.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/mod.rs",
-      "hash": "d82b32053b0a2ab1e8751c4617484d00589045b92c3dfdf3c42dfca1f969038e",
-      "mtime": 1774052317396958,
+      "hash": "7353e57d754a8006d2a557bb31a48ced907de75fa7a1959d8dd7ca3589a33434",
+      "mtime": 1774057152198652,
       "public_types": [
         "AggregateCommandHandler",
         "CommandEnvelope",
         "CommandReply",
         "DurableProjectorHandler",
-        "AggregateQueryHandler",
-        "QueryEnvelope",
-        "QueryReply",
         "NatsCommandDispatcher",
         "NatsQueryDispatcher",
+        "QueryEnvelope",
+        "QueryReply",
         "NatsProjectorRunner"
       ],
       "summary": "NATS CQRS integration module that wires together command dispatching over core NATS request/reply, query dispatching, and projector execution over JetStream durable pull consumers.",
@@ -162,12 +161,14 @@
     },
     "crates/esrc-cqrs/src/nats/query_dispatcher.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/query_dispatcher.rs",
-      "hash": "5470a82cb7e2606b65003735a6119083ad5d29431e815699a226cff0a618e345",
-      "mtime": 1774052317396958,
+      "hash": "dd3b661164d533b0a5210b84ab53f8a6617bd96b0ca125e65682691f901739a7",
+      "mtime": 1774057152197652,
       "public_functions": [
         "query_subject"
       ],
       "public_types": [
+        "QueryEnvelope",
+        "QueryReply",
         "NatsQueryDispatcher"
       ],
       "summary": "Implements a NATS-based query dispatcher that registers each query handler as a service endpoint and forwards request/reply queries to erased handlers. Also provides a helper to build query subjects.",
@@ -221,8 +222,8 @@
     },
     "crates/esrc-cqrs/tests/integration_nats.rs": {
       "file_path": "crates/esrc-cqrs/tests/integration_nats.rs",
-      "hash": "14e851bf8cf4aaa1c7a53fdc6a53c2214103633f492141fe91202f5ecf977aa7",
-      "mtime": 1774052317396958,
+      "hash": "3e781a93c0de173431393db817406f29ebf974d387517af3d37c703d696fd4e7",
+      "mtime": 1774057152201876,
       "public_functions": [
         "test_command_request_response_success",
         "test_command_error_does_not_break_dispatcher",
@@ -478,8 +479,8 @@
     },
     "examples/cafe/main.rs": {
       "file_path": "examples/cafe/main.rs",
-      "hash": "06346d91b3e601bac93af2206a199cafe455423701276d4484cd03de3173b978",
-      "mtime": 1774052317397958,
+      "hash": "90044ca1f5cca879c374d3fc9fcc6809746ca685a0749024568a0d896c467f66",
+      "mtime": 1774057152201876,
       "public_functions": [
         "main"
       ],

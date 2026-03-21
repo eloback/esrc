@@ -4,6 +4,8 @@
 
 /// Materialize and mutate Aggregates on top of event streams.
 pub mod aggregate;
+/// Read models built from event streams, without commands or errors.
+pub mod view;
 /// Generic event wrappers that can be deserialized safely into Event types.
 pub mod envelope;
 /// Common error types used throughout the esrc modules.
@@ -27,3 +29,4 @@ pub use aggregate::Aggregate;
 pub use envelope::Envelope;
 pub use error::Error;
 pub use event::{Event, EventGroup};
+pub use view::View;

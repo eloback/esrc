@@ -1,14 +1,15 @@
-## Step - Remove AggregateQueryHandler from esrc-cqrs
-
+## Step - Introduce the View trait in esrc
       status: active
-
 time-created: 2026-03-20 20:49:02
-time-current: 2026-03-20 22:36:06
+time-current: 2026-03-20 22:43:57
 
-- Deleted `crates/esrc-cqrs/src/nats/aggregate_query_handler.rs`.
-- Moved `QueryEnvelope` and `QueryReply` into `crates/esrc-cqrs/src/nats/query_dispatcher.rs` as public types; these are the canonical wire types for all query handlers.
-- Removed `pub use aggregate_query_handler::{AggregateQueryHandler, QueryEnvelope, QueryReply};` from `mod.rs` and replaced with `pub use query_dispatcher::{NatsQueryDispatcher, QueryEnvelope, QueryReply};`.
-- Removed `mod aggregate_query_handler;` and its associated comment from `mod.rs`.
-- Removed the internal `use crate::nats::aggregate_query_handler::QueryReply;` from the error path in `query_dispatcher.rs` (now uses the locally defined `QueryReply`).
-- Updated `crates/esrc-cqrs/tests/integration_nats.rs`: replaced all `AggregateQueryHandler` usages with a `counter_query_handler` helper function that implements `QueryHandler<NatsStore>` directly; updated imports.
-- Updated `examples/cafe/main.rs`: replaced `AggregateQueryHandler` with an `order_state_query_handler` helper function; removed the unused `AggregateQueryHandler` and `ConnectOptions` imports; kept `OrderState::from_root` as the projection.
+Add a `View` trait to the `esrc` crate (in `src/`) that represents a read model built from events, analogous to `Aggregate` but without commands, process, or errors.
+
+- Create `src/view.rs` with the `View` trait:
+  - Associated type `Event: event::Event` (the event stream it is built from).
+  - Required method `fn apply(self, event: &Self::Event) -> Self` (same signature as `Aggregate::apply`).
+  - The type must be `Default + Send`.
+  - No `Command`, `process`, or `Error` associated types.
+- Re-export `View` from `src/lib.rs` at the crate root.
+- Add `pub mod view;` to `src/lib.rs`.
+- Ensure `cargo check --features nats,derive` passes cleanly.
