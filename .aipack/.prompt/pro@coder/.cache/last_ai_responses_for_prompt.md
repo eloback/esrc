@@ -1,19 +1,23 @@
 ====
->   Info: Duration: 17s | ~$0.1746 | Prompt Tokens: 52,235 (cached: 0, cache_creation: 0) | Completion Tokens: 1,192 
+>   Info: Duration: 7s 201ms | ~$0.11 | Prompt Tokens: 35,273 (cached: 0, cache_creation: 0) | Completion Tokens: 278 
 >  Model: claude-sonnet-4-6 | Adapter: Anthropic
->  Files: Context Files: 45 | Working Files: 0 | Knowledge Files: 0
+>  Files: Context Files: 35 | Working Files: 0 | Knowledge Files: 0
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
-The active step is the last one in the plan. I'll finalize it (move to done) and inform the user there are no more steps.
+I need to move the cafe example from the `esrc` crate to the `esrc-cqrs` crate. Let me analyze what's needed:
 
-Looking at the active step, it covers updating tests and the cafe example. The implementation was completed (including the bug fix for `LiveViewQuery`). I just need to move it to done and update the plan files accordingly.
+1. The cafe example files need to move to `crates/esrc-cqrs/examples/cafe/`
+2. The `esrc-cqrs` `Cargo.toml` needs updating to add the example, dev-dependencies, and the local `esrc` dependency with the right features
+3. The root `Cargo.toml` needs the example entry removed (or updated)
+4. The example's imports should still work since `esrc-cqrs` already depends on `esrc`
 
+I need the `crates/esrc-cqrs/Cargo.toml` to see its current state, but I don't have it.
 
-
-All steps in the plan are now complete. The `plan-2-active-step.md` has been cleared and the final step has been archived to `plan-3-done-steps.md` with `status: done`.
-
-There are **no more steps** in `plan-1-todo-steps.md`. All planned work has been implemented and archived.
-
-<suggested_git_command>
-git commit -a -m ". plan - Finalize active step and archive to done; no remaining todo steps"
-</suggested_git_command>
+<missing_files>
+<mf_message>
+I need the esrc-cqrs Cargo.toml to update it with the new example dependencies and entry point. Please provide this file.
+</mf_message>
+<mf_files>
+  - crates/esrc-cqrs/Cargo.toml
+</mf_files>
+</missing_files>

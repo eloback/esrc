@@ -6,18 +6,14 @@ file_content_mode: udiffx
 
 ## All resolve files(sent to AI with content, in this order)
 
+- examples/cafe/error.rs
 - examples/cafe/tab.rs
 - src/error.rs
 - src/nats/convert.rs
-- src/kurrent/convert.rs
-- src/kurrent/subject.rs
-- src/kurrent.rs
-- src/kurrent/header.rs
+- examples/cafe/tab/tests.rs
 - src/version.rs
 - src/nats/subject.rs
-- src/kurrent/event.rs
 - src/envelope.rs
-- src/kurrent/envelope.rs
 - src/nats/header.rs
 - src/project.rs
 - src/event.rs
@@ -25,39 +21,26 @@ file_content_mode: udiffx
 - crates/esrc-cqrs/src/command.rs
 - crates/esrc-cqrs/src/nats/projector_runner.rs
 - crates/esrc-cqrs/src/projector.rs
-- crates/esrc-cqrs/src/nats/aggregate_projector_handler.rs
 - examples/cafe/projector.rs
-- Cargo.toml
-- crates/esrc-cqrs/Cargo.toml
 - crates/esrc-cqrs/src/nats/command_dispatcher.rs
-- crates/esrc-cqrs/src/nats/aggregate_command_handler.rs
+- crates/esrc-cqrs/src/error.rs
 - src/nats/event.rs
 - src/nats/envelope.rs
 - crates/esrc-cqrs/src/lib.rs
 - crates/esrc-cqrs/src/query.rs
 - crates/esrc-cqrs/src/registry.rs
 - src/aggregate.rs
-- examples/cafe/table.rs
 - crates/esrc-cqrs/src/nats/query_dispatcher.rs
 - src/lib.rs
 - src/view.rs
 - crates/esrc-cqrs/src/nats/memory_view_query.rs
-- crates/esrc-cqrs/src/nats/mod.rs
-- crates/esrc-cqrs/tests/integration_nats.rs
 - examples/cafe/domain.rs
-- examples/cafe/main.rs
 - crates/esrc-cqrs/src/nats/live_view_query.rs
-- .aipack/.prompt/pro@coder/dev/plan/_plan-rules.md
-- .aipack/.prompt/pro@coder/dev/plan/plan-1-todo-steps.md
-- .aipack/.prompt/pro@coder/dev/plan/plan-2-active-step.md
-- .aipack/.prompt/pro@coder/dev/plan/plan-3-done-steps.md
-
-## Post (just for info, included in the All resolved files above)
-
-- .aipack/.prompt/pro@coder/dev/plan/_plan-rules.md
-- .aipack/.prompt/pro@coder/dev/plan/plan-1-todo-steps.md
-- .aipack/.prompt/pro@coder/dev/plan/plan-2-active-step.md
-- .aipack/.prompt/pro@coder/dev/plan/plan-3-done-steps.md
+- examples/cafe/table.rs
+- crates/esrc-cqrs/src/nats/durable_projector_handler.rs
+- crates/esrc-cqrs/src/nats/mod.rs
+- examples/cafe/main.rs
+- Cargo.toml
 
 # Working Files
 
@@ -78,8 +61,8 @@ None
   - registry.rs
 - crates/esrc-cqrs/src/nats/
   - aggregate_command_handler.rs
-  - aggregate_projector_handler.rs
   - command_dispatcher.rs
+  - durable_projector_handler.rs
   - live_view_query.rs
   - memory_view_query.rs
   - mod.rs

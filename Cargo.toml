@@ -77,7 +77,6 @@ anyhow.workspace = true
 serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["full"] }
 uuid = { workspace = true, features = ["v7"] }
-esrc-cqrs = { path = "./crates/esrc-cqrs" }
 
 [[example]]
 name = "cafe"

@@ -2,8 +2,8 @@
   "file_map": {
     "Cargo.toml": {
       "file_path": "Cargo.toml",
-      "hash": "3253cc2aee5f99aad0e6620e276e4236eb2abf9ac96a7d0dff981438495c4571",
-      "mtime": 1774032919733210,
+      "hash": "ef2a7df8309d006c906d26cf1d8856345bdb2970df33da8e07d41dcc32ffe9eb",
+      "mtime": 1774079593549279,
       "public_functions": [],
       "public_types": [],
       "summary": "Workspace and root package manifest for the esrc Rust project, defining shared dependencies, feature flags, and member crates/examples.",
@@ -20,8 +20,8 @@
     },
     "crates/esrc-cqrs/Cargo.toml": {
       "file_path": "crates/esrc-cqrs/Cargo.toml",
-      "hash": "1a4fe95fb4fc4f5178d9006096399f3218efe246eec1b524ea55bd4f90e0ac99",
-      "mtime": 1774036865717504,
+      "hash": "713273eb6453b58034243dbaac8241b76397099768df2c3f6d4ac9de66f8507c",
+      "mtime": 1774079593548279,
       "summary": "Cargo manifest for the esrc-cqrs crate, defining package metadata, feature flags, and dependencies for CQRS command/event handler registry support.",
       "when_to_use": "Include this file when you need to understand the crate's build configuration, enabled features, or dependency relationships for the CQRS registry integration."
     },
@@ -127,10 +127,25 @@
       "summary": "Implements a NATS-based command dispatcher that registers erased command handlers as request/reply endpoints on a NATS service and forwards requests to them, plus a helper for building command subjects.",
       "when_to_use": "Include this file when you need to understand or modify how CQRS command handlers are exposed over NATS, how requests are dispatched to handlers, or how command subject names are constructed."
     },
+    "crates/esrc-cqrs/src/nats/durable_projector_handler.rs": {
+      "file_path": "crates/esrc-cqrs/src/nats/durable_projector_handler.rs",
+      "hash": "00b101f33e8b64904443ec499699d28cb95b445ca4effd00b6aaaa060707dda4",
+      "mtime": 1774075700356214,
+      "public_functions": [
+        "new(durable_name: &'static str, projector: P) -> Self",
+        "name(&self) -> &'static str",
+        "run<'a>(&'a self, store: &'a NatsStore) -> error::Result<()>"
+      ],
+      "public_types": [
+        "DurableProjectorHandler<P>"
+      ],
+      "summary": "Defines a projector handler that uses a NATS JetStream durable consumer so event processing can resume from the last checkpoint after restarts.",
+      "when_to_use": "Include this file when working on NATS-backed projector execution, durable consumer setup, or understanding how projector handlers are wired to resume event streams."
+    },
     "crates/esrc-cqrs/src/nats/live_view_query.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/live_view_query.rs",
-      "hash": "8c16b46981567b6f2bc19beff5f112080e2b8b9b598c7861d5502e7155391eb9",
-      "mtime": 1774073389678253,
+      "hash": "0ad64920a8398d9540323f01923fb09573240c4ac9624a18acd02d879baf27c2",
+      "mtime": 1774073893689088,
       "public_functions": [
         "LiveViewQuery::new(handler_name: &'static str, projection: fn(&V) -> R) -> Self",
         "QueryHandler<NatsStore>::name(&self) -> &'static str",
@@ -159,8 +174,8 @@
     },
     "crates/esrc-cqrs/src/nats/mod.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/mod.rs",
-      "hash": "b907ea8ea34008066d07d0dac417d3f44e19df893c363df1688d3149cbc98f70",
-      "mtime": 1774058578993864,
+      "hash": "f580081a12380c9a8e12dc881a24726d269a34c9f3f6f04c8c0549f7c5fd1fb5",
+      "mtime": 1774075735143046,
       "public_functions": [],
       "public_types": [
         "AggregateCommandHandler",
@@ -256,8 +271,8 @@
     },
     "crates/esrc-cqrs/tests/integration_nats.rs": {
       "file_path": "crates/esrc-cqrs/tests/integration_nats.rs",
-      "hash": "ba2fc7497ff38d968488f4749ae4fe60f8d6eefd369a07f8fa9331f91d8b3e4d",
-      "mtime": 1774073157345598,
+      "hash": "b1c3d7b644554b569a4c16cfdc8aad415c4aff50eb5b9ae49dc0d3e67273a092",
+      "mtime": 1774073944913973,
       "public_functions": [
         "test_command_request_response_success",
         "test_command_error_does_not_break_dispatcher",
@@ -513,8 +528,8 @@
     },
     "examples/cafe/main.rs": {
       "file_path": "examples/cafe/main.rs",
-      "hash": "c48ae483f57225a9a6121fee3e40b75e2bb6e1c06e76d95b61b4c89db1630f2b",
-      "mtime": 1774073157346106,
+      "hash": "3b7929b8d97aac556c04b73c3dd43aaec82071b9d24a507aa3758f518abaa129",
+      "mtime": 1774076511060733,
       "public_functions": [
         "main"
       ],
@@ -566,7 +581,7 @@
     "examples/cafe/table.rs": {
       "file_path": "examples/cafe/table.rs",
       "hash": "6f918ff57f023ffc6545b4393ae8e1375d60c9f0c323f80b1508be90b249cd32",
-      "mtime": 1774051905357263,
+      "mtime": 1774074289335186,
       "public_functions": [
         "new",
         "is_active",
