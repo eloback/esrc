@@ -24,3 +24,29 @@ Add a `View` trait to the `esrc` crate (in `src/`) that represents a read model 
   - Bound `Default + Send` on the implementing type.
   - No `Command`, `process`, or `Error` associated types.
 - `src/lib.rs` exports `View` from the crate root via `pub mod view;` and `pub use view::View;`.
+
+## Step - Introduce LiveViewQuery in esrc-cqrs
+      status: done
+time-created: 2026-03-20 20:49:02
+   time-done: 2026-03-20 23:02:05
+
+Add `LiveViewQuery`: a `QueryHandler` for `esrc-cqrs` that replays events on each request to build a `View` and return it as the query response.
+
+- Created `crates/esrc-cqrs/src/nats/live_view_query.rs`:
+  - Defines `LiveViewQuery<V, R>` where `V: View` and `R: Serialize`.
+  - Accepts a handler name (`&'static str`) and a projection function `fn(&V) -> R`.
+  - Implements `QueryHandler<NatsStore>`: deserializes payload as `QueryEnvelope`, replays events via `store.read_one::<V::Event>(envelope.id)`, folds into `V::default()`, applies projection, returns `QueryReply`.
+- Exported `LiveViewQuery` from `crates/esrc-cqrs/src/nats/mod.rs`.
+
+## Step - Introduce MemoryViewQuery in esrc-cqrs
+      status: done
+time-created: 2026-03-20 20:49:02
+   time-done: 2026-03-20 23:02:05
+
+Add `MemoryView` and `MemoryViewQuery` to `esrc-cqrs`.
+
+- Created `crates/esrc-cqrs/src/nats/memory_view_query.rs`:
+  - `MemoryView<V>` holds `Arc<RwLock<HashMap<Uuid, V>>>`, implements `Clone`, `Default`, and `Project` (with `type EventGroup = V::Event`, `type Error = Infallible`). The `project` method looks up or inserts a default `V` for the aggregate ID and applies the event in-place.
+  - `MemoryViewQuery<V, R>` holds a `MemoryView<V>` handle, a handler name, and a projection function. Implements `QueryHandler<NatsStore>`: deserializes payload as `QueryEnvelope`, takes a read-lock snapshot of the view for the requested ID (defaulting to `V::default()` if absent), applies the projection, returns `QueryReply`.
+- Exported `MemoryView` and `MemoryViewQuery` from `crates/esrc-cqrs/src/nats/mod.rs`.
+- Added `mod memory_view_query;` with doc comment to `mod.rs`.

@@ -230,11 +230,6 @@
     - Types: QueryEnvelope, QueryReply, NatsQueryDispatcher
     - Functions: query_subject
 
-- crates/esrc-cqrs/src/nats/mod.rs
-    - Summary: NATS CQRS integration module that wires together command dispatching over core NATS request/reply, query dispatching, and projector execution over JetStream durable pull consumers.
-    - When To Use: Include this file when you need the NATS-backed CQRS entry points, especially to understand or import the dispatcher and projector runner types re-exported from this module.
-    - Types: AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler, NatsCommandDispatcher, NatsQueryDispatcher, QueryEnvelope, QueryReply, NatsProjectorRunner
-
 - crates/esrc-cqrs/tests/integration_nats.rs
     - Summary: Integration tests for esrc-cqrs against a live NATS JetStream server, covering command dispatch, durable event storage, projector behavior, error propagation, malformed payload handling, query handling, and registry accessors.
     - When To Use: Include this file when you need to understand or verify the NATS/JetStream integration behavior of esrc-cqrs, especially request/reply command and query handling, projector execution, durability, or end-to-end test setup.
@@ -255,4 +250,15 @@
     - Summary: Defines the `View` trait, a lightweight reactive read model built from an event stream for query/projection purposes.
     - When To Use: Include this file when working with event-sourced read models, projections, or any code that implements or uses the `View` trait to replay/apply events.
     - Types: View
+
+- crates/esrc-cqrs/src/nats/live_view_query.rs
+    - Summary: Defines LiveViewQuery, a CQRS/NATS query handler that rebuilds a view by replaying an aggregate's full event stream on each request and returns a projected, serialized read model.
+    - When To Use: Include this file when you need the implementation or behavior of on-demand live view queries over NATS, especially for replay-based query handling, query routing, or view projection logic.
+    - Types: LiveViewQuery<V, R>
+    - Functions: LiveViewQuery::new(handler_name: &'static str, projection: fn(&V) -> R) -> Self, QueryHandler<NatsStore>::name(&self) -> &'static str, QueryHandler<NatsStore>::handle<'a>(&'a self, store: &'a NatsStore, payload: &'a [u8]) -> error::Result<Vec<u8>>
+
+- crates/esrc-cqrs/src/nats/mod.rs
+    - Summary: NATS CQRS integration module that wires together command dispatching over core NATS request/reply, query dispatching, and projector execution over JetStream durable pull consumers.
+    - When To Use: Include this file when you need the NATS-backed CQRS entry points, especially to understand or import the dispatcher and projector runner types re-exported from this module.
+    - Types: AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler, NatsCommandDispatcher, NatsQueryDispatcher, QueryEnvelope, QueryReply, NatsProjectorRunner, LiveViewQuery
 

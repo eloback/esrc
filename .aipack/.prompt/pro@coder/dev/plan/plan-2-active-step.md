@@ -1,26 +1,20 @@
-## Step - Introduce LiveViewQuery in esrc-cqrs
+## Step - Update tests and cafe example for new View-based query API
       status: active
 time-created: 2026-03-20 20:49:02
-time-current: 2026-03-20 22:57:58
+time-current: 2026-03-20 23:02:05
 
-Add `LiveViewQuery`: a `QueryHandler` for `esrc-cqrs` that replays events on each request to build a `View` and return it as the query response.
+Update the integration tests and the cafe example to use the new `LiveViewQuery` and `MemoryViewQuery` APIs instead of the removed `AggregateQueryHandler`.
 
-References: see the definition in plan-3-done-steps.md, step 'Step - Introduce the View trait in esrc'.
+References: see the definitions in plan-3-done-steps.md, steps 'Step - Introduce LiveViewQuery in esrc-cqrs' and 'Step - Introduce MemoryViewQuery in esrc-cqrs'.
 
-- Create `crates/esrc-cqrs/src/nats/live_view_query.rs`:
-  - Define `LiveViewQuery<V, R>` where `V: View` and `R: Serialize`.
-  - It accepts a handler name (`&'static str`) and a projection function `fn(&V) -> R`.
-  - `QueryEnvelope` (wrapping only a `Uuid` id) and `QueryReply` should be defined (or re-exported) in `query_dispatcher.rs` as the canonical wire types for all query handlers; import them from there.
-  - Implement `QueryHandler<NatsStore>` for `LiveViewQuery<V, R>`:
-    1. Deserialize payload as `QueryEnvelope`.
-    2. Use `ReplayOneExt::replay_one` (or `read`) to replay the view's event stream for the given ID.
-    3. Fold events into a `V` instance starting from `V::default()`.
-    4. Apply the projection function and serialize the result as a `QueryReply`.
-- Export `LiveViewQuery` from `crates/esrc-cqrs/src/nats/mod.rs`.
-- Ensure `cargo check -p esrc-cqrs --features nats` passes.
+- `crates/esrc-cqrs/tests/integration_nats.rs`:
+  - Make `Counter` implement `View` (add `esrc::View` impl with `apply` identical to the existing `Aggregate::apply`).
+  - Replace all uses of `AggregateQueryHandler::<Counter, CounterState>` with `LiveViewQuery::<Counter, CounterState>` (or `MemoryViewQuery` where appropriate for the test intent).
+  - Update imports accordingly.
+  - Ensure all existing query tests still pass semantically (same assertions, same wire format via `QueryReply`).
 
-### Implementation Considerations
-
-The `View` trait's `apply` method consumes events by value, while `Aggregate::apply` does the same. The replay loop uses `store.read_one::<V::Event>(envelope.id)` which produces deserialized events directly (not envelopes), folding them into `V::default()` via `View::apply`.
-
-The `ReplayOneExt::read` method (from `src/event/replay.rs`) returns a stream of deserialized events for a single aggregate ID, which is the appropriate API to use here. The `read_one` method is the deserialized-event variant of `replay_one`.
+- `examples/cafe/`:
+  - Make `Order` (in `examples/cafe/domain.rs`) implement `View`.
+  - In `examples/cafe/main.rs`, replace `AggregateQueryHandler::<Order, OrderState>` with `LiveViewQuery::<Order, OrderState>` (keeping `OrderState::from_root` as the projection, adapted to take `&Order` instead of `&Root<Order>` if needed, or keep the function signature compatible).
+  - Update imports in `main.rs`.
+  - Ensure `cargo check --example cafe --features nats,derive` passes cleanly.

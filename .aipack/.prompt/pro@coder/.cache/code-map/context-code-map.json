@@ -127,10 +127,25 @@
       "summary": "Implements a NATS-based command dispatcher that registers erased command handlers as request/reply endpoints on a NATS service and forwards requests to them, plus a helper for building command subjects.",
       "when_to_use": "Include this file when you need to understand or modify how CQRS command handlers are exposed over NATS, how requests are dispatched to handlers, or how command subject names are constructed."
     },
+    "crates/esrc-cqrs/src/nats/live_view_query.rs": {
+      "file_path": "crates/esrc-cqrs/src/nats/live_view_query.rs",
+      "hash": "33c52fc5cae78b6c72e89837892fe1ae9f6626d9f548d5372a5e6dd17240d826",
+      "mtime": 1774058342523577,
+      "public_functions": [
+        "LiveViewQuery::new(handler_name: &'static str, projection: fn(&V) -> R) -> Self",
+        "QueryHandler<NatsStore>::name(&self) -> &'static str",
+        "QueryHandler<NatsStore>::handle<'a>(&'a self, store: &'a NatsStore, payload: &'a [u8]) -> error::Result<Vec<u8>>"
+      ],
+      "public_types": [
+        "LiveViewQuery<V, R>"
+      ],
+      "summary": "Defines LiveViewQuery, a CQRS/NATS query handler that rebuilds a view by replaying an aggregate's full event stream on each request and returns a projected, serialized read model.",
+      "when_to_use": "Include this file when you need the implementation or behavior of on-demand live view queries over NATS, especially for replay-based query handling, query routing, or view projection logic."
+    },
     "crates/esrc-cqrs/src/nats/mod.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/mod.rs",
-      "hash": "7353e57d754a8006d2a557bb31a48ced907de75fa7a1959d8dd7ca3589a33434",
-      "mtime": 1774057152198652,
+      "hash": "119715881526676be282aa34eb073f08aca60dfa8c778d75e9f66b639b3b06a3",
+      "mtime": 1774058342523577,
       "public_types": [
         "AggregateCommandHandler",
         "CommandEnvelope",
@@ -140,7 +155,8 @@
         "NatsQueryDispatcher",
         "QueryEnvelope",
         "QueryReply",
-        "NatsProjectorRunner"
+        "NatsProjectorRunner",
+        "LiveViewQuery"
       ],
       "summary": "NATS CQRS integration module that wires together command dispatching over core NATS request/reply, query dispatching, and projector execution over JetStream durable pull consumers.",
       "when_to_use": "Include this file when you need the NATS-backed CQRS entry points, especially to understand or import the dispatcher and projector runner types re-exported from this module."

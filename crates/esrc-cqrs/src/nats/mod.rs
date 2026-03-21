@@ -51,6 +51,7 @@ pub use command_dispatcher::NatsCommandDispatcher;
 pub use query_dispatcher::{NatsQueryDispatcher, QueryEnvelope, QueryReply};
 pub use projector_runner::NatsProjectorRunner;
 pub use live_view_query::LiveViewQuery;
+pub use memory_view_query::{MemoryView, MemoryViewQuery};
 
 /// Aggregate command handler wiring: maps a typed command to an aggregate and writes events.
 mod aggregate_command_handler;
@@ -58,3 +59,5 @@ mod aggregate_command_handler;
 mod aggregate_projector_handler;
 /// Live view query handler: replays events on each request to build a View.
 mod live_view_query;
+/// Memory view projector and query handler: keeps a View per aggregate ID in memory.
+mod memory_view_query;

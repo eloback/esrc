@@ -37,11 +37,12 @@ file_content_mode: udiffx
 - examples/cafe/table.rs
 - examples/cafe/domain.rs
 - crates/esrc-cqrs/src/nats/query_dispatcher.rs
-- crates/esrc-cqrs/src/nats/mod.rs
 - crates/esrc-cqrs/tests/integration_nats.rs
 - examples/cafe/main.rs
 - src/lib.rs
 - src/view.rs
+- crates/esrc-cqrs/src/nats/live_view_query.rs
+- crates/esrc-cqrs/src/nats/mod.rs
 - .aipack/.prompt/pro@coder/dev/plan/_plan-rules.md
 - .aipack/.prompt/pro@coder/dev/plan/plan-1-todo-steps.md
 - .aipack/.prompt/pro@coder/dev/plan/plan-2-active-step.md
@@ -75,6 +76,7 @@ None
   - aggregate_command_handler.rs
   - aggregate_projector_handler.rs
   - command_dispatcher.rs
+  - live_view_query.rs
   - mod.rs
   - projector_runner.rs
   - query_dispatcher.rs
