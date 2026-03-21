@@ -11,9 +11,15 @@ file_content_mode: udiffx
 - src/error.rs
 - src/nats/convert.rs
 - examples/cafe/tab/tests.rs
+- src/kurrent/convert.rs
+- src/kurrent/subject.rs
+- src/kurrent.rs
+- src/kurrent/header.rs
 - src/version.rs
 - src/nats/subject.rs
+- src/kurrent/event.rs
 - src/envelope.rs
+- src/kurrent/envelope.rs
 - src/nats/header.rs
 - src/project.rs
 - src/event.rs
@@ -42,6 +48,7 @@ file_content_mode: udiffx
 - src/lib.rs
 - src/view.rs
 - crates/esrc-cqrs/src/nats/live_view_query.rs
+- crates/esrc-cqrs/src/nats/memory_view_query.rs
 - crates/esrc-cqrs/src/nats/mod.rs
 - .aipack/.prompt/pro@coder/dev/plan/_plan-rules.md
 - .aipack/.prompt/pro@coder/dev/plan/plan-1-todo-steps.md
@@ -77,6 +84,7 @@ None
   - aggregate_projector_handler.rs
   - command_dispatcher.rs
   - live_view_query.rs
+  - memory_view_query.rs
   - mod.rs
   - projector_runner.rs
   - query_dispatcher.rs

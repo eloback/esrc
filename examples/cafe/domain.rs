@@ -1,6 +1,7 @@
 use esrc::aggregate::Aggregate;
 use esrc::aggregate::Root;
 use esrc::version::{DeserializeVersion, SerializeVersion};
+use esrc::view::View;
 use esrc::Event;
 use serde::{Deserialize, Serialize};
 
@@ -59,9 +60,8 @@ pub struct OrderState {
 }
 
 impl OrderState {
-    /// Project an [`Order`] aggregate root into an [`OrderState`] read-model.
-    pub fn from_root(root: &Root<Order>) -> Self {
-        let order = Root::state(root);
+    /// Project an [`Order`] into an [`OrderState`] read-model.
+    pub fn from_order(order: &Order) -> Self {
         Self {
             status: format!("{:?}", order.status),
             item: order.item.clone(),
@@ -91,6 +91,24 @@ impl Aggregate for Order {
             },
         }
     }
+
+    fn apply(self, event: &Self::Event) -> Self {
+        match event {
+            OrderEvent::OrderPlaced { item, quantity } => Order {
+                status: OrderStatus::Pending,
+                item: Some(item.clone()),
+                quantity: *quantity,
+            },
+            OrderEvent::OrderCompleted => Order {
+                status: OrderStatus::Completed,
+                ..self
+            },
+        }
+    }
+}
+
+impl View for Order {
+    type Event = OrderEvent;
 
     fn apply(self, event: &Self::Event) -> Self {
         match event {

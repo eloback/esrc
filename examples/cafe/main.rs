@@ -12,15 +12,10 @@ mod table;
 
 use std::time::Duration;
 
-use async_nats::ConnectOptions;
 use esrc::nats::NatsStore;
 use esrc_cqrs::nats::{
-    AggregateCommandHandler, AggregateQueryHandler, CommandEnvelope, CommandReply,
-    DurableProjectorHandler, NatsCommandDispatcher, NatsQueryDispatcher, QueryEnvelope, QueryReply,
-};
-use esrc_cqrs::nats::{
-    AggregateCommandHandler, CommandEnvelope, CommandReply,
-    DurableProjectorHandler, NatsCommandDispatcher, NatsQueryDispatcher, QueryEnvelope, QueryReply,
+    AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler,
+    LiveViewQuery, NatsCommandDispatcher, NatsQueryDispatcher, QueryEnvelope, QueryReply,
 };
 use esrc_cqrs::CqrsRegistry;
 use tokio::time::sleep;
@@ -44,9 +39,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let registry = CqrsRegistry::new(store.clone())
         .register_command(AggregateCommandHandler::<Order>::new("Order"))
-        .register_query(AggregateQueryHandler::<Order, OrderState>::new(
+        .register_query(LiveViewQuery::<Order, OrderState>::new(
             "Order.GetState",
-            OrderState::from_root,
+            OrderState::from_order,
         ))
         .register_projector(DurableProjectorHandler::new(
             PROJECTOR_DURABLE,

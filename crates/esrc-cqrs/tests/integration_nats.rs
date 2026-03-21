@@ -6,6 +6,7 @@
 //! Run with:
 //!   cargo test -p esrc-cqrs --test integration_nats -- --test-threads=1
 
+use esrc::view::View;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -91,6 +92,21 @@ impl Aggregate for Counter {
             CounterCommand::AlwaysFail => Err(CounterError::ForcedFailure),
         }
     }
+
+    fn apply(self, event: &Self::Event) -> Self {
+        match event {
+            CounterEvent::Incremented { by } => Counter {
+                value: self.value + by,
+            },
+            CounterEvent::Decremented { by } => Counter {
+                value: self.value - by,
+            },
+        }
+    }
+}
+
+impl View for Counter {
+    type Event = CounterEvent;
 
     fn apply(self, event: &Self::Event) -> Self {
         match event {
@@ -678,22 +694,10 @@ async fn test_query_returns_aggregate_state() {
 
     let registry = CqrsRegistry::new(ctx.store.clone())
         .register_command(AggregateCommandHandler::<Counter>::new("Counter"))
-        .register_query({
-            use esrc_cqrs::query::QueryHandler;
-            use esrc::aggregate::Root;
-            struct CounterGetState;
-            impl esrc_cqrs::query::QueryHandler<NatsStore> for CounterGetState {
-                fn name(&self) -> &'static str { "Counter.GetState" }
-                async fn handle<'a>(&'a self, store: &'a NatsStore, payload: &'a [u8]) -> esrc::error::Result<Vec<u8>> {
-                    let env: QueryEnvelope = serde_json::from_slice(payload).map_err(|e| esrc::error::Error::Format(e.into()))?;
-                    let root: Root<Counter> = store.read(env.id).await?;
-                    let data = serde_json::to_value(CounterState { value: root.value }).map_err(|e| esrc::error::Error::Format(e.into()))?;
-                    let reply = QueryReply { success: true, data: Some(data), error: None };
-                    serde_json::to_vec(&reply).map_err(|e| esrc::error::Error::Format(e.into()))
-                }
-            }
-            CounterGetState
-        });
+        .register_query(LiveViewQuery::<Counter, CounterState>::new(
+            "Counter.GetState",
+            |v| CounterState { value: v.value },
+        ));
 
     spawn_dispatcher(&ctx, registry.command_handlers().to_vec()).await;
     spawn_query_dispatcher(&ctx, registry.query_handlers().to_vec()).await;
@@ -725,21 +729,10 @@ async fn test_query_default_state_for_new_aggregate() {
     let ctx = TestCtx::new("qry-new").await;
 
     let registry = CqrsRegistry::new(ctx.store.clone()).register_query(
-        {
-            use esrc::aggregate::Root;
-            struct CounterGetState;
-            impl esrc_cqrs::query::QueryHandler<NatsStore> for CounterGetState {
-                fn name(&self) -> &'static str { "Counter.GetState" }
-                async fn handle<'a>(&'a self, store: &'a NatsStore, payload: &'a [u8]) -> esrc::error::Result<Vec<u8>> {
-                    let env: QueryEnvelope = serde_json::from_slice(payload).map_err(|e| esrc::error::Error::Format(e.into()))?;
-                    let root: Root<Counter> = store.read(env.id).await?;
-                    let data = serde_json::to_value(CounterState { value: root.value }).map_err(|e| esrc::error::Error::Format(e.into()))?;
-                    let reply = QueryReply { success: true, data: Some(data), error: None };
-                    serde_json::to_vec(&reply).map_err(|e| esrc::error::Error::Format(e.into()))
-                }
-            }
-            CounterGetState
-        }
+        LiveViewQuery::<Counter, CounterState>::new(
+            "Counter.GetState",
+            |v| CounterState { value: v.value },
+        ),
     );
 
     spawn_query_dispatcher(&ctx, registry.query_handlers().to_vec()).await;
@@ -762,21 +755,10 @@ async fn test_query_malformed_payload_returns_error() {
     let ctx = TestCtx::new("qry-bad").await;
 
     let registry = CqrsRegistry::new(ctx.store.clone()).register_query(
-        {
-            use esrc::aggregate::Root;
-            struct CounterGetState;
-            impl esrc_cqrs::query::QueryHandler<NatsStore> for CounterGetState {
-                fn name(&self) -> &'static str { "Counter.GetState" }
-                async fn handle<'a>(&'a self, store: &'a NatsStore, payload: &'a [u8]) -> esrc::error::Result<Vec<u8>> {
-                    let env: QueryEnvelope = serde_json::from_slice(payload).map_err(|e| esrc::error::Error::Format(e.into()))?;
-                    let root: Root<Counter> = store.read(env.id).await?;
-                    let data = serde_json::to_value(CounterState { value: root.value }).map_err(|e| esrc::error::Error::Format(e.into()))?;
-                    let reply = QueryReply { success: true, data: Some(data), error: None };
-                    serde_json::to_vec(&reply).map_err(|e| esrc::error::Error::Format(e.into()))
-                }
-            }
-            CounterGetState
-        }
+        LiveViewQuery::<Counter, CounterState>::new(
+            "Counter.GetState",
+            |v| CounterState { value: v.value },
+        ),
     );
 
     spawn_query_dispatcher(&ctx, registry.query_handlers().to_vec()).await;
@@ -804,36 +786,14 @@ async fn test_registry_query_handlers_accessor() {
     let ctx = TestCtx::new("qry-reg").await;
 
     let registry = CqrsRegistry::new(ctx.store.clone())
-        .register_query({
-            use esrc::aggregate::Root;
-            struct CounterGetState2;
-            impl esrc_cqrs::query::QueryHandler<NatsStore> for CounterGetState2 {
-                fn name(&self) -> &'static str { "Counter.GetState" }
-                async fn handle<'a>(&'a self, store: &'a NatsStore, payload: &'a [u8]) -> esrc::error::Result<Vec<u8>> {
-                    let env: QueryEnvelope = serde_json::from_slice(payload).map_err(|e| esrc::error::Error::Format(e.into()))?;
-                    let root: Root<Counter> = store.read(env.id).await?;
-                    let data = serde_json::to_value(CounterState { value: root.value }).map_err(|e| esrc::error::Error::Format(e.into()))?;
-                    let reply = QueryReply { success: true, data: Some(data), error: None };
-                    serde_json::to_vec(&reply).map_err(|e| esrc::error::Error::Format(e.into()))
-                }
-            }
-            CounterGetState2
-        })
-        .register_query({
-            use esrc::aggregate::Root;
-            struct CounterGetStateAlt;
-            impl esrc_cqrs::query::QueryHandler<NatsStore> for CounterGetStateAlt {
-                fn name(&self) -> &'static str { "Counter.GetStateAlt" }
-                async fn handle<'a>(&'a self, store: &'a NatsStore, payload: &'a [u8]) -> esrc::error::Result<Vec<u8>> {
-                    let env: QueryEnvelope = serde_json::from_slice(payload).map_err(|e| esrc::error::Error::Format(e.into()))?;
-                    let root: Root<Counter> = store.read(env.id).await?;
-                    let data = serde_json::to_value(CounterState { value: root.value }).map_err(|e| esrc::error::Error::Format(e.into()))?;
-                    let reply = QueryReply { success: true, data: Some(data), error: None };
-                    serde_json::to_vec(&reply).map_err(|e| esrc::error::Error::Format(e.into()))
-                }
-            }
-            CounterGetStateAlt
-        });
+        .register_query(LiveViewQuery::<Counter, CounterState>::new(
+            "Counter.GetState",
+            |v| CounterState { value: v.value },
+        ))
+        .register_query(LiveViewQuery::<Counter, CounterState>::new(
+            "Counter.GetStateAlt",
+            |v| CounterState { value: v.value },
+        ));
 
     assert_eq!(
         registry.query_handlers().len(),

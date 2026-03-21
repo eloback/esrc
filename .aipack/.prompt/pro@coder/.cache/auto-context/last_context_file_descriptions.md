@@ -257,8 +257,14 @@
     - Types: LiveViewQuery<V, R>
     - Functions: LiveViewQuery::new(handler_name: &'static str, projection: fn(&V) -> R) -> Self, QueryHandler<NatsStore>::name(&self) -> &'static str, QueryHandler<NatsStore>::handle<'a>(&'a self, store: &'a NatsStore, payload: &'a [u8]) -> error::Result<Vec<u8>>
 
+- crates/esrc-cqrs/src/nats/memory_view_query.rs
+    - Summary: Defines an in-memory projected view store and a NATS query handler that reads snapshots from that store to answer queries as serialized JSON replies.
+    - When To Use: Include this file when working on NATS-based query handling, in-memory read model/projection state, or the shared view used by both event projection and query response generation.
+    - Types: MemoryView<V>, MemoryViewQuery<V, R>
+    - Functions: MemoryView::new, MemoryViewQuery::new
+
 - crates/esrc-cqrs/src/nats/mod.rs
     - Summary: NATS CQRS integration module that wires together command dispatching over core NATS request/reply, query dispatching, and projector execution over JetStream durable pull consumers.
     - When To Use: Include this file when you need the NATS-backed CQRS entry points, especially to understand or import the dispatcher and projector runner types re-exported from this module.
-    - Types: AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler, NatsCommandDispatcher, NatsQueryDispatcher, QueryEnvelope, QueryReply, NatsProjectorRunner, LiveViewQuery
+    - Types: AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler, NatsCommandDispatcher, NatsQueryDispatcher, QueryEnvelope, QueryReply, NatsProjectorRunner, LiveViewQuery, MemoryView, MemoryViewQuery
 

@@ -142,10 +142,26 @@
       "summary": "Defines LiveViewQuery, a CQRS/NATS query handler that rebuilds a view by replaying an aggregate's full event stream on each request and returns a projected, serialized read model.",
       "when_to_use": "Include this file when you need the implementation or behavior of on-demand live view queries over NATS, especially for replay-based query handling, query routing, or view projection logic."
     },
+    "crates/esrc-cqrs/src/nats/memory_view_query.rs": {
+      "file_path": "crates/esrc-cqrs/src/nats/memory_view_query.rs",
+      "hash": "3afb8daba93a21ed3b5c2994fd9aa079646bacc4b1cd5a10d81510127f9accba",
+      "mtime": 1774058578993864,
+      "public_functions": [
+        "MemoryView::new",
+        "MemoryViewQuery::new"
+      ],
+      "public_types": [
+        "MemoryView<V>",
+        "MemoryViewQuery<V, R>"
+      ],
+      "summary": "Defines an in-memory projected view store and a NATS query handler that reads snapshots from that store to answer queries as serialized JSON replies.",
+      "when_to_use": "Include this file when working on NATS-based query handling, in-memory read model/projection state, or the shared view used by both event projection and query response generation."
+    },
     "crates/esrc-cqrs/src/nats/mod.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/mod.rs",
-      "hash": "119715881526676be282aa34eb073f08aca60dfa8c778d75e9f66b639b3b06a3",
-      "mtime": 1774058342523577,
+      "hash": "b907ea8ea34008066d07d0dac417d3f44e19df893c363df1688d3149cbc98f70",
+      "mtime": 1774058578993864,
+      "public_functions": [],
       "public_types": [
         "AggregateCommandHandler",
         "CommandEnvelope",
@@ -156,7 +172,9 @@
         "QueryEnvelope",
         "QueryReply",
         "NatsProjectorRunner",
-        "LiveViewQuery"
+        "LiveViewQuery",
+        "MemoryView",
+        "MemoryViewQuery"
       ],
       "summary": "NATS CQRS integration module that wires together command dispatching over core NATS request/reply, query dispatching, and projector execution over JetStream durable pull consumers.",
       "when_to_use": "Include this file when you need the NATS-backed CQRS entry points, especially to understand or import the dispatcher and projector runner types re-exported from this module."
