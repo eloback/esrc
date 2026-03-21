@@ -17,7 +17,8 @@ default = ["nats"]
 nats = ["dep:async-nats", "esrc/nats", "dep:serde_json", "dep:serde"]
 
 [dependencies]
-esrc = { git = "https://github.com/eloback/esrc.git" }
+esrc = { path = "../..", features = ["nats", "derive"] }
+esrc-derive = { path = "../../derive" }
 
 async-nats = { version = "0.46", optional = true }
 futures = "0.3"
@@ -28,3 +29,8 @@ tokio = { version = "1.41", features = ["full"] }
 tracing = "0.1"
 trait-variant = "0.1"
 uuid = { version = "1.8", features = ["serde", "v4"] }
+
+[[example]]
+name = "cafe"
+path = "examples/cafe/main.rs"
+required-features = ["nats"]

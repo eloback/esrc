@@ -10,10 +10,15 @@ file_content_mode: udiffx
 - examples/cafe/tab.rs
 - src/error.rs
 - src/nats/convert.rs
-- examples/cafe/tab/tests.rs
+- src/kurrent/convert.rs
+- src/kurrent/subject.rs
+- src/kurrent.rs
+- src/kurrent/header.rs
 - src/version.rs
 - src/nats/subject.rs
+- src/kurrent/event.rs
 - src/envelope.rs
+- src/kurrent/envelope.rs
 - src/nats/header.rs
 - src/project.rs
 - src/event.rs
@@ -23,6 +28,7 @@ file_content_mode: udiffx
 - crates/esrc-cqrs/src/projector.rs
 - examples/cafe/projector.rs
 - crates/esrc-cqrs/src/nats/command_dispatcher.rs
+- crates/esrc-cqrs/src/nats/aggregate_command_handler.rs
 - crates/esrc-cqrs/src/error.rs
 - src/nats/event.rs
 - src/nats/envelope.rs
@@ -40,6 +46,7 @@ file_content_mode: udiffx
 - crates/esrc-cqrs/src/nats/durable_projector_handler.rs
 - crates/esrc-cqrs/src/nats/mod.rs
 - examples/cafe/main.rs
+- crates/esrc-cqrs/Cargo.toml
 - Cargo.toml
 
 # Working Files

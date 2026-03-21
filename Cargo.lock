@@ -470,32 +470,10 @@ version = "0.3.1"
 dependencies = [
  "anyhow",
  "async-nats",
- "esrc-derive 0.1.0",
+ "esrc-derive",
  "futures",
  "kurrentdb",
- "opentelemetry-nats 0.2.1",
- "serde",
- "serde_json",
- "stream-cancel",
- "thiserror 2.0.18",
- "time",
- "tokio",
- "tokio-util",
- "tracing",
- "tracing-futures",
- "trait-variant",
- "uuid",
-]
-
-[[package]]
-name = "esrc"
-version = "0.3.1"
-source = "git+https://github.com/eloback/esrc.git#441ebe5618d15b8362d550a95a58cecb4c0a737c"
-dependencies = [
- "async-nats",
- "esrc-derive 0.1.0 (git+https://github.com/eloback/esrc.git)",
- "futures",
- "opentelemetry-nats 0.2.1 (git+https://github.com/eloback/esrc.git)",
+ "opentelemetry-nats",
  "serde",
  "serde_json",
  "stream-cancel",
@@ -514,7 +492,8 @@ name = "esrc-cqrs"
 version = "0.1.0"
 dependencies = [
  "async-nats",
- "esrc 0.3.1 (git+https://github.com/eloback/esrc.git)",
+ "esrc",
+ "esrc-derive",
  "futures",
  "serde",
  "serde_json",
@@ -531,23 +510,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "darling",
- "esrc 0.3.1",
+ "esrc",
  "proc-macro2",
  "quote",
  "serde",
  "syn 2.0.117",
  "uuid",
-]
-
-[[package]]
-name = "esrc-derive"
-version = "0.1.0"
-source = "git+https://github.com/eloback/esrc.git#441ebe5618d15b8362d550a95a58cecb4c0a737c"
-dependencies = [
- "darling",
- "proc-macro2",
- "quote",
- "syn 2.0.117",
 ]
 
 [[package]]
@@ -1328,18 +1296,6 @@ dependencies = [
 [[package]]
 name = "opentelemetry-nats"
 version = "0.2.1"
-dependencies = [
- "async-nats",
- "opentelemetry",
- "opentelemetry_sdk",
- "tracing",
- "tracing-opentelemetry",
-]
-
-[[package]]
-name = "opentelemetry-nats"
-version = "0.2.1"
-source = "git+https://github.com/eloback/esrc.git#441ebe5618d15b8362d550a95a58cecb4c0a737c"
 dependencies = [
  "async-nats",
  "opentelemetry",
