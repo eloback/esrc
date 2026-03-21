@@ -218,28 +218,11 @@
     - Types: ActiveTables
     - Functions: new, is_active, get_table_numbers, project
 
-- examples/cafe/domain.rs
-    - Summary: Defines a cafe order domain aggregate with order state, commands, events, error handling, and aggregate command/event application logic.
-    - When To Use: Include this file when you need the core domain model for the cafe example, especially order lifecycle behavior, command processing, event definitions, or aggregate state transitions.
-    - Types: OrderStatus, Order, OrderCommand, OrderEvent, OrderError, OrderState
-    - Functions: from_root, process, apply
-
 - crates/esrc-cqrs/src/nats/query_dispatcher.rs
     - Summary: Implements a NATS-based query dispatcher that registers each query handler as a service endpoint and forwards request/reply queries to erased handlers. Also provides a helper to build query subjects.
     - When To Use: Use this file when working on CQRS query transport over NATS, especially for starting the query service, wiring handlers into endpoints, or constructing query subject names.
     - Types: QueryEnvelope, QueryReply, NatsQueryDispatcher
     - Functions: query_subject
-
-- crates/esrc-cqrs/tests/integration_nats.rs
-    - Summary: Integration tests for esrc-cqrs against a live NATS JetStream server, covering command dispatch, durable event storage, projector behavior, error propagation, malformed payload handling, query handling, and registry accessors.
-    - When To Use: Include this file when you need to understand or verify the NATS/JetStream integration behavior of esrc-cqrs, especially request/reply command and query handling, projector execution, durability, or end-to-end test setup.
-    - Types: CounterState, Counter, CounterCommand, CounterEvent, CounterError, RecordingProjector, ProjectorError
-    - Functions: test_command_request_response_success, test_command_error_does_not_break_dispatcher, test_projector_receives_events, test_projector_acks_messages_no_redelivery, test_projector_error_propagates, test_multiple_commands_same_aggregate_occ, test_malformed_payload_returns_error, test_registry_accessors, test_query_returns_aggregate_state, test_query_default_state_for_new_aggregate, test_query_malformed_payload_returns_error, test_registry_query_handlers_accessor
-
-- examples/cafe/main.rs
-    - Summary: Entry point for the cafe CQRS example using NATS/JetStream. It wires together the NATS store, command dispatcher, query dispatcher, and durable projector, then sends sample order commands and queries to demonstrate the flow.
-    - When To Use: Include this file when you need the runnable cafe domain example, especially to understand how `esrc-cqrs` components are assembled and executed with NATS, JetStream, commands, queries, and projectors.
-    - Functions: main
 
 - src/lib.rs
     - Summary: Crate root for the event-sourcing library, declaring core modules for aggregates, envelopes, errors, events, projections, and versioning, plus optional event store integrations.
@@ -267,4 +250,21 @@
     - Summary: NATS CQRS integration module that wires together command dispatching over core NATS request/reply, query dispatching, and projector execution over JetStream durable pull consumers.
     - When To Use: Include this file when you need the NATS-backed CQRS entry points, especially to understand or import the dispatcher and projector runner types re-exported from this module.
     - Types: AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler, NatsCommandDispatcher, NatsQueryDispatcher, QueryEnvelope, QueryReply, NatsProjectorRunner, LiveViewQuery, MemoryView, MemoryViewQuery
+
+- crates/esrc-cqrs/tests/integration_nats.rs
+    - Summary: Integration tests for esrc-cqrs against a live NATS JetStream server, covering command dispatch, durable event storage, projector behavior, error propagation, malformed payload handling, query handling, and registry accessors.
+    - When To Use: Include this file when you need to understand or verify the NATS/JetStream integration behavior of esrc-cqrs, especially request/reply command and query handling, projector execution, durability, or end-to-end test setup.
+    - Types: CounterState, Counter, CounterCommand, CounterEvent, CounterError, RecordingProjector, ProjectorError
+    - Functions: test_command_request_response_success, test_command_error_does_not_break_dispatcher, test_projector_receives_events, test_projector_acks_messages_no_redelivery, test_projector_error_propagates, test_multiple_commands_same_aggregate_occ, test_malformed_payload_returns_error, test_registry_accessors, test_query_returns_aggregate_state, test_query_default_state_for_new_aggregate, test_query_malformed_payload_returns_error, test_registry_query_handlers_accessor
+
+- examples/cafe/domain.rs
+    - Summary: Defines a cafe order domain aggregate with order state, commands, events, error handling, and aggregate command/event application logic.
+    - When To Use: Include this file when you need the core domain model for the cafe example, especially order lifecycle behavior, command processing, event definitions, or aggregate state transitions.
+    - Types: OrderStatus, Order, OrderCommand, OrderEvent, OrderError, OrderState
+    - Functions: from_order, process, apply
+
+- examples/cafe/main.rs
+    - Summary: Entry point for the cafe CQRS example using NATS/JetStream. It wires together the NATS store, command dispatcher, query dispatcher, and durable projector, then sends sample order commands and queries to demonstrate the flow.
+    - When To Use: Include this file when you need the runnable cafe domain example, especially to understand how `esrc-cqrs` components are assembled and executed with NATS, JetStream, commands, queries, and projectors.
+    - Functions: main
 

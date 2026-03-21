@@ -1,10 +1,12 @@
 use std::marker::PhantomData;
 
-use esrc::error;
-use esrc::event::replay::ReplayOneExt;
+use esrc::error::{self, Error};
+use esrc::event::replay::ReplayOne;
 use esrc::nats::NatsStore;
 use esrc::view::View;
+use futures::StreamExt;
 use serde::Serialize;
+use uuid::Uuid;
 
 use crate::nats::query_dispatcher::{QueryEnvelope, QueryReply};
 use crate::query::QueryHandler;
@@ -66,17 +68,20 @@ where
         store: &'a NatsStore,
         payload: &'a [u8],
     ) -> error::Result<Vec<u8>> {
-        use futures::StreamExt;
-
         let envelope: QueryEnvelope = serde_json::from_slice(payload)
             .map_err(|e| esrc::error::Error::Format(e.into()))?;
 
-        // Replay the full event history for the requested aggregate ID.
-        let mut stream = store.read_one::<V::Event>(envelope.id).await?;
+        // Replay the full event history for the requested aggregate ID, starting from sequence 0.
+        let mut stream = store
+            .replay_one::<V::Event>(envelope.id, esrc::event::Sequence::new())
+            .await?;
 
         let mut view = V::default();
         while let Some(result) = stream.next().await {
-            let event = result?;
+            let nats_envelope = result?;
+            let event = nats_envelope
+                .deserialize::<V::Event>()
+                .map_err(|e| Error::Format(format!("{e}").into()))?;
             view = view.apply(&event);
         }
 
