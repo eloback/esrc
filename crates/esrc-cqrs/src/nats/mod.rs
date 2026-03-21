@@ -46,17 +46,17 @@ pub mod projector_runner;
 pub mod query_dispatcher;
 
 pub use aggregate_command_handler::{AggregateCommandHandler, CommandEnvelope, CommandReply};
-pub use aggregate_projector_handler::DurableProjectorHandler;
 pub use command_dispatcher::NatsCommandDispatcher;
-pub use query_dispatcher::{NatsQueryDispatcher, QueryEnvelope, QueryReply};
-pub use projector_runner::NatsProjectorRunner;
+pub use durable_projector_handler::DurableProjectorHandler;
 pub use live_view_query::LiveViewQuery;
 pub use memory_view_query::{MemoryView, MemoryViewQuery};
+pub use projector_runner::NatsProjectorRunner;
+pub use query_dispatcher::{NatsQueryDispatcher, QueryEnvelope, QueryReply};
 
 /// Aggregate command handler wiring: maps a typed command to an aggregate and writes events.
 mod aggregate_command_handler;
-/// Aggregate projector handler wiring: maps a projector to a durable JetStream consumer.
-mod aggregate_projector_handler;
+/// Durable projector handler wiring: maps a projector to a durable JetStream consumer.
+mod durable_projector_handler;
 /// Live view query handler: replays events on each request to build a View.
 mod live_view_query;
 /// Memory view projector and query handler: keeps a View per aggregate ID in memory.

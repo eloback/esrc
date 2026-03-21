@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use esrc::Envelope;
 use esrc::error::{self, Error};
 use esrc::event::replay::ReplayOne;
 use esrc::nats::NatsStore;

@@ -7,15 +7,17 @@
 //!   nats-server -js
 
 mod domain;
+mod error;
 mod projector;
+mod tab;
 mod table;
 
 use std::time::Duration;
 
 use esrc::nats::NatsStore;
 use esrc_cqrs::nats::{
-    AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler,
-    LiveViewQuery, NatsCommandDispatcher, NatsQueryDispatcher, QueryEnvelope, QueryReply,
+    AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler, LiveViewQuery,
+    NatsCommandDispatcher, NatsQueryDispatcher, QueryEnvelope, QueryReply,
 };
 use esrc_cqrs::CqrsRegistry;
 use tokio::time::sleep;
@@ -69,17 +71,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
         let payload = serde_json::to_vec(&place_cmd).expect("serialize place command");
         let subject = esrc_cqrs::nats::command_dispatcher::command_subject(SERVICE_NAME, "Order");
-        match driver_client.request(subject.clone(), payload.into()).await {
-            Ok(reply) => {
-                let r: CommandReply =
-                    serde_json::from_slice(&reply.payload).expect("deserialize reply");
-                println!(
-                    "[client] PlaceOrder reply: success={}, id={}",
-                    r.success, r.id
-                );
-            },
-            Err(e) => eprintln!("[client] PlaceOrder error: {e}"),
-        }
+        let reply = driver_client
+            .request(subject.clone(), payload.into())
+            .await
+            .unwrap();
+        let reply: CommandReply = serde_json::from_slice(&reply.payload).unwrap();
+        println!("[client] PlaceOrder reply: {:?}", reply);
+        assert!(reply.success);
 
         sleep(Duration::from_millis(200)).await;
 
@@ -88,22 +86,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             esrc_cqrs::nats::query_dispatcher::query_subject(QUERY_SERVICE_NAME, "Order.GetState");
         let query_payload =
             serde_json::to_vec(&QueryEnvelope { id: order_id }).expect("serialize query");
-        match driver_client
+        let reply = driver_client
             .request(query_subject.clone(), query_payload.into())
             .await
-        {
-            Ok(reply) => {
-                let r: QueryReply =
-                    serde_json::from_slice(&reply.payload).expect("deserialize query reply");
-                if r.success {
-                    println!("[client] Order.GetState reply: {:?}", r.data);
-                } else {
-                    // Errors from the query dispatcher are wrapped in esrc_cqrs::Error.
-                    eprintln!("[client] Order.GetState error: {:?}", r.error);
-                }
-            },
-            Err(e) => eprintln!("[client] Order.GetState request error: {e}"),
-        }
+            .unwrap();
+        let reply: QueryReply = serde_json::from_slice(&reply.payload).unwrap();
+        println!("[client] Order.GetState reply: {:?}", reply);
+        assert!(reply.success);
 
         sleep(Duration::from_millis(200)).await;
 
@@ -113,39 +102,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             command: OrderCommand::CompleteOrder,
         };
         let payload = serde_json::to_vec(&complete_cmd).expect("serialize complete command");
-        match driver_client.request(subject, payload.into()).await {
-            Ok(reply) => {
-                let r: CommandReply =
-                    serde_json::from_slice(&reply.payload).expect("deserialize reply");
-                println!(
-                    "[client] CompleteOrder reply: success={}, id={}",
-                    r.success, r.id
-                );
-            },
-            Err(e) => eprintln!("[client] CompleteOrder error: {e}"),
-        }
+        let reply = driver_client
+            .request(subject.clone(), payload.into())
+            .await
+            .unwrap();
+        let reply: CommandReply = serde_json::from_slice(&reply.payload).unwrap();
+        println!("[client] CompleteOrder reply: {:?}", reply);
+        assert!(reply.success);
 
         sleep(Duration::from_millis(200)).await;
 
         // Query again after completing the order.
         let query_payload =
             serde_json::to_vec(&QueryEnvelope { id: order_id }).expect("serialize query");
-        match driver_client
-            .request(query_subject, query_payload.into())
+        let reply = driver_client
+            .request(query_subject.clone(), query_payload.into())
             .await
-        {
-            Ok(reply) => {
-                let r: QueryReply =
-                    serde_json::from_slice(&reply.payload).expect("deserialize query reply");
-                if r.success {
-                    println!("[client] Order.GetState (post-complete) reply: {:?}", r.data);
-                } else {
-                    // Errors from the query dispatcher are wrapped in esrc_cqrs::Error.
-                    eprintln!("[client] Order.GetState (post-complete) error: {:?}", r.error);
-                }
-            },
-            Err(e) => eprintln!("[client] Order.GetState (post-complete) request error: {e}"),
-        }
+            .unwrap();
+        let reply: QueryReply = serde_json::from_slice(&reply.payload).unwrap();
+        println!("[client] Order.GetState reply: {:?}", reply);
+        assert!(reply.success);
 
         // Let the projector process the events before shutdown.
         sleep(Duration::from_secs(1)).await;
@@ -162,7 +138,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             eprintln!("[query dispatcher] error: {e}");
         }
     });
-    dispatcher.run(store, registry.command_handlers()).await?;
+    tokio::spawn(async move {
+        if let Err(e) = dispatcher
+            .run(store.clone(), registry.command_handlers())
+            .await
+        {
+            eprintln!("[command dispatcher] error: {e}");
+        }
+    });
 
     // Wait for projectors to finish (they run indefinitely in normal operation).
     while let Some(result) = projector_set.join_next().await {

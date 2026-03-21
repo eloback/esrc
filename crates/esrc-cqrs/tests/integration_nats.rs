@@ -19,8 +19,7 @@ use esrc::version::{DeserializeVersion, SerializeVersion};
 use serde::{Deserialize, Serialize};
 use esrc::{Envelope, Event};
 use esrc_cqrs::nats::{
-    AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler,
-    NatsCommandDispatcher,
+    AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler, LiveViewQuery, NatsCommandDispatcher
 };
 use esrc_cqrs::nats::{NatsQueryDispatcher, QueryEnvelope, QueryReply};
 use esrc_cqrs::CqrsRegistry;
