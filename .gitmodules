@@ -1,0 +1,3 @@
+[submodule "esrc-cqrs"]
+	path = crates/esrc-cqrs
+	url = git@github.com:eloback/esrc-cqrs.git
