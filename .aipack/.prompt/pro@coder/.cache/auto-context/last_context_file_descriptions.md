@@ -234,12 +234,6 @@
     - When To Use: Include this file when working with event-sourced read models, projections, or any code that implements or uses the `View` trait to replay/apply events.
     - Types: View
 
-- crates/esrc-cqrs/src/nats/live_view_query.rs
-    - Summary: Defines LiveViewQuery, a CQRS/NATS query handler that rebuilds a view by replaying an aggregate's full event stream on each request and returns a projected, serialized read model.
-    - When To Use: Include this file when you need the implementation or behavior of on-demand live view queries over NATS, especially for replay-based query handling, query routing, or view projection logic.
-    - Types: LiveViewQuery<V, R>
-    - Functions: LiveViewQuery::new(handler_name: &'static str, projection: fn(&V) -> R) -> Self, QueryHandler<NatsStore>::name(&self) -> &'static str, QueryHandler<NatsStore>::handle<'a>(&'a self, store: &'a NatsStore, payload: &'a [u8]) -> error::Result<Vec<u8>>
-
 - crates/esrc-cqrs/src/nats/memory_view_query.rs
     - Summary: Defines an in-memory projected view store and a NATS query handler that reads snapshots from that store to answer queries as serialized JSON replies.
     - When To Use: Include this file when working on NATS-based query handling, in-memory read model/projection state, or the shared view used by both event projection and query response generation.
@@ -267,4 +261,10 @@
     - Summary: Entry point for the cafe CQRS example using NATS/JetStream. It wires together the NATS store, command dispatcher, query dispatcher, and durable projector, then sends sample order commands and queries to demonstrate the flow.
     - When To Use: Include this file when you need the runnable cafe domain example, especially to understand how `esrc-cqrs` components are assembled and executed with NATS, JetStream, commands, queries, and projectors.
     - Functions: main
+
+- crates/esrc-cqrs/src/nats/live_view_query.rs
+    - Summary: Defines LiveViewQuery, a CQRS/NATS query handler that rebuilds a view by replaying an aggregate's full event stream on each request and returns a projected, serialized read model.
+    - When To Use: Include this file when you need the implementation or behavior of on-demand live view queries over NATS, especially for replay-based query handling, query routing, or view projection logic.
+    - Types: LiveViewQuery<V, R>
+    - Functions: LiveViewQuery::new(handler_name: &'static str, projection: fn(&V) -> R) -> Self, QueryHandler<NatsStore>::name(&self) -> &'static str, QueryHandler<NatsStore>::handle<'a>(&'a self, store: &'a NatsStore, payload: &'a [u8]) -> error::Result<Vec<u8>>
 

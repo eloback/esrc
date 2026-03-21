@@ -50,3 +50,27 @@ Add `MemoryView` and `MemoryViewQuery` to `esrc-cqrs`.
   - `MemoryViewQuery<V, R>` holds a `MemoryView<V>` handle, a handler name, and a projection function. Implements `QueryHandler<NatsStore>`: deserializes payload as `QueryEnvelope`, takes a read-lock snapshot of the view for the requested ID (defaulting to `V::default()` if absent), applies the projection, returns `QueryReply`.
 - Exported `MemoryView` and `MemoryViewQuery` from `crates/esrc-cqrs/src/nats/mod.rs`.
 - Added `mod memory_view_query;` with doc comment to `mod.rs`.
+
+## Step - Update tests and cafe example for new View-based query API
+      status: done
+time-created: 2026-03-20 20:49:02
+   time-done: 2026-03-21 03:14:52
+
+Update the integration tests and the cafe example to use the new `LiveViewQuery` and `MemoryViewQuery` APIs instead of the removed `AggregateQueryHandler`.
+
+- `crates/esrc-cqrs/tests/integration_nats.rs`:
+  - Added `View` impl for `Counter` mirroring `Aggregate::apply`.
+  - Replaced all inline query handler structs with `LiveViewQuery::<Counter, CounterState>::new(...)` calls.
+  - Updated imports: added `esrc::view::View`, `LiveViewQuery`, `MemoryView`, `MemoryViewQuery`.
+
+- `examples/cafe/domain.rs`:
+  - Added `View` impl for `Order` mirroring `Aggregate::apply`.
+  - Renamed `OrderState::from_root` to `OrderState::from_order` (takes `&Order` directly).
+
+- `examples/cafe/main.rs`:
+  - Replaced `AggregateQueryHandler` with `LiveViewQuery::<Order, OrderState>::new("Order.GetState", OrderState::from_order)`.
+  - Cleaned up imports.
+
+- `crates/esrc-cqrs/src/nats/live_view_query.rs`:
+  - Fixed `LiveViewQuery::handle` to use `store.replay_one::<V::Event>` (returning a stream) instead of the non-existent `store.read_one` API.
+  - Deserializes each `NatsEnvelope` via `.deserialize::<V::Event>()` before applying to the view.

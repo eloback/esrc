@@ -1,7 +1,4 @@
-## Step - Update tests and cafe example for new View-based query API
-      status: active
-time-created: 2026-03-20 20:49:02
-time-current: 2026-03-21 03:09:04
+
 
 Update the integration tests and the cafe example to use the new `LiveViewQuery` and `MemoryViewQuery` APIs instead of the removed `AggregateQueryHandler`.
 

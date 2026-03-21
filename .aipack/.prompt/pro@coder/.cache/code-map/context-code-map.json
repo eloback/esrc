@@ -129,8 +129,8 @@
     },
     "crates/esrc-cqrs/src/nats/live_view_query.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/live_view_query.rs",
-      "hash": "33c52fc5cae78b6c72e89837892fe1ae9f6626d9f548d5372a5e6dd17240d826",
-      "mtime": 1774058342523577,
+      "hash": "8c16b46981567b6f2bc19beff5f112080e2b8b9b598c7861d5502e7155391eb9",
+      "mtime": 1774073389678253,
       "public_functions": [
         "LiveViewQuery::new(handler_name: &'static str, projection: fn(&V) -> R) -> Self",
         "QueryHandler<NatsStore>::name(&self) -> &'static str",
