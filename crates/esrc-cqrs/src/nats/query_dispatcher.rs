@@ -5,8 +5,36 @@ use futures::StreamExt;
 use tracing::instrument;
 
 use esrc::error::{self, Error};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::registry::ErasedQueryHandler;
+
+/// A standard query envelope sent over NATS.
+///
+/// The query payload wraps only the aggregate ID because the handler already
+/// knows which aggregate type and query to execute. If a query requires
+/// additional parameters they can be placed alongside `id` in a custom
+/// request type by implementing [`QueryHandler`] directly.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct QueryEnvelope {
+    /// The ID of the aggregate instance to query.
+    pub id: Uuid,
+}
+
+/// A standard reply envelope returned after processing a query.
+///
+/// On success the inner `data` field contains the serialized response value
+/// (a JSON object). On failure `success` is false and `error` is set.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct QueryReply {
+    /// Whether the query succeeded.
+    pub success: bool,
+    /// The query result serialized as a JSON value, present when `success` is true.
+    pub data: Option<serde_json::Value>,
+    /// The structured CQRS error, present only when `success` is false.
+    pub error: Option<crate::Error>,
+}
 
 /// Version string for the NATS query service group.
 pub const QUERY_SERVICE_VERSION: &str = "0.1.0";
@@ -97,7 +125,6 @@ impl NatsQueryDispatcher {
                             let _ = request.respond(Ok(reply.into())).await;
                         },
                         Err(e) => {
-                            use crate::nats::aggregate_query_handler::QueryReply;
                             let failure = QueryReply {
                                 success: false,
                                 data: None,

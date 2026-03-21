@@ -47,14 +47,11 @@ pub mod query_dispatcher;
 
 pub use aggregate_command_handler::{AggregateCommandHandler, CommandEnvelope, CommandReply};
 pub use aggregate_projector_handler::DurableProjectorHandler;
-pub use aggregate_query_handler::{AggregateQueryHandler, QueryEnvelope, QueryReply};
 pub use command_dispatcher::NatsCommandDispatcher;
-pub use query_dispatcher::NatsQueryDispatcher;
+pub use query_dispatcher::{NatsQueryDispatcher, QueryEnvelope, QueryReply};
 pub use projector_runner::NatsProjectorRunner;
 
 /// Aggregate command handler wiring: maps a typed command to an aggregate and writes events.
 mod aggregate_command_handler;
 /// Aggregate projector handler wiring: maps a projector to a durable JetStream consumer.
 mod aggregate_projector_handler;
-/// Aggregate query handler wiring: maps a typed query to an aggregate replay and returns a response.
-mod aggregate_query_handler;

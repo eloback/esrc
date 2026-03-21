@@ -97,7 +97,7 @@
     "crates/esrc-cqrs/src/nats/aggregate_query_handler.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/aggregate_query_handler.rs",
       "hash": "f43650908f6c5773050cc3f96987b819e9386e040a583cc43f74b4422446ac92",
-      "mtime": 1774050497112095,
+      "mtime": 1774052317396958,
       "public_functions": [
         "AggregateQueryHandler::new",
         "QueryHandler::name",
@@ -130,7 +130,7 @@
     "crates/esrc-cqrs/src/nats/mod.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/mod.rs",
       "hash": "d82b32053b0a2ab1e8751c4617484d00589045b92c3dfdf3c42dfca1f969038e",
-      "mtime": 1774050497112088,
+      "mtime": 1774052317396958,
       "public_types": [
         "AggregateCommandHandler",
         "CommandEnvelope",
@@ -163,7 +163,7 @@
     "crates/esrc-cqrs/src/nats/query_dispatcher.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/query_dispatcher.rs",
       "hash": "5470a82cb7e2606b65003735a6119083ad5d29431e815699a226cff0a618e345",
-      "mtime": 1774050497112047,
+      "mtime": 1774052317396958,
       "public_functions": [
         "query_subject"
       ],
@@ -222,7 +222,7 @@
     "crates/esrc-cqrs/tests/integration_nats.rs": {
       "file_path": "crates/esrc-cqrs/tests/integration_nats.rs",
       "hash": "14e851bf8cf4aaa1c7a53fdc6a53c2214103633f492141fe91202f5ecf977aa7",
-      "mtime": 1774050497112047,
+      "mtime": 1774052317396958,
       "public_functions": [
         "test_command_request_response_success",
         "test_command_error_does_not_break_dispatcher",
@@ -449,7 +449,7 @@
     "examples/cafe/domain.rs": {
       "file_path": "examples/cafe/domain.rs",
       "hash": "ea92015a2339765a7b9074e0b5de755630401eaebc3bdab7264b4ce9f698dff6",
-      "mtime": 1774050238770782,
+      "mtime": 1774052317397958,
       "public_functions": [
         "from_root",
         "process",
@@ -479,7 +479,7 @@
     "examples/cafe/main.rs": {
       "file_path": "examples/cafe/main.rs",
       "hash": "06346d91b3e601bac93af2206a199cafe455423701276d4484cd03de3173b978",
-      "mtime": 1774050497112047,
+      "mtime": 1774052317397958,
       "public_functions": [
         "main"
       ],
@@ -531,7 +531,7 @@
     "examples/cafe/table.rs": {
       "file_path": "examples/cafe/table.rs",
       "hash": "6f918ff57f023ffc6545b4393ae8e1375d60c9f0c323f80b1508be90b249cd32",
-      "mtime": 1759859614388577,
+      "mtime": 1774051905357263,
       "public_functions": [
         "new",
         "is_active",
@@ -766,7 +766,7 @@
     "src/lib.rs": {
       "file_path": "src/lib.rs",
       "hash": "c349a4b532efa6b795ba5849084bc82a5f53e2a5b344c640042d45a2a4568005",
-      "mtime": 1774050497112035,
+      "mtime": 1774052317397958,
       "public_functions": [],
       "public_types": [
         "Aggregate",

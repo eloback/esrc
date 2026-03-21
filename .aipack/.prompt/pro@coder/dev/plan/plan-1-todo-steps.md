@@ -1,17 +1,4 @@
 
-## Step - Remove AggregateQueryHandler from esrc-cqrs
-      status: not_started
-time-created: 2026-03-20 20:49:02
-
-Remove the `AggregateQueryHandler` struct and its associated types from `crates/esrc-cqrs`.
-
-- Delete `crates/esrc-cqrs/src/nats/aggregate_query_handler.rs`.
-- Remove `pub use aggregate_query_handler::{AggregateQueryHandler, QueryEnvelope, QueryReply};` from `crates/esrc-cqrs/src/nats/mod.rs`.
-- Remove `mod aggregate_query_handler;` from `crates/esrc-cqrs/src/nats/mod.rs`.
-- Remove the `aggregate_query_handler` comment line from `mod.rs` as well.
-- Update `crates/esrc-cqrs/src/nats/query_dispatcher.rs` to remove the internal import of `QueryReply` from `aggregate_query_handler` (currently used in the error path of `NatsQueryDispatcher::run`); define a minimal `QueryReply`-like error response inline or move `QueryEnvelope`/`QueryReply` to `query_dispatcher.rs` as public types.
-- Ensure `cargo check -p esrc-cqrs --features nats` passes cleanly after removal.
-
 ## Step - Introduce the View trait in esrc
       status: not_started
 time-created: 2026-03-20 20:49:02

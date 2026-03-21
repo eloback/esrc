@@ -18,6 +18,10 @@ use esrc_cqrs::nats::{
     AggregateCommandHandler, AggregateQueryHandler, CommandEnvelope, CommandReply,
     DurableProjectorHandler, NatsCommandDispatcher, NatsQueryDispatcher, QueryEnvelope, QueryReply,
 };
+use esrc_cqrs::nats::{
+    AggregateCommandHandler, CommandEnvelope, CommandReply,
+    DurableProjectorHandler, NatsCommandDispatcher, NatsQueryDispatcher, QueryEnvelope, QueryReply,
+};
 use esrc_cqrs::CqrsRegistry;
 use tokio::time::sleep;
 use uuid::Uuid;
