@@ -224,11 +224,6 @@
     - Types: OrderStatus, Order, OrderCommand, OrderEvent, OrderError, OrderState
     - Functions: from_root, process, apply
 
-- src/lib.rs
-    - Summary: Crate root for the event-sourcing library, declaring core modules for aggregates, envelopes, errors, events, projections, and versioning, plus optional event store integrations.
-    - When To Use: Use this file to understand the library’s overall module layout, available top-level re-exports, and which backend integrations are conditionally compiled.
-    - Types: Aggregate, Envelope, Error, Event, EventGroup
-
 - crates/esrc-cqrs/src/nats/query_dispatcher.rs
     - Summary: Implements a NATS-based query dispatcher that registers each query handler as a service endpoint and forwards request/reply queries to erased handlers. Also provides a helper to build query subjects.
     - When To Use: Use this file when working on CQRS query transport over NATS, especially for starting the query service, wiring handlers into endpoints, or constructing query subject names.
@@ -250,4 +245,14 @@
     - Summary: Entry point for the cafe CQRS example using NATS/JetStream. It wires together the NATS store, command dispatcher, query dispatcher, and durable projector, then sends sample order commands and queries to demonstrate the flow.
     - When To Use: Include this file when you need the runnable cafe domain example, especially to understand how `esrc-cqrs` components are assembled and executed with NATS, JetStream, commands, queries, and projectors.
     - Functions: main
+
+- src/lib.rs
+    - Summary: Crate root for the event-sourcing library, declaring core modules for aggregates, envelopes, errors, events, projections, and versioning, plus optional event store integrations.
+    - When To Use: Use this file to understand the library’s overall module layout, available top-level re-exports, and which backend integrations are conditionally compiled.
+    - Types: Aggregate, Envelope, Error, Event, EventGroup
+
+- src/view.rs
+    - Summary: Defines the `View` trait, a lightweight reactive read model built from an event stream for query/projection purposes.
+    - When To Use: Include this file when working with event-sourced read models, projections, or any code that implements or uses the `View` trait to replay/apply events.
+    - Types: View
 

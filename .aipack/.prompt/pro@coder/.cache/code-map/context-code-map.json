@@ -766,8 +766,8 @@
     },
     "src/lib.rs": {
       "file_path": "src/lib.rs",
-      "hash": "c349a4b532efa6b795ba5849084bc82a5f53e2a5b344c640042d45a2a4568005",
-      "mtime": 1774052317397958,
+      "hash": "ed6a727ce5a658c4421b2a4a04250bedf87342ed4a285c11302a9ecc4cdd4f1f",
+      "mtime": 1774057464933181,
       "public_functions": [],
       "public_types": [
         "Aggregate",
@@ -898,6 +898,17 @@
       ],
       "summary": "Defines version-aware serde extension traits for serializing and deserializing types with an associated version, and re-exports derive helpers when the derive feature is enabled.",
       "when_to_use": "Include this file when working with versioned serialization/deserialization logic, serde integration, or when needing the `SerializeVersion`/`DeserializeVersion` traits (or their derive macros under the derive feature)."
+    },
+    "src/view.rs": {
+      "file_path": "src/view.rs",
+      "hash": "888de2065fcd3d926b5a726762f2be750b7d3bdc7cc17367fe82da312b247b4b",
+      "mtime": 1774057464933181,
+      "public_functions": [],
+      "public_types": [
+        "View"
+      ],
+      "summary": "Defines the `View` trait, a lightweight reactive read model built from an event stream for query/projection purposes.",
+      "when_to_use": "Include this file when working with event-sourced read models, projections, or any code that implements or uses the `View` trait to replay/apply events."
     }
   }
 }

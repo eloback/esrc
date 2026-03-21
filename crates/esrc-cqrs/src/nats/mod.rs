@@ -50,8 +50,11 @@ pub use aggregate_projector_handler::DurableProjectorHandler;
 pub use command_dispatcher::NatsCommandDispatcher;
 pub use query_dispatcher::{NatsQueryDispatcher, QueryEnvelope, QueryReply};
 pub use projector_runner::NatsProjectorRunner;
+pub use live_view_query::LiveViewQuery;
 
 /// Aggregate command handler wiring: maps a typed command to an aggregate and writes events.
 mod aggregate_command_handler;
 /// Aggregate projector handler wiring: maps a projector to a durable JetStream consumer.
 mod aggregate_projector_handler;
+/// Live view query handler: replays events on each request to build a View.
+mod live_view_query;

@@ -11,3 +11,16 @@ time-created: 2026-03-20 20:49:02
 - Updated `crates/esrc-cqrs/tests/integration_nats.rs`: replaced all `AggregateQueryHandler` usages with a `counter_query_handler` helper function that implements `QueryHandler<NatsStore>` directly; updated imports.
 - Updated `examples/cafe/main.rs`: replaced `AggregateQueryHandler` with an `order_state_query_handler` helper function; removed the unused `AggregateQueryHandler` and `ConnectOptions` imports; kept `OrderState::from_root` as the projection.
 
+## Step - Introduce the View trait in esrc
+      status: done
+time-created: 2026-03-20 20:49:02
+   time-done: 2026-03-20 22:57:58
+
+Add a `View` trait to the `esrc` crate (in `src/`) that represents a read model built from events, analogous to `Aggregate` but without commands, process, or errors.
+
+- `src/view.rs` defines the `View` trait with:
+  - Associated type `Event: event::Event`.
+  - Required method `fn apply(self, event: &Self::Event) -> Self`.
+  - Bound `Default + Send` on the implementing type.
+  - No `Command`, `process`, or `Error` associated types.
+- `src/lib.rs` exports `View` from the crate root via `pub mod view;` and `pub use view::View;`.
