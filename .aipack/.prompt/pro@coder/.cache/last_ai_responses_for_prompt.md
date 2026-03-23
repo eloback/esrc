@@ -1,36 +1,83 @@
 ====
->   Info: Duration: 1m 16s | ~$0.2086 | Prompt Tokens: 40,062 (cached: 0, cache_creation: 0) | Completion Tokens: 5,891 
+>   Info: Duration: 45s | ~$0.1261 | Prompt Tokens: 25,592 (cached: 0, cache_creation: 0) | Completion Tokens: 3,288 
 >  Model: claude-sonnet-4-6 | Adapter: Anthropic
->  Files: Context Files: 42 | Working Files: 0 | Knowledge Files: 0
+>  Files: Context Files: 13 | Working Files: 0 | Knowledge Files: 0
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
-Looking at the task, I need to move the `cafe` example from the `esrc` crate to the `esrc-cqrs` crate. This involves:
+I'll analyze the current boilerplate and design a plan to improve the developer experience for both commands and queries in the `esrc-cqrs` framework.
 
-1. Adding the example files to `crates/esrc-cqrs/examples/cafe/`
-2. Updating `crates/esrc-cqrs/Cargo.toml` to add the example and necessary dependencies
-3. Removing the example from the root `Cargo.toml` (and the files from `examples/cafe/`)
+## Analysis of Current Boilerplate
 
-Let me trace the dependencies needed for the cafe example:
-- `async-nats` (already optional/nats feature)
-- `serde`, `serde_json` (already optional/nats feature)
-- `tokio` (already full)
-- `uuid` with v4 feature (already there)
-- `thiserror` (already there)
-- `esrc` with nats+derive features
-- `esrc-cqrs` itself (it's the crate, so it uses internal paths)
-- `esrc_derive` macros (via esrc)
+For a command, the caller must:
+1. Construct a `CommandEnvelope` manually
+2. Serialize it with `serde_json::to_vec`
+3. Build the subject string via `command_dispatcher::command_subject`
+4. Call `nats_client.request(...)`
+5. Deserialize the `CommandReply`
+6. Check `reply.success` and branch
 
-The cafe example also uses `tab.rs`, `table.rs`, `error.rs`, `domain.rs`, `projector.rs` and `tab/tests.rs`. The `tab/tests.rs` is a test module inside `tab.rs` - I need to check if those tests need a NATS connection (they're in `crates/esrc-cqrs/tests/integration_nats.rs` style or unit tests).
+For a query, the same steps apply with `QueryEnvelope` and `QueryReply`.
 
-Looking at `tab.rs`, it has `mod tests;` which pulls in `examples/cafe/tab/tests.rs`. Since these are unit tests on the `Tab` aggregate, they don't need NATS. I'll include them.
+## Plan
+
+### Phase 1: `NatsClient` wrapper (no proc macro needed yet)
+
+Create a high-level `EsrcNatsClient` (or `CqrsClient`) struct that wraps an `async_nats::Client` and exposes ergonomic `send_command` and `send_query` methods. This eliminates all the boilerplate in a single call with typed generics, no derive macros needed.
+
+```rust
+// Target DX
+let reply = client.send_command("clt-service", "Escrituracao", batch_id, cmd).await?;
+let state: CounterState = client.send_query("clt-service", "Counter.GetState", id).await?;
+```
+
+### Phase 2: `esrc_cqrs_macros` proc macro crate (optional enhancement)
+
+A `#[cqrs_command]` and `#[cqrs_query]` attribute macro on handler structs that auto-derives the service/handler name constants and generates a typed `dispatch` associated function, so callers never construct envelopes manually.
+
+### Immediate deliverable: Phase 1
+
+This gives the biggest DX win with zero proc macros and zero new dependencies. I'll implement:
+
+1. `crates/esrc-cqrs/src/nats/client.rs` - the `CqrsClient` struct
+2. Export it from `mod.rs`
+3. Add a usage example in the cafe example
+
+Let me implement Phase 1 now:
 
 
 
-Note: I've kept the original `examples/cafe/` files in the root `esrc` crate in place (not deleted them) since you did not explicitly ask to remove them, only to move/add to `esrc-cqrs`. The `tab/tests.rs` file in the new location is created as an empty placeholder since I do not have the source for `examples/cafe/tab/tests.rs`. If you have the test contents, please provide them so they can be included.
+Now here is the improved DX the plan delivers, shown as a before/after comparison:
 
-Also note that `esrc-derive` is added as a direct dependency in `esrc-cqrs/Cargo.toml` because `tab.rs` and `domain.rs` use the derive macros (`DeserializeVersion`, `SerializeVersion`) directly via `use esrc_derive::...`. If those macros are re-exported through `esrc` (via `esrc::version::DeserializeVersion` derive), the explicit `esrc-derive` dependency may not be needed, but it is safer to include it since the example imports from `esrc_derive` directly.
+**Before (current boilerplate):**
+```rust
+let command_envelope = CommandEnvelope { id: body.batch_id, command: cmd };
+let payload = serde_json::to_vec(&command_envelope).expect("serialize");
+let subject = esrc_cqrs::nats::command_dispatcher::command_subject("clt-service", "Escrituracao");
+let reply = state.nats_client.request(subject, payload.into()).await.unwrap();
+let reply: CommandReply = serde_json::from_slice(&reply.payload).unwrap();
+if !reply.success { return Err(ErrorResponses::from(reply.error.unwrap())); }
+```
+
+**After (with `CqrsClient`):**
+```rust
+// Option A: get typed result directly, failure becomes Err
+let id = state.cqrs.dispatch_command("clt-service", "Escrituracao", body.batch_id, cmd).await?;
+
+// Option B: get the raw reply if you need to inspect the error type
+let reply = state.cqrs.send_command("clt-service", "Escrituracao", body.batch_id, cmd).await?;
+
+// Query - typed deserialization in one call
+let state: MyState = cqrs.dispatch_query("clt-service", "MyAggregate.GetState", id).await?;
+```
+
+**Two-method design per verb:**
+
+- `send_command` / `send_query`: returns the raw reply envelope (gives access to the `CommandReply::error` typed field for downcasting aggregate errors).
+- `dispatch_command` / `dispatch_query`: converts `success=false` into `Err` automatically, for the common case where you just want to propagate failures.
+
+**Phase 2 (proc macro) would add**, when warranted by usage patterns: a `#[cqrs_handler(service = "...", name = "...")]` attribute that generates an associated `dispatch` method directly on the command type, so the service/handler name strings are co-located with the type definition rather than scattered across call sites.
 
 <suggested_git_command>
 git add -A .
-git commit -m "+ esrc-cqrs - Add cafe example to esrc-cqrs crate using local esrc"
+git commit -a -m "+ esrc-cqrs/nats - Add CqrsClient for ergonomic command and query dispatch"
 </suggested_git_command>

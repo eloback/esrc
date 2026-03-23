@@ -2,8 +2,8 @@
   "file_map": {
     "Cargo.toml": {
       "file_path": "Cargo.toml",
-      "hash": "ef2a7df8309d006c906d26cf1d8856345bdb2970df33da8e07d41dcc32ffe9eb",
-      "mtime": 1774079593549279,
+      "hash": "db1b37cfa5ba75d19439821e7b832912cf27472e1b1e56fdcb944c5c745f56fa",
+      "mtime": 1774080596191219,
       "public_functions": [],
       "public_types": [],
       "summary": "Workspace and root package manifest for the esrc Rust project, defining shared dependencies, feature flags, and member crates/examples.",
@@ -18,17 +18,158 @@
       "summary": "Rust compiler error log showing a failed downcast to `serde_json::Value` because it does not implement `StdError`.",
       "when_to_use": "Use when diagnosing the specific compilation failure in `crates/esrc-cqrs/src/error.rs` around error downcasting and trait bounds."
     },
+    "crates/esrc-cqrs/.devenv/bootstrap/bootstrapLib.nix": {
+      "file_path": "crates/esrc-cqrs/.devenv/bootstrap/bootstrapLib.nix",
+      "hash": "e26e78f3df56c9eedfc8b9c8c8c1609ca54779c19899686ae1752b9421533c3c",
+      "mtime": 1774080667038543,
+      "public_functions": [
+        "getOverlays",
+        "mkDevenvForSystem",
+        "mkDevenvForInput"
+      ],
+      "public_types": [],
+      "summary": "Shared Nix library for devenv evaluation and bootstrap logic, including overlay resolution, module import handling, profile expansion/priority application, cross-system evaluation, and a lightweight input evaluator.",
+      "when_to_use": "Include this file when you need to understand or modify how devenv configuration is evaluated, how profiles and overlays are resolved, or how input/project devenv modules are loaded and built for one or more systems."
+    },
+    "crates/esrc-cqrs/.devenv/bootstrap/default.nix": {
+      "file_path": "crates/esrc-cqrs/.devenv/bootstrap/default.nix",
+      "hash": "4022a48513e009b72ed4850d12d2c195288b9000a7370446d4acb182e28249a7",
+      "mtime": 1774080667039493,
+      "public_functions": [],
+      "public_types": [],
+      "summary": "Nix bootstrap entrypoint that resolves locked inputs and delegates to the bootstrap library to construct the devenv configuration for the current system.",
+      "when_to_use": "Include this file when you need the Nix bootstrap flow for this project, especially to understand how the devenv environment is assembled or to trace the system-specific bootstrap entrypoint."
+    },
+    "crates/esrc-cqrs/.devenv/bootstrap/resolve-lock.nix": {
+      "file_path": "crates/esrc-cqrs/.devenv/bootstrap/resolve-lock.nix",
+      "hash": "ad7759d3df87896ba0902b0c6610dca23d81285d8e6346863239301655cc3453",
+      "mtime": 1774080667039796,
+      "public_functions": [],
+      "public_types": [],
+      "summary": "Nix bootstrap helper that reads devenv.lock, resolves flake/path inputs (including relative paths), and constructs per-node flake/devenv evaluation data.",
+      "when_to_use": "Use when you need to understand or modify how the project bootstraps devenv/flake inputs from the lockfile, especially lock resolution and lazy evaluation behavior."
+    },
+    "crates/esrc-cqrs/.devenv/nixpkgs-config-c7c9559ef5bdea25.nix": {
+      "file_path": "crates/esrc-cqrs/.devenv/nixpkgs-config-c7c9559ef5bdea25.nix",
+      "hash": "c7c9559ef5bdea258535230d36fb191f4bc27aefd1c6bf9df1f786986800c64b",
+      "mtime": 1774080667039796,
+      "public_functions": [],
+      "public_types": [],
+      "summary": "Nix configuration snippet that defines the allowUnfreePredicate logic for nixpkgs, controlling which unfree packages are permitted.",
+      "when_to_use": "Include when working on Nix/devenv configuration for this crate, especially if you need to understand or modify how unfree packages are allowed or filtered."
+    },
+    "crates/esrc-cqrs/.gitignore": {
+      "file_path": "crates/esrc-cqrs/.gitignore",
+      "hash": "0cf0b02126c18e4b641f0542109a167e9f09bfb92b19f7e1ebb5c6913d1e286a",
+      "mtime": 1774081006213974,
+      "public_functions": [],
+      "public_types": [],
+      "summary": "Git ignore rules for the esrc-cqrs crate, excluding build artifacts, backup Rust files, and local development tool files.",
+      "when_to_use": "Include when you need to understand which generated, local, or environment-specific files are intentionally excluded from version control for this crate."
+    },
     "crates/esrc-cqrs/Cargo.toml": {
       "file_path": "crates/esrc-cqrs/Cargo.toml",
-      "hash": "713273eb6453b58034243dbaac8241b76397099768df2c3f6d4ac9de66f8507c",
-      "mtime": 1774079593548279,
+      "hash": "2b7bdf235486ea821b2b3080e0f2b015afc148fdfb4cb1407600d7e77bc1347d",
+      "mtime": 1774080811761569,
       "summary": "Cargo manifest for the esrc-cqrs crate, defining package metadata, feature flags, and dependencies for CQRS command/event handler registry support.",
       "when_to_use": "Include this file when you need to understand the crate's build configuration, enabled features, or dependency relationships for the CQRS registry integration."
+    },
+    "crates/esrc-cqrs/examples/cafe/domain.rs": {
+      "file_path": "crates/esrc-cqrs/examples/cafe/domain.rs",
+      "hash": "032641324ba340df869274a43d103fe267f860b881b7e64bbb58246d0aaa69fb",
+      "mtime": 1774080596192540,
+      "public_functions": [
+        "OrderState::from_order",
+        "Order::process",
+        "Order::apply",
+        "View::apply"
+      ],
+      "public_types": [
+        "OrderStatus",
+        "Order",
+        "OrderCommand",
+        "OrderEvent",
+        "OrderError",
+        "OrderState"
+      ],
+      "summary": "Defines the cafe order domain model for a CQRS example, including the Order aggregate, commands, events, errors, and a read-model projection.",
+      "when_to_use": "Include this file when you need the domain logic for the cafe example, especially the order aggregate behavior, event types, command handling, or state projection."
+    },
+    "crates/esrc-cqrs/examples/cafe/error.rs": {
+      "file_path": "crates/esrc-cqrs/examples/cafe/error.rs",
+      "hash": "f8e14ede733993a3b53c0369123394e6cc3c31c88128e333eb7b99823a864f29",
+      "mtime": 1774080596192716,
+      "public_types": [
+        "TabError"
+      ],
+      "summary": "Defines the cafe example’s tab-related domain error type used to represent invalid tab states and operations.",
+      "when_to_use": "Include when working with the cafe example’s tab lifecycle, payment, or service-flow logic that needs to return or match on tab errors."
+    },
+    "crates/esrc-cqrs/examples/cafe/main.rs": {
+      "file_path": "crates/esrc-cqrs/examples/cafe/main.rs",
+      "hash": "3b7929b8d97aac556c04b73c3dd43aaec82071b9d24a507aa3758f518abaa129",
+      "mtime": 1774080596192716,
+      "public_functions": [
+        "main"
+      ],
+      "public_types": [],
+      "summary": "Executable cafe example showing how to wire up esrc-cqrs with NATS/JetStream, including command dispatching, query handling, and a durable projector for an order aggregate.",
+      "when_to_use": "Include this file when you need an end-to-end usage example of the CQRS setup, dispatcher wiring, projector execution, and NATS subject naming for the cafe domain."
+    },
+    "crates/esrc-cqrs/examples/cafe/projector.rs": {
+      "file_path": "crates/esrc-cqrs/examples/cafe/projector.rs",
+      "hash": "676a96b411eee6cd1b44851c4a1ba0912c58a502eedfd5c9cd3f1110cf21ff48",
+      "mtime": 1774080596192716,
+      "public_functions": [],
+      "public_types": [
+        "OrderProjector"
+      ],
+      "summary": "Defines an OrderProjector that handles OrderEvent values and prints order activity to stdout.",
+      "when_to_use": "Include this file when you need the example CQRS projector implementation for cafe order events, especially to understand how OrderEvent is projected or logged."
+    },
+    "crates/esrc-cqrs/examples/cafe/tab.rs": {
+      "file_path": "crates/esrc-cqrs/examples/cafe/tab.rs",
+      "hash": "2ec3469835bea7cc86e2a29efd752cae22a7dff44a667330a3325e98ef5bce90",
+      "mtime": 1774080878749158,
+      "public_functions": [],
+      "public_types": [
+        "Item",
+        "TabCommand",
+        "TabEvent",
+        "Tab"
+      ],
+      "summary": "Defines a café tab CQRS example aggregate with commands, events, and state transitions for opening a tab, ordering items, marking items served, and closing the tab.",
+      "when_to_use": "Use this file when you need the tab domain example for understanding or testing aggregate command/event handling, state evolution, or the cafe example workflow."
+    },
+    "crates/esrc-cqrs/examples/cafe/tab/tests.rs": {
+      "file_path": "crates/esrc-cqrs/examples/cafe/tab/tests.rs",
+      "hash": "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262",
+      "mtime": 1774080596192716,
+      "public_functions": [],
+      "public_types": [],
+      "summary": "Empty test file for the cafe tab example in the esrc-cqrs crate.",
+      "when_to_use": "Include when working on or adding tests for the cafe tab example; currently contains no test logic."
+    },
+    "crates/esrc-cqrs/examples/cafe/table.rs": {
+      "file_path": "crates/esrc-cqrs/examples/cafe/table.rs",
+      "hash": "6f918ff57f023ffc6545b4393ae8e1375d60c9f0c323f80b1508be90b249cd32",
+      "mtime": 1774080596192716,
+      "public_functions": [
+        "ActiveTables::new",
+        "ActiveTables::is_active",
+        "ActiveTables::get_table_numbers",
+        "ActiveTables::project"
+      ],
+      "public_types": [
+        "ActiveTables"
+      ],
+      "summary": "Defines the ActiveTables projection for the cafe example, tracking open table numbers by event ID in an async shared map.",
+      "when_to_use": "Use this file when you need the cafe example’s table projection logic, the ActiveTables state holder, or the Project implementation that reacts to TabEvent opened/closed events."
     },
     "crates/esrc-cqrs/src/command.rs": {
       "file_path": "crates/esrc-cqrs/src/command.rs",
       "hash": "eb73d065398f9c0902f8e4d1231e953c58572b8e56108402570dfe524e7c0d9d",
-      "mtime": 1773961994295783,
+      "mtime": 1774080596192716,
       "public_functions": [],
       "public_types": [
         "CommandHandler"
@@ -39,7 +180,7 @@
     "crates/esrc-cqrs/src/error.rs": {
       "file_path": "crates/esrc-cqrs/src/error.rs",
       "hash": "6c86a7ee2f2e14ade8c1ed6922d1d9708cb628501551be85e27119bca713c437",
-      "mtime": 1774042888267990,
+      "mtime": 1774080596193612,
       "public_functions": [
         "from_esrc_error"
       ],
@@ -52,7 +193,7 @@
     "crates/esrc-cqrs/src/lib.rs": {
       "file_path": "crates/esrc-cqrs/src/lib.rs",
       "hash": "3c79a3791638d1a630f087efe482082d71983590667dd34427582aed5f0b2e1b",
-      "mtime": 1774046290529292,
+      "mtime": 1774080596193612,
       "public_functions": [],
       "public_types": [
         "CommandHandler",
@@ -67,7 +208,7 @@
     "crates/esrc-cqrs/src/nats/aggregate_command_handler.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/aggregate_command_handler.rs",
       "hash": "586c848d172a9524b0ea33ac59bf88d49c8e3def8467b969aebcd1791bbb8aed",
-      "mtime": 1774042634672365,
+      "mtime": 1774080596193612,
       "public_functions": [
         "AggregateCommandHandler::new",
         "CommandHandler<NatsStore>::name",
@@ -115,7 +256,7 @@
     "crates/esrc-cqrs/src/nats/command_dispatcher.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/command_dispatcher.rs",
       "hash": "560a8dae308ae943a1604f7dd5ac21a792c9975a430e16aac4bfb9abace74408",
-      "mtime": 1774041581625754,
+      "mtime": 1774080596194050,
       "public_functions": [
         "NatsCommandDispatcher::new",
         "NatsCommandDispatcher::run",
@@ -130,7 +271,7 @@
     "crates/esrc-cqrs/src/nats/durable_projector_handler.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/durable_projector_handler.rs",
       "hash": "00b101f33e8b64904443ec499699d28cb95b445ca4effd00b6aaaa060707dda4",
-      "mtime": 1774075700356214,
+      "mtime": 1774080596194050,
       "public_functions": [
         "new(durable_name: &'static str, projector: P) -> Self",
         "name(&self) -> &'static str",
@@ -145,7 +286,7 @@
     "crates/esrc-cqrs/src/nats/live_view_query.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/live_view_query.rs",
       "hash": "0ad64920a8398d9540323f01923fb09573240c4ac9624a18acd02d879baf27c2",
-      "mtime": 1774073893689088,
+      "mtime": 1774080596194050,
       "public_functions": [
         "LiveViewQuery::new(handler_name: &'static str, projection: fn(&V) -> R) -> Self",
         "QueryHandler<NatsStore>::name(&self) -> &'static str",
@@ -160,7 +301,7 @@
     "crates/esrc-cqrs/src/nats/memory_view_query.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/memory_view_query.rs",
       "hash": "3afb8daba93a21ed3b5c2994fd9aa079646bacc4b1cd5a10d81510127f9accba",
-      "mtime": 1774058578993864,
+      "mtime": 1774080596194050,
       "public_functions": [
         "MemoryView::new",
         "MemoryViewQuery::new"
@@ -175,7 +316,7 @@
     "crates/esrc-cqrs/src/nats/mod.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/mod.rs",
       "hash": "f580081a12380c9a8e12dc881a24726d269a34c9f3f6f04c8c0549f7c5fd1fb5",
-      "mtime": 1774075735143046,
+      "mtime": 1774274192541667,
       "public_functions": [],
       "public_types": [
         "AggregateCommandHandler",
@@ -197,7 +338,7 @@
     "crates/esrc-cqrs/src/nats/projector_runner.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/projector_runner.rs",
       "hash": "19ee8a4a914a9e5a186fecf1f3e9456e4a4acb7045c020362d4f97e06b399b90",
-      "mtime": 1773961994295846,
+      "mtime": 1774080596194050,
       "public_functions": [
         "new(handler: H) -> Self",
         "run(&self, store: &NatsStore) -> error::Result<()>"
@@ -211,7 +352,7 @@
     "crates/esrc-cqrs/src/nats/query_dispatcher.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/query_dispatcher.rs",
       "hash": "dd3b661164d533b0a5210b84ab53f8a6617bd96b0ca125e65682691f901739a7",
-      "mtime": 1774057152197652,
+      "mtime": 1774080596194050,
       "public_functions": [
         "query_subject"
       ],
@@ -226,7 +367,7 @@
     "crates/esrc-cqrs/src/projector.rs": {
       "file_path": "crates/esrc-cqrs/src/projector.rs",
       "hash": "866fa3c40736f3d778c8ef0ca391e67755105c613ac4396de6fe538697cffd49",
-      "mtime": 1773961994295846,
+      "mtime": 1774080596194050,
       "public_functions": [],
       "public_types": [
         "ProjectorHandler"
@@ -237,7 +378,7 @@
     "crates/esrc-cqrs/src/query.rs": {
       "file_path": "crates/esrc-cqrs/src/query.rs",
       "hash": "eefabd5dbad7df339d50e5d900c72dcafd6d923193bdecb15d12f713475bf957",
-      "mtime": 1774046290529292,
+      "mtime": 1774080596194064,
       "public_functions": [],
       "public_types": [
         "QueryHandler"
@@ -248,7 +389,7 @@
     "crates/esrc-cqrs/src/registry.rs": {
       "file_path": "crates/esrc-cqrs/src/registry.rs",
       "hash": "651bda8deb90ee081810c0ca59f18054f53bb41068bd11c79ca60387c5f7e383",
-      "mtime": 1774046290529292,
+      "mtime": 1774080596194064,
       "public_functions": [
         "CqrsRegistry::new",
         "CqrsRegistry::register_command",
@@ -272,7 +413,7 @@
     "crates/esrc-cqrs/tests/integration_nats.rs": {
       "file_path": "crates/esrc-cqrs/tests/integration_nats.rs",
       "hash": "b1c3d7b644554b569a4c16cfdc8aad415c4aff50eb5b9ae49dc0d3e67273a092",
-      "mtime": 1774073944913973,
+      "mtime": 1774080596194064,
       "public_functions": [
         "test_command_request_response_success",
         "test_command_error_does_not_break_dispatcher",
@@ -499,7 +640,7 @@
     "examples/cafe/domain.rs": {
       "file_path": "examples/cafe/domain.rs",
       "hash": "032641324ba340df869274a43d103fe267f860b881b7e64bbb58246d0aaa69fb",
-      "mtime": 1774073157346106,
+      "mtime": 1774080596194064,
       "public_functions": [
         "from_order",
         "process",
@@ -529,7 +670,7 @@
     "examples/cafe/main.rs": {
       "file_path": "examples/cafe/main.rs",
       "hash": "3b7929b8d97aac556c04b73c3dd43aaec82071b9d24a507aa3758f518abaa129",
-      "mtime": 1774076511060733,
+      "mtime": 1774080596194064,
       "public_functions": [
         "main"
       ],
@@ -539,7 +680,7 @@
     "examples/cafe/projector.rs": {
       "file_path": "examples/cafe/projector.rs",
       "hash": "676a96b411eee6cd1b44851c4a1ba0912c58a502eedfd5c9cd3f1110cf21ff48",
-      "mtime": 1774019033202113,
+      "mtime": 1774080596195064,
       "public_functions": [],
       "public_types": [
         "OrderProjector"
@@ -655,7 +796,7 @@
     "src/event.rs": {
       "file_path": "src/event.rs",
       "hash": "fef5ec0c6ad243f14ad9f60c5576646ff3829878ce67d1e0db9d4ddd0025fa8a",
-      "mtime": 1773949851959898,
+      "mtime": 1774080596195064,
       "public_functions": [
         "Sequence::new"
       ],
@@ -816,7 +957,7 @@
     "src/lib.rs": {
       "file_path": "src/lib.rs",
       "hash": "ed6a727ce5a658c4421b2a4a04250bedf87342ed4a285c11302a9ecc4cdd4f1f",
-      "mtime": 1774057464933181,
+      "mtime": 1774080596195064,
       "public_functions": [],
       "public_types": [
         "Aggregate",
@@ -831,7 +972,7 @@
     "src/nats.rs": {
       "file_path": "src/nats.rs",
       "hash": "e9e6adf82851f9780fe1efe9608904c711e1f4a5ee4ae46090f5c388b7f5bd4b",
-      "mtime": 1773950098873578,
+      "mtime": 1774080596195064,
       "public_functions": [
         "NatsStore::try_new",
         "NatsStore::enable_mirror",
@@ -873,7 +1014,7 @@
     "src/nats/event.rs": {
       "file_path": "src/nats/event.rs",
       "hash": "2fb4e07d92e0504febb6e394d0f363554d2e1ed09bd1d6a0679e0a883240640e",
-      "mtime": 1774043918833173,
+      "mtime": 1774080596195064,
       "public_functions": [
         "NatsStore::durable_observe",
         "Replay::replay",
@@ -951,7 +1092,7 @@
     "src/view.rs": {
       "file_path": "src/view.rs",
       "hash": "888de2065fcd3d926b5a726762f2be750b7d3bdc7cc17367fe82da312b247b4b",
-      "mtime": 1774057464933181,
+      "mtime": 1774080498980677,
       "public_functions": [],
       "public_types": [
         "View"

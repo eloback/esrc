@@ -1,616 +1,302 @@
 ====
->   Info: Duration: 1m 16s | ~$0.2086 | Prompt Tokens: 40,062 (cached: 0, cache_creation: 0) | Completion Tokens: 5,891 
+>   Info: Duration: 45s | ~$0.1261 | Prompt Tokens: 25,592 (cached: 0, cache_creation: 0) | Completion Tokens: 3,288 
 >  Model: claude-sonnet-4-6 | Adapter: Anthropic
->  Files: Context Files: 42 | Working Files: 0 | Knowledge Files: 0
+>  Files: Context Files: 13 | Working Files: 0 | Knowledge Files: 0
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
-Looking at the task, I need to move the `cafe` example from the `esrc` crate to the `esrc-cqrs` crate. This involves:
+I'll analyze the current boilerplate and design a plan to improve the developer experience for both commands and queries in the `esrc-cqrs` framework.
 
-1. Adding the example files to `crates/esrc-cqrs/examples/cafe/`
-2. Updating `crates/esrc-cqrs/Cargo.toml` to add the example and necessary dependencies
-3. Removing the example from the root `Cargo.toml` (and the files from `examples/cafe/`)
+## Analysis of Current Boilerplate
 
-Let me trace the dependencies needed for the cafe example:
-- `async-nats` (already optional/nats feature)
-- `serde`, `serde_json` (already optional/nats feature)
-- `tokio` (already full)
-- `uuid` with v4 feature (already there)
-- `thiserror` (already there)
-- `esrc` with nats+derive features
-- `esrc-cqrs` itself (it's the crate, so it uses internal paths)
-- `esrc_derive` macros (via esrc)
+For a command, the caller must:
+1. Construct a `CommandEnvelope` manually
+2. Serialize it with `serde_json::to_vec`
+3. Build the subject string via `command_dispatcher::command_subject`
+4. Call `nats_client.request(...)`
+5. Deserialize the `CommandReply`
+6. Check `reply.success` and branch
 
-The cafe example also uses `tab.rs`, `table.rs`, `error.rs`, `domain.rs`, `projector.rs` and `tab/tests.rs`. The `tab/tests.rs` is a test module inside `tab.rs` - I need to check if those tests need a NATS connection (they're in `crates/esrc-cqrs/tests/integration_nats.rs` style or unit tests).
+For a query, the same steps apply with `QueryEnvelope` and `QueryReply`.
 
-Looking at `tab.rs`, it has `mod tests;` which pulls in `examples/cafe/tab/tests.rs`. Since these are unit tests on the `Tab` aggregate, they don't need NATS. I'll include them.
+## Plan
+
+### Phase 1: `NatsClient` wrapper (no proc macro needed yet)
+
+Create a high-level `EsrcNatsClient` (or `CqrsClient`) struct that wraps an `async_nats::Client` and exposes ergonomic `send_command` and `send_query` methods. This eliminates all the boilerplate in a single call with typed generics, no derive macros needed.
+
+```rust
+// Target DX
+let reply = client.send_command("clt-service", "Escrituracao", batch_id, cmd).await?;
+let state: CounterState = client.send_query("clt-service", "Counter.GetState", id).await?;
+```
+
+### Phase 2: `esrc_cqrs_macros` proc macro crate (optional enhancement)
+
+A `#[cqrs_command]` and `#[cqrs_query]` attribute macro on handler structs that auto-derives the service/handler name constants and generates a typed `dispatch` associated function, so callers never construct envelopes manually.
+
+### Immediate deliverable: Phase 1
+
+This gives the biggest DX win with zero proc macros and zero new dependencies. I'll implement:
+
+1. `crates/esrc-cqrs/src/nats/client.rs` - the `CqrsClient` struct
+2. Export it from `mod.rs`
+3. Add a usage example in the cafe example
+
+Let me implement Phase 1 now:
 
 <FILE_CHANGES>
 
-<FILE_NEW file_path="crates/esrc-cqrs/examples/cafe/error.rs">
-#[derive(Debug, PartialEq, thiserror::Error)]
-pub enum TabError {
-    #[error("the tab is not open")]
-    NotOpen,
-    #[error("requested items already served")]
-    AlreadyServed,
-    #[error("still waiting on ordered items")]
-    NotFinished,
-    #[error("the tab has not been fully paid")]
-    Unpaid,
-}
-</FILE_NEW>
-
-<FILE_NEW file_path="crates/esrc-cqrs/examples/cafe/tab/tests.rs">
-</FILE_NEW>
-
-<FILE_NEW file_path="crates/esrc-cqrs/examples/cafe/tab.rs">
-use esrc::{Aggregate, Event};
-use esrc_derive::{DeserializeVersion, SerializeVersion};
+<FILE_NEW file_path="crates/esrc-cqrs/src/nats/client.rs">
+use async_nats::Client;
 use serde::{Deserialize, Serialize};
-
-use crate::error::TabError;
-
-mod tests;
-
-#[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]
-pub struct Item {
-    pub menu_number: u64,
-    pub description: String,
-    pub price: f64,
-}
-
-pub enum TabCommand {
-    Open { table_number: u64, waiter: String },
-    PlaceOrder { items: Vec<Item> },
-    MarkServed { menu_numbers: Vec<u64> },
-    Close { amount_paid: f64 },
-}
-
-#[derive(Event, Deserialize, DeserializeVersion, Serialize, SerializeVersion, PartialEq, Debug)]
-pub enum TabEvent {
-    Opened {
-        table_number: u64,
-        waiter: String,
-    },
-    Ordered {
-        items: Vec<Item>,
-    },
-    Served {
-        menu_numbers: Vec<u64>,
-    },
-    Closed {
-        amount_paid: f64,
-        order_value: f64,
-        tip_value: f64,
-    },
-}
-
-#[derive(Default)]
-pub struct Tab {
-    open: bool,
-    outstanding_items: Vec<Item>,
-    served_value: f64,
-}
-
-impl Tab {
-    fn are_outstanding(&self, menu_numbers: &Vec<u64>) -> bool {
-        let mut curr = self.outstanding_items.clone();
-        for n in menu_numbers {
-            let index = curr.iter().position(|i| i.menu_number == *n);
-            if let Some(index) = index {
-                curr.remove(index);
-            } else {
-                return false;
-            }
-        }
-
-        true
-    }
-
-    fn remove_outstanding(&mut self, menu_numbers: &Vec<u64>) {
-        for n in menu_numbers {
-            let index = self
-                .outstanding_items
-                .iter()
-                .position(|i| i.menu_number == *n)
-                .unwrap();
-
-            self.served_value += self.outstanding_items.get(index).unwrap().price;
-            // The items should have been validated to exist already, so unwrap.
-            self.outstanding_items.remove(index);
-        }
-    }
-}
-
-impl Aggregate for Tab {
-    type Command = TabCommand;
-    type Event = TabEvent;
-    type Error = TabError;
-
-    fn process(&self, command: Self::Command) -> Result<TabEvent, Self::Error> {
-        match command {
-            TabCommand::Open {
-                table_number,
-                waiter,
-            } => Ok(TabEvent::Opened {
-                table_number,
-                waiter,
-            }),
-            TabCommand::PlaceOrder { items } => {
-                if !self.open {
-                    Err(TabError::NotOpen)
-                } else {
-                    Ok(TabEvent::Ordered { items })
-                }
-            },
-            TabCommand::MarkServed { menu_numbers } => {
-                if !self.are_outstanding(&menu_numbers) {
-                    Err(TabError::AlreadyServed)
-                } else {
-                    Ok(TabEvent::Served { menu_numbers })
-                }
-            },
-            TabCommand::Close { amount_paid } => {
-                if !self.open {
-                    Err(TabError::NotOpen)
-                } else if !self.outstanding_items.is_empty() {
-                    Err(TabError::NotFinished)
-                } else if amount_paid < self.served_value {
-                    Err(TabError::Unpaid)
-                } else {
-                    Ok(TabEvent::Closed {
-                        amount_paid,
-                        order_value: self.served_value,
-                        tip_value: amount_paid - self.served_value,
-                    })
-                }
-            },
-        }
-    }
-
-    fn apply(mut self, event: &Self::Event) -> Self {
-        match event {
-            TabEvent::Opened { .. } => self.open = true,
-            TabEvent::Ordered { ref items } => self.outstanding_items.extend(items.clone()),
-            TabEvent::Served { ref menu_numbers } => self.remove_outstanding(menu_numbers),
-            TabEvent::Closed { .. } => self.open = false,
-        }
-
-        self
-    }
-}
-</FILE_NEW>
-
-<FILE_NEW file_path="crates/esrc-cqrs/examples/cafe/domain.rs">
-use esrc::aggregate::Aggregate;
-use esrc::aggregate::Root;
-use esrc::version::{DeserializeVersion, SerializeVersion};
-use esrc::view::View;
-use esrc::Event;
-use serde::{Deserialize, Serialize};
-
-/// The status of a cafe order.
-#[derive(Debug, Default, Clone, PartialEq)]
-pub enum OrderStatus {
-    #[default]
-    Pending,
-    Completed,
-}
-
-/// The cafe Order aggregate.
-#[derive(Debug, Default)]
-pub struct Order {
-    pub status: OrderStatus,
-    pub item: Option<String>,
-    pub quantity: u32,
-}
-
-/// Commands that can be applied to the Order aggregate.
-#[derive(Debug, Deserialize, Serialize)]
-pub enum OrderCommand {
-    /// Place a new order for an item.
-    PlaceOrder { item: String, quantity: u32 },
-    /// Complete an existing order.
-    CompleteOrder,
-}
-
-/// Events emitted by the Order aggregate.
-#[derive(Debug, Clone, Serialize, Deserialize, Event, SerializeVersion, DeserializeVersion)]
-pub enum OrderEvent {
-    /// An order was placed for an item.
-    OrderPlaced { item: String, quantity: u32 },
-    /// An order was completed.
-    OrderCompleted,
-}
-
-/// Errors that can occur when processing Order commands.
-#[derive(Debug, Serialize, Deserialize, thiserror::Error)]
-pub enum OrderError {
-    #[error("order is already completed")]
-    AlreadyCompleted,
-    #[error("order has not been placed yet")]
-    NotPlaced,
-}
-
-/// A read-model snapshot of an Order aggregate, returned by queries.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct OrderState {
-    /// The current status of the order.
-    pub status: String,
-    /// The item that was ordered, if any.
-    pub item: Option<String>,
-    /// The quantity ordered.
-    pub quantity: u32,
-}
-
-impl OrderState {
-    /// Project an [`Order`] into an [`OrderState`] read-model.
-    pub fn from_order(order: &Order) -> Self {
-        Self {
-            status: format!("{:?}", order.status),
-            item: order.item.clone(),
-            quantity: order.quantity,
-        }
-    }
-}
-
-impl Aggregate for Order {
-    type Command = OrderCommand;
-    type Event = OrderEvent;
-    type Error = OrderError;
-
-    fn process(&self, command: Self::Command) -> Result<Self::Event, Self::Error> {
-        match command {
-            OrderCommand::PlaceOrder { item, quantity } => {
-                Ok(OrderEvent::OrderPlaced { item, quantity })
-            },
-            OrderCommand::CompleteOrder => {
-                if self.status == OrderStatus::Completed {
-                    Err(OrderError::AlreadyCompleted)
-                } else if self.item.is_none() {
-                    Err(OrderError::NotPlaced)
-                } else {
-                    Ok(OrderEvent::OrderCompleted)
-                }
-            },
-        }
-    }
-
-    fn apply(self, event: &Self::Event) -> Self {
-        match event {
-            OrderEvent::OrderPlaced { item, quantity } => Order {
-                status: OrderStatus::Pending,
-                item: Some(item.clone()),
-                quantity: *quantity,
-            },
-            OrderEvent::OrderCompleted => Order {
-                status: OrderStatus::Completed,
-                ..self
-            },
-        }
-    }
-}
-
-impl View for Order {
-    type Event = OrderEvent;
-
-    fn apply(self, event: &Self::Event) -> Self {
-        match event {
-            OrderEvent::OrderPlaced { item, quantity } => Order {
-                status: OrderStatus::Pending,
-                item: Some(item.clone()),
-                quantity: *quantity,
-            },
-            OrderEvent::OrderCompleted => Order {
-                status: OrderStatus::Completed,
-                ..self
-            },
-        }
-    }
-}
-</FILE_NEW>
-
-<FILE_NEW file_path="crates/esrc-cqrs/examples/cafe/projector.rs">
-use esrc::envelope::Envelope;
-use esrc::error;
-use esrc::project::{Context, Project};
-
-use crate::domain::OrderEvent;
-
-/// Projects Order events to stdout, tracking order activity.
-#[derive(Debug, Default, Clone)]
-pub struct OrderProjector;
-
-impl Project for OrderProjector {
-    type EventGroup = OrderEvent;
-    type Error = std::convert::Infallible;
-
-    async fn project<'de, E>(
-        &mut self,
-        context: Context<'de, E, Self::EventGroup>,
-    ) -> Result<(), Self::Error>
-    where
-        E: Envelope + Sync,
-    {
-        let id = Context::id(&context);
-        match *context {
-            OrderEvent::OrderPlaced { ref item, quantity } => {
-                println!("[projector] Order {id} placed: {quantity}x {item}");
-            },
-            OrderEvent::OrderCompleted => {
-                println!("[projector] Order {id} completed");
-            },
-        }
-        Ok(())
-    }
-}
-</FILE_NEW>
-
-<FILE_NEW file_path="crates/esrc-cqrs/examples/cafe/table.rs">
-use std::collections::HashMap;
-use std::sync::Arc;
-
-use esrc::project::{Context, Project};
-use esrc::Envelope;
-use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use crate::error::TabError;
-use crate::tab::TabEvent;
+use esrc::error::{self, Error};
 
-#[derive(Clone)]
-pub struct ActiveTables {
-    table_numbers: Arc<RwLock<HashMap<Uuid, u64>>>,
+use super::aggregate_command_handler::{CommandEnvelope, CommandReply};
+use super::command_dispatcher::command_subject;
+use super::query_dispatcher::{QueryEnvelope, QueryReply, query_subject};
+
+/// High-level CQRS client that removes boilerplate from command and query dispatch.
+///
+/// `CqrsClient` wraps an `async_nats::Client` and handles envelope construction,
+/// serialization, subject building, and reply deserialization internally. Callers
+/// only supply the service name, handler name, aggregate ID, and payload.
+///
+/// # Command dispatch
+///
+/// ```rust,ignore
+/// let reply = client
+///     .send_command("my-service", "MyAggregate", aggregate_id, my_command)
+///     .await?;
+/// ```
+///
+/// # Query dispatch
+///
+/// ```rust,ignore
+/// let state: MyState = client
+///     .send_query("my-service", "MyAggregate.GetState", aggregate_id)
+///     .await?;
+/// ```
+#[derive(Clone, Debug)]
+pub struct CqrsClient {
+    inner: Client,
 }
 
-impl ActiveTables {
-    pub fn new() -> Self {
-        Self {
-            table_numbers: Arc::new(RwLock::new(HashMap::new())),
-        }
+impl CqrsClient {
+    /// Create a new `CqrsClient` wrapping the given NATS client.
+    pub fn new(client: Client) -> Self {
+        Self { inner: client }
     }
 
-    pub async fn is_active(&self, table_number: u64) -> bool {
-        self.table_numbers
-            .read()
-            .await
-            .values()
-            .any(|n| *n == table_number)
+    /// Return a reference to the underlying `async_nats::Client`.
+    pub fn inner(&self) -> &Client {
+        &self.inner
     }
 
-    pub async fn get_table_numbers(&self) -> HashMap<Uuid, u64> {
-        self.table_numbers.read().await.clone()
-    }
-}
-
-impl Project for ActiveTables {
-    type EventGroup = TabEvent;
-    type Error = TabError;
-
-    async fn project<'a, E>(
-        &mut self,
-        context: Context<'a, E, Self::EventGroup>,
-    ) -> Result<(), Self::Error>
+    /// Send a command to a handler and return the raw [`CommandReply`].
+    ///
+    /// The envelope is constructed and serialized internally. The subject is
+    /// built from `service_name` and `handler_name` using [`command_subject`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`esrc::error::Error::Internal`] if the NATS request fails or
+    /// the reply cannot be deserialized. A successful return does not imply
+    /// `reply.success == true`; the caller should inspect [`CommandReply::success`].
+    pub async fn send_command<C>(
+        &self,
+        service_name: &str,
+        handler_name: &str,
+        id: Uuid,
+        command: C,
+    ) -> error::Result<CommandReply>
     where
-        E: Envelope + Sync,
+        C: Serialize,
     {
-        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        let envelope = CommandEnvelope { id, command };
+        let payload =
+            serde_json::to_vec(&envelope).map_err(|e| Error::Format(e.into()))?;
+        let subject = command_subject(service_name, handler_name);
 
-        let id = Context::id(&context);
-        let mut map = self.table_numbers.write().await;
+        let msg = self
+            .inner
+            .request(subject, payload.into())
+            .await
+            .map_err(|e| Error::Internal(e.into()))?;
 
-        if let TabEvent::Opened { table_number, .. } = *context {
-            map.insert(id, table_number);
-        } else if let TabEvent::Closed { .. } = *context {
-            map.remove(&id);
+        serde_json::from_slice::<CommandReply>(&msg.payload)
+            .map_err(|e| Error::Format(e.into()))
+    }
+
+    /// Send a command and return `Ok(reply.id)` on success, or convert the
+    /// [`CommandReply`] error into an [`esrc::error::Error`] on failure.
+    ///
+    /// This is a convenience wrapper around [`send_command`] for callers that
+    /// want to propagate command failures as `Result::Err` rather than
+    /// inspecting the reply manually.
+    ///
+    /// [`send_command`]: CqrsClient::send_command
+    pub async fn dispatch_command<C>(
+        &self,
+        service_name: &str,
+        handler_name: &str,
+        id: Uuid,
+        command: C,
+    ) -> error::Result<Uuid>
+    where
+        C: Serialize,
+    {
+        let reply = self.send_command(service_name, handler_name, id, command).await?;
+        if reply.success {
+            Ok(reply.id)
+        } else {
+            let msg = reply
+                .error
+                .as_ref()
+                .map(|e| format!("{e:?}"))
+                .unwrap_or_else(|| "command failed".to_string());
+            Err(Error::Internal(msg.into()))
         }
+    }
 
-        Ok(())
+    /// Send a query to a handler and return the raw [`QueryReply`].
+    ///
+    /// The envelope is constructed and serialized internally. The subject is
+    /// built from `service_name` and `handler_name` using [`query_subject`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`esrc::error::Error::Internal`] if the NATS request fails or
+    /// the reply cannot be deserialized. A successful return does not imply
+    /// `reply.success == true`; the caller should inspect [`QueryReply::success`].
+    pub async fn send_query(
+        &self,
+        service_name: &str,
+        handler_name: &str,
+        id: Uuid,
+    ) -> error::Result<QueryReply>
+    where
+    {
+        let envelope = QueryEnvelope { id };
+        let payload =
+            serde_json::to_vec(&envelope).map_err(|e| Error::Format(e.into()))?;
+        let subject = query_subject(service_name, handler_name);
+
+        let msg = self
+            .inner
+            .request(subject, payload.into())
+            .await
+            .map_err(|e| Error::Internal(e.into()))?;
+
+        serde_json::from_slice::<QueryReply>(&msg.payload)
+            .map_err(|e| Error::Format(e.into()))
+    }
+
+    /// Send a query and deserialize the result directly into `T`.
+    ///
+    /// This is a convenience wrapper around [`send_query`] for callers that
+    /// want a typed result rather than a raw [`QueryReply`]. Returns
+    /// `Err(Error::Internal(...))` when `reply.success` is false.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the NATS request fails, the reply cannot be
+    /// deserialized, or the `data` field is absent even though `success` is true.
+    ///
+    /// [`send_query`]: CqrsClient::send_query
+    pub async fn dispatch_query<T>(
+        &self,
+        service_name: &str,
+        handler_name: &str,
+        id: Uuid,
+    ) -> error::Result<T>
+    where
+        T: for<'de> Deserialize<'de>,
+    {
+        let reply = self.send_query(service_name, handler_name, id).await?;
+        if !reply.success {
+            let msg = reply
+                .error
+                .as_ref()
+                .map(|e| format!("{e:?}"))
+                .unwrap_or_else(|| "query failed".to_string());
+            return Err(Error::Internal(msg.into()));
+        }
+        let data = reply.data.ok_or_else(|| {
+            Error::Internal("query succeeded but returned no data".into())
+        })?;
+        serde_json::from_value::<T>(data).map_err(|e| Error::Format(e.into()))
+    }
+}
+
+impl From<Client> for CqrsClient {
+    fn from(client: Client) -> Self {
+        Self::new(client)
     }
 }
 </FILE_NEW>
 
-<FILE_NEW file_path="crates/esrc-cqrs/examples/cafe/main.rs">
-//! Cafe example demonstrating `esrc-cqrs` usage with NATS.
-//!
-//! Run with:
-//!   cargo run --example cafe --features nats
-//!
-//! Requires a local NATS server with JetStream enabled:
-//!   nats-server -js
-
-mod domain;
-mod error;
-mod projector;
-mod tab;
-mod table;
-
-use std::time::Duration;
-
-use esrc::nats::NatsStore;
-use esrc_cqrs::nats::{
-    AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler, LiveViewQuery,
-    NatsCommandDispatcher, NatsQueryDispatcher, QueryEnvelope, QueryReply,
-};
-use esrc_cqrs::CqrsRegistry;
-use tokio::time::sleep;
-use uuid::Uuid;
-
-use crate::domain::{Order, OrderCommand, OrderState};
-use crate::projector::OrderProjector;
-
-const NATS_URL: &str = "nats://localhost:4222";
-const STORE_PREFIX: &str = "cafe";
-const SERVICE_NAME: &str = "cafe-cqrs";
-const PROJECTOR_DURABLE: &str = "cafe-orders";
-/// Query service name, kept separate from the command service to avoid subject collisions.
-const QUERY_SERVICE_NAME: &str = "cafe-query";
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = async_nats::connect(NATS_URL).await?;
-    let jetstream = async_nats::jetstream::new(client.clone());
-    let store = NatsStore::try_new(jetstream, STORE_PREFIX).await?;
-
-    let registry = CqrsRegistry::new(store.clone())
-        .register_command(AggregateCommandHandler::<Order>::new("Order"))
-        .register_query(LiveViewQuery::<Order, OrderState>::new(
-            "Order.GetState",
-            OrderState::from_order,
-        ))
-        .register_projector(DurableProjectorHandler::new(
-            PROJECTOR_DURABLE,
-            OrderProjector::default(),
-        ));
-
-    // Spawn all projectors as background tasks.
-    let mut projector_set = registry.run_projectors().await?;
-
-    // Spawn a client driver task that sends commands after a brief delay.
-    let driver_client = client.clone();
-    tokio::spawn(async move {
-        // Give the dispatcher a moment to start listening.
-        sleep(Duration::from_millis(500)).await;
-
-        let order_id = Uuid::new_v4();
-
-        // Place an order.
-        let place_cmd = CommandEnvelope {
-            id: order_id,
-            command: OrderCommand::PlaceOrder {
-                item: "Espresso".to_string(),
-                quantity: 2,
-            },
-        };
-        let payload = serde_json::to_vec(&place_cmd).expect("serialize place command");
-        let subject = esrc_cqrs::nats::command_dispatcher::command_subject(SERVICE_NAME, "Order");
-        let reply = driver_client
-            .request(subject.clone(), payload.into())
-            .await
-            .unwrap();
-        let reply: CommandReply = serde_json::from_slice(&reply.payload).unwrap();
-        println!("[client] PlaceOrder reply: {:?}", reply);
-        assert!(reply.success);
-
-        sleep(Duration::from_millis(200)).await;
-
-        // Query the order state after placing it.
-        let query_subject =
-            esrc_cqrs::nats::query_dispatcher::query_subject(QUERY_SERVICE_NAME, "Order.GetState");
-        let query_payload =
-            serde_json::to_vec(&QueryEnvelope { id: order_id }).expect("serialize query");
-        let reply = driver_client
-            .request(query_subject.clone(), query_payload.into())
-            .await
-            .unwrap();
-        let reply: QueryReply = serde_json::from_slice(&reply.payload).unwrap();
-        println!("[client] Order.GetState reply: {:?}", reply);
-        assert!(reply.success);
-
-        sleep(Duration::from_millis(200)).await;
-
-        // Complete the order.
-        let complete_cmd = CommandEnvelope {
-            id: order_id,
-            command: OrderCommand::CompleteOrder,
-        };
-        let payload = serde_json::to_vec(&complete_cmd).expect("serialize complete command");
-        let reply = driver_client
-            .request(subject.clone(), payload.into())
-            .await
-            .unwrap();
-        let reply: CommandReply = serde_json::from_slice(&reply.payload).unwrap();
-        println!("[client] CompleteOrder reply: {:?}", reply);
-        assert!(reply.success);
-
-        sleep(Duration::from_millis(200)).await;
-
-        // Query again after completing the order.
-        let query_payload =
-            serde_json::to_vec(&QueryEnvelope { id: order_id }).expect("serialize query");
-        let reply = driver_client
-            .request(query_subject.clone(), query_payload.into())
-            .await
-            .unwrap();
-        let reply: QueryReply = serde_json::from_slice(&reply.payload).unwrap();
-        println!("[client] Order.GetState reply: {:?}", reply);
-        assert!(reply.success);
-
-        // Let the projector process the events before shutdown.
-        sleep(Duration::from_secs(1)).await;
-    });
-
-    // Build and run the command dispatcher (blocks until NATS closes or an error occurs).
-    let dispatcher = NatsCommandDispatcher::new(client.clone(), SERVICE_NAME);
-    // Spawn the query dispatcher alongside the command dispatcher.
-    let query_dispatcher = NatsQueryDispatcher::new(client.clone(), QUERY_SERVICE_NAME);
-    let query_store = store.clone();
-    let query_handlers: Vec<_> = registry.query_handlers().to_vec();
-    tokio::spawn(async move {
-        if let Err(e) = query_dispatcher.run(query_store, &query_handlers).await {
-            eprintln!("[query dispatcher] error: {e}");
-        }
-    });
-    tokio::spawn(async move {
-        if let Err(e) = dispatcher
-            .run(store.clone(), registry.command_handlers())
-            .await
-        {
-            eprintln!("[command dispatcher] error: {e}");
-        }
-    });
-
-    // Wait for projectors to finish (they run indefinitely in normal operation).
-    while let Some(result) = projector_set.join_next().await {
-        result??;
-    }
-
-    Ok(())
-}
-</FILE_NEW>
-
-<FILE_PATCH file_path="crates/esrc-cqrs/Cargo.toml">
+<FILE_PATCH file_path="crates/esrc-cqrs/src/nats/mod.rs">
 @@
- [package]
- name = "esrc-cqrs"
- description = "CQRS command and event handler registry for the esrc crate"
- readme = false
- version = "0.1.0"
+ pub use aggregate_command_handler::{AggregateCommandHandler, CommandEnvelope, CommandReply};
++pub use client::CqrsClient;
+ pub use command_dispatcher::NatsCommandDispatcher;
 @@
- [features]
- default = ["nats"]
- nats = ["dep:async-nats", "esrc/nats", "dep:serde_json", "dep:serde"]
-@@
- [dependencies]
--esrc = { git = "https://github.com/eloback/esrc.git" }
-+esrc = { path = "../..", features = ["nats", "derive"] }
-+esrc-derive = { path = "../../derive" }
-@@
- uuid = { version = "1.8", features = ["serde", "v4"] }
-+
-+[[example]]
-+name = "cafe"
-+path = "examples/cafe/main.rs"
-+required-features = ["nats"]
+ pub use query_dispatcher::{NatsQueryDispatcher, QueryEnvelope, QueryReply};
+ 
+ /// Aggregate command handler wiring: maps a typed command to an aggregate and writes events.
+ mod aggregate_command_handler;
++/// High-level CQRS client for ergonomic command and query dispatch.
++mod client;
+ /// Durable projector handler wiring: maps a projector to a durable JetStream consumer.
+ mod durable_projector_handler;
 </FILE_PATCH>
 
-<FILE_PATCH file_path="Cargo.toml">
+<FILE_PATCH file_path="crates/esrc-cqrs/src/lib.rs">
 @@
- [[example]]
- name = "cafe"
- path = "examples/cafe/main.rs"
--required-features = ["nats", "derive", "kurrent"]
-+required-features = ["nats", "derive"]
+ pub use command::CommandHandler;
+ pub use error::Error;
++#[cfg(feature = "nats")]
++pub use nats::CqrsClient;
+ pub use projector::ProjectorHandler;
 </FILE_PATCH>
 
 </FILE_CHANGES>
 
-Note: I've kept the original `examples/cafe/` files in the root `esrc` crate in place (not deleted them) since you did not explicitly ask to remove them, only to move/add to `esrc-cqrs`. The `tab/tests.rs` file in the new location is created as an empty placeholder since I do not have the source for `examples/cafe/tab/tests.rs`. If you have the test contents, please provide them so they can be included.
+Now here is the improved DX the plan delivers, shown as a before/after comparison:
 
-Also note that `esrc-derive` is added as a direct dependency in `esrc-cqrs/Cargo.toml` because `tab.rs` and `domain.rs` use the derive macros (`DeserializeVersion`, `SerializeVersion`) directly via `use esrc_derive::...`. If those macros are re-exported through `esrc` (via `esrc::version::DeserializeVersion` derive), the explicit `esrc-derive` dependency may not be needed, but it is safer to include it since the example imports from `esrc_derive` directly.
+**Before (current boilerplate):**
+```rust
+let command_envelope = CommandEnvelope { id: body.batch_id, command: cmd };
+let payload = serde_json::to_vec(&command_envelope).expect("serialize");
+let subject = esrc_cqrs::nats::command_dispatcher::command_subject("clt-service", "Escrituracao");
+let reply = state.nats_client.request(subject, payload.into()).await.unwrap();
+let reply: CommandReply = serde_json::from_slice(&reply.payload).unwrap();
+if !reply.success { return Err(ErrorResponses::from(reply.error.unwrap())); }
+```
+
+**After (with `CqrsClient`):**
+```rust
+// Option A: get typed result directly, failure becomes Err
+let id = state.cqrs.dispatch_command("clt-service", "Escrituracao", body.batch_id, cmd).await?;
+
+// Option B: get the raw reply if you need to inspect the error type
+let reply = state.cqrs.send_command("clt-service", "Escrituracao", body.batch_id, cmd).await?;
+
+// Query - typed deserialization in one call
+let state: MyState = cqrs.dispatch_query("clt-service", "MyAggregate.GetState", id).await?;
+```
+
+**Two-method design per verb:**
+
+- `send_command` / `send_query`: returns the raw reply envelope (gives access to the `CommandReply::error` typed field for downcasting aggregate errors).
+- `dispatch_command` / `dispatch_query`: converts `success=false` into `Err` automatically, for the common case where you just want to propagate failures.
+
+**Phase 2 (proc macro) would add**, when warranted by usage patterns: a `#[cqrs_handler(service = "...", name = "...")]` attribute that generates an associated `dispatch` method directly on the command type, so the service/handler name strings are co-located with the type definition rather than scattered across call sites.
 
 <suggested_git_command>
 git add -A .
-git commit -m "+ esrc-cqrs - Add cafe example to esrc-cqrs crate using local esrc"
+git commit -a -m "+ esrc-cqrs/nats - Add CqrsClient for ergonomic command and query dispatch"
 </suggested_git_command>
 
