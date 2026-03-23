@@ -167,14 +167,14 @@
     },
     "crates/esrc-cqrs/src/command.rs": {
       "file_path": "crates/esrc-cqrs/src/command.rs",
-      "hash": "eb73d065398f9c0902f8e4d1231e953c58572b8e56108402570dfe524e7c0d9d",
-      "mtime": 1774080596192716,
-      "public_functions": [],
+      "hash": "313ec33f2af7ddb2dcfc8683fec782356b00fd2b05a2c804ab5c8b98326ad8ee",
+      "mtime": 1774303324435711,
       "public_types": [
-        "CommandHandler"
+        "CommandHandler",
+        "NatsServiceCommandHandler"
       ],
-      "summary": "Defines the CQRS command-handling trait used to route and process incoming command messages against an event store.",
-      "when_to_use": "Include this file when working with command dispatch, implementing new command handlers, or understanding how raw command payloads are handled and replied to in the CQRS layer."
+      "summary": "Defines the CQRS command-handling traits used to route and process incoming command messages against an event store, including both raw command handlers and NATS service-level command handlers.",
+      "when_to_use": "Include this file when working with command dispatch, implementing new command handlers, or understanding how raw or typed command payloads are handled and replied to in the CQRS layer."
     },
     "crates/esrc-cqrs/src/error.rs": {
       "file_path": "crates/esrc-cqrs/src/error.rs",
@@ -192,8 +192,8 @@
     },
     "crates/esrc-cqrs/src/lib.rs": {
       "file_path": "crates/esrc-cqrs/src/lib.rs",
-      "hash": "49c399780f206fc0c5503cd0cbcae7aa1f906956f74fe23fe8bbb854d324e1ba",
-      "mtime": 1774301858060919,
+      "hash": "28dc13698329ee08def1604db006255a74b229d04388bfcade387c2a03faeb5b",
+      "mtime": 1774303324435711,
       "public_functions": [],
       "public_types": [
         "CommandHandler",
@@ -317,16 +317,29 @@
     },
     "crates/esrc-cqrs/src/nats/command/mod.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/command/mod.rs",
-      "hash": "239406ebe03e4dcbb5ba4e8a96a241ddb3a86b3e8a44e4d47a3337fbd2b6b19f",
-      "mtime": 1774302405538633,
-      "public_functions": [],
+      "hash": "e19fde00f065689ee37d2269c51abeed8039c28c40302edbef68b0e93e34011e",
+      "mtime": 1774303324435711,
       "public_types": [
         "AggregateCommandHandler",
         "CommandEnvelope",
-        "CommandReply"
+        "CommandReply",
+        "ServiceCommandHandler"
       ],
-      "summary": "Module wiring for NATS command handling. It exposes the aggregate command handler module and re-exports its main command-handling types.",
-      "when_to_use": "Use this file when you need the command-side NATS CQRS wiring or want access to the aggregate command handler types via the module re-exports."
+      "summary": "Module wiring for NATS command handling. It exposes the aggregate command handler module and service command handler adapter, and re-exports the main command-handling types.",
+      "when_to_use": "Use this file when you need the command-side NATS CQRS wiring or want access to the aggregate or service command handler types via the module re-exports."
+    },
+    "crates/esrc-cqrs/src/nats/command/service_command_handler.rs": {
+      "file_path": "crates/esrc-cqrs/src/nats/command/service_command_handler.rs",
+      "hash": "30bca09a52acecf95aa326adb876c566d518bca581ba4b918a81298ee83efcc9",
+      "mtime": 1774303324435711,
+      "public_functions": [
+        "ServiceCommandHandler::new"
+      ],
+      "public_types": [
+        "ServiceCommandHandler<H, C>"
+      ],
+      "summary": "Defines an adapter that wraps a NATS service command handler and exposes it through the generic CommandHandler interface by deserializing JSON payloads and delegating to the underlying handler.",
+      "when_to_use": "Use this file when you need to understand or include the bridge between NATS service command handlers and the generic command registry/dispatcher, especially for JSON command deserialization and endpoint name forwarding."
     },
     "crates/esrc-cqrs/src/nats/command_dispatcher.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/command_dispatcher.rs",
@@ -393,8 +406,8 @@
     },
     "crates/esrc-cqrs/src/nats/mod.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/mod.rs",
-      "hash": "49c5d0e8dbb44a9d70ca624b79ae38cb902f32235e120b6eb371e008c278c6ab",
-      "mtime": 1774294177855531,
+      "hash": "9ba8de4cbca7dcfc2e2ce2957e69a8bb526f98eb1ad31e40f3d05c953d53a6d9",
+      "mtime": 1774303324435711,
       "public_functions": [],
       "public_types": [
         "NatsCommandDispatcher",

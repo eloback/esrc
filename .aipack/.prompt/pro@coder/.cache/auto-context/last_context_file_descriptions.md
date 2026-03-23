@@ -114,11 +114,6 @@
     - Summary: Workspace and root package manifest for the esrc Rust project, defining shared dependencies, feature flags, and member crates/examples.
     - When To Use: Use this file when you need to understand the project structure, enabled feature combinations, dependency versions, workspace members, or package metadata for builds and integration context.
 
-- crates/esrc-cqrs/src/command.rs
-    - Summary: Defines the CQRS command-handling trait used to route and process incoming command messages against an event store.
-    - When To Use: Include this file when working with command dispatch, implementing new command handlers, or understanding how raw command payloads are handled and replied to in the CQRS layer.
-    - Types: CommandHandler
-
 - crates/esrc-cqrs/src/nats/projector_runner.rs
     - Summary: Defines a NATS-specific projector runner that wraps a ProjectorHandler and executes it against a NatsStore, typically in its own Tokio task for concurrent projector execution.
     - When To Use: Use when working with NATS-backed CQRS projector execution, especially to start or invoke a projector handler against a NatsStore.
@@ -246,11 +241,6 @@
     - Types: MemoryView<V>, MemoryViewQuery<V, R>
     - Functions: MemoryView::new, MemoryViewQuery::new, MemoryViewQuery::new_for_serializable_view
 
-- crates/esrc-cqrs/src/nats/mod.rs
-    - Summary: NATS CQRS integration module that wires together command dispatching over core NATS request/reply, query dispatching, and projector execution over JetStream durable pull consumers.
-    - When To Use: Include this file when you need the NATS-backed CQRS entry points, especially to understand or import the dispatcher and projector runner types re-exported from this module.
-    - Types: NatsCommandDispatcher, NatsProjectorRunner, NatsQueryDispatcher, QueryEnvelope, QueryReply, DurableProjectorHandler
-
 - crates/esrc-cqrs/src/error.rs
     - Summary: Defines the serializable CQRS error type used for transport over NATS, plus conversion from the core esrc error type and helpers to recover typed external errors.
     - When To Use: Use when handling CQRS command errors, serializing/deserializing errors across the transport boundary, or converting between esrc::error::Error and the CQRS-specific serializable Error type.
@@ -279,13 +269,29 @@
     - When To Use: Include this file when you need an end-to-end usage example of the CQRS setup, dispatcher wiring, projector execution, and NATS subject naming for the cafe domain.
     - Functions: main
 
+- crates/esrc-cqrs/src/command.rs
+    - Summary: Defines the CQRS command-handling traits used to route and process incoming command messages against an event store, including both raw command handlers and NATS service-level command handlers.
+    - When To Use: Include this file when working with command dispatch, implementing new command handlers, or understanding how raw or typed command payloads are handled and replied to in the CQRS layer.
+    - Types: CommandHandler, NatsServiceCommandHandler
+
 - crates/esrc-cqrs/src/lib.rs
     - Summary: Top-level library module for the `esrc-cqrs` crate. It documents the CQRS extension, exposes modules for command handling, queries, projectors, the main registry, and optional NATS integrations, and re-exports the primary CQRS traits and registry type.
     - When To Use: Include this file when you need the crate’s public API surface, an overview of CQRS support, or to find where command handlers, query handlers, projector handlers, and the registry are defined and re-exported.
     - Types: CommandHandler, Error, ProjectorHandler, CqrsRegistry, QueryHandler, CqrsClient
 
 - crates/esrc-cqrs/src/nats/command/mod.rs
-    - Summary: Module wiring for NATS command handling. It exposes the aggregate command handler module and re-exports its main command-handling types.
-    - When To Use: Use this file when you need the command-side NATS CQRS wiring or want access to the aggregate command handler types via the module re-exports.
-    - Types: AggregateCommandHandler, CommandEnvelope, CommandReply
+    - Summary: Module wiring for NATS command handling. It exposes the aggregate command handler module and service command handler adapter, and re-exports the main command-handling types.
+    - When To Use: Use this file when you need the command-side NATS CQRS wiring or want access to the aggregate or service command handler types via the module re-exports.
+    - Types: AggregateCommandHandler, CommandEnvelope, CommandReply, ServiceCommandHandler
+
+- crates/esrc-cqrs/src/nats/command/service_command_handler.rs
+    - Summary: Defines an adapter that wraps a NATS service command handler and exposes it through the generic CommandHandler interface by deserializing JSON payloads and delegating to the underlying handler.
+    - When To Use: Use this file when you need to understand or include the bridge between NATS service command handlers and the generic command registry/dispatcher, especially for JSON command deserialization and endpoint name forwarding.
+    - Types: ServiceCommandHandler<H, C>
+    - Functions: ServiceCommandHandler::new
+
+- crates/esrc-cqrs/src/nats/mod.rs
+    - Summary: NATS CQRS integration module that wires together command dispatching over core NATS request/reply, query dispatching, and projector execution over JetStream durable pull consumers.
+    - When To Use: Include this file when you need the NATS-backed CQRS entry points, especially to understand or import the dispatcher and projector runner types re-exported from this module.
+    - Types: NatsCommandDispatcher, NatsProjectorRunner, NatsQueryDispatcher, QueryEnvelope, QueryReply, DurableProjectorHandler
 

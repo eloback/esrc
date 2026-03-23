@@ -1,53 +1,34 @@
-## Step - Define NatsServiceCommandHandler trait and adapter
+## Step - Add ServiceCommandReply helper and CqrsClient dispatch method
       status: active
 time-created: 2026-03-23 18:55:03
-time-current: 2026-03-23 19:01:15
+time-current: 2026-03-23 19:08:14
 
-Add a `NatsServiceCommandHandler<C>` trait and a `ServiceCommandHandler<H, C>` adapter
-struct to `esrc-cqrs` that allow a user to implement a single struct covering a whole
-vertical slice or API group, dispatching a typed enum of commands under one NATS service
-name, with one endpoint per enum variant (derived from the variant name).
+References: see the definition in plan-3-done-steps.md,
+step 'Step - Define NatsServiceCommandHandler trait and adapter'.
 
-- In `crates/esrc-cqrs/src/command.rs`:
-  - Add trait `NatsServiceCommandHandler<S, C>` where `C: Serialize + DeserializeOwned + Send + Sync`:
-    - Required method `fn name(&self) -> &'static str` returning the NATS service/group name.
-    - Required async method `async fn handle(&self, store: &mut S, command: C) -> error::Result<Vec<u8>>`.
-    - The trait is `Send + Sync + 'static` and generic over the store `S` like `CommandHandler<S>`.
+- In `crates/esrc-cqrs/src/nats/command/service_command_handler.rs`:
+  - Add `ServiceCommandReply<R>` struct (generic over `R: Serialize + DeserializeOwned`) with
+    fields `success: bool`, `data: Option<R>`, `error: Option<crate::Error>`.
+  - Derive `Serialize`, `Deserialize`, `Debug`.
+  - This is an opt-in convenience type; the user may use it or return any other serializable
+    bytes from their `handle` implementation.
+  - Add a `ServiceCommandReply::<()>::ok()` constructor and `ServiceCommandReply::err(e)` constructor.
 
-- In `crates/esrc-cqrs/src/nats/command/service_command_handler.rs` (new file):
-  - Define `ServiceCommandHandler<H, C>` adapter struct that:
-    - Holds the user handler `H` (which implements `NatsServiceCommandHandler<S, C>`).
-    - Holds the service name (`&'static str`) as the single NATS endpoint name, so all
-      variants of `C` are received under the same subject.
-    - Implements `CommandHandler<S>` by:
-      1. Deserializing the raw payload as `C` via `serde_json`.
-      2. Delegating to `H::handle(store, command)`.
-      3. Returning the reply bytes verbatim (the user controls the reply shape entirely).
-  - Provide `ServiceCommandHandler::new(handler: H) -> Self` constructor, using
-    `handler.name()` as the endpoint name so there is a single registration call.
+- In `crates/esrc-cqrs/src/nats/client/cqrs_client.rs`:
+  - Add method `dispatch_service_command<C, R>(&self, service_name, command_name, command: C) -> Result<R>`
+    where `C: Serialize`, `R: DeserializeOwned`.
+    - Sends the serialized command to subject `<service_name>.<command_name>`.
+    - Deserializes the raw reply bytes as `R` and returns it.
+  - This is intentionally low-level: the user chooses `R` to match whatever their handler returns.
 
-- In `crates/esrc-cqrs/src/nats/command/mod.rs`:
-  - Add `pub mod service_command_handler;` and re-export `ServiceCommandHandler`.
+- Update `crates/esrc-cqrs/src/lib.rs` re-exports to expose `ServiceCommandReply`.
 
-- In `crates/esrc-cqrs/src/nats/mod.rs`:
-  - Re-export `ServiceCommandHandler` from `nats::command`.
+### Implementation Considerations
 
-- In `crates/esrc-cqrs/src/lib.rs`:
-  - Re-export `ServiceCommandHandler` at the crate root.
-
-Intended usage pattern (the registration side):
-```rs
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum Commands {
-    RegistrarEscrituracao { id: Uuid, name: String, date: NaiveDate },
-}
-
-pub struct MyServiceHandler { external_api: ExternalApi }
-
-impl NatsServiceCommandHandler<NatsStore, Commands> for MyServiceHandler {
-    fn name(&self) -> &'static str { "my_api_service" }
-    async fn handle(&self, store: &mut NatsStore, command: Commands) -> error::Result<Vec<u8>> { ... }
-}
-
-registry.register_command(ServiceCommandHandler::new(MyServiceHandler { ... }));
-```
+- `ServiceCommandReply<()>` gets a dedicated `ok()` constructor (no data), while the generic
+  `ok_with(data: R)` constructor covers cases where data needs to be returned.
+- `send_service_command` is the low-level raw variant; `dispatch_service_command` unwraps the
+  `ServiceCommandReply` envelope and returns `Result<R>` for ergonomic use.
+- The `ServiceCommandHandler` struct was also created in this step since it was absent from the
+  prior active step's implementation (the file existed but was empty). It now contains the full
+  adapter wiring: deserialization of `C` from raw bytes, delegation to the inner handler.
