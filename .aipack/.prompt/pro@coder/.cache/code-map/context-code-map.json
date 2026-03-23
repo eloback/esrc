@@ -192,8 +192,8 @@
     },
     "crates/esrc-cqrs/src/lib.rs": {
       "file_path": "crates/esrc-cqrs/src/lib.rs",
-      "hash": "3c79a3791638d1a630f087efe482082d71983590667dd34427582aed5f0b2e1b",
-      "mtime": 1774080596193612,
+      "hash": "70b4f3e66fdad1d6fee6456b33826c485b2439667305651471a9e9930dd2a975",
+      "mtime": 1774274627255835,
       "public_functions": [],
       "public_types": [
         "CommandHandler",
@@ -252,6 +252,24 @@
       ],
       "summary": "Defines a generic NATS-backed CQRS query handler for aggregates, including standard query/reply envelopes and a projection-based handler that loads an aggregate root and serializes a response.",
       "when_to_use": "Use when you need to route NATS queries to an aggregate, deserialize a query envelope containing an aggregate ID, read the aggregate from NATS storage, and return a JSON-serialized projected result."
+    },
+    "crates/esrc-cqrs/src/nats/client.rs": {
+      "file_path": "crates/esrc-cqrs/src/nats/client.rs",
+      "hash": "308473dca41d35d9b07a831aee17065f35ff0353a4938b658f0da6b4f3823927",
+      "mtime": 1774274325047500,
+      "public_functions": [
+        "new",
+        "inner",
+        "send_command",
+        "dispatch_command",
+        "send_query",
+        "dispatch_query"
+      ],
+      "public_types": [
+        "CqrsClient"
+      ],
+      "summary": "Defines a high-level CQRS NATS client wrapper that builds command/query envelopes, sends requests, and converts replies into raw or typed results.",
+      "when_to_use": "Include this file when working with CQRS request dispatch over NATS, especially for sending commands or queries through the convenience client and handling reply deserialization/error conversion."
     },
     "crates/esrc-cqrs/src/nats/command_dispatcher.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/command_dispatcher.rs",
@@ -315,8 +333,8 @@
     },
     "crates/esrc-cqrs/src/nats/mod.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/mod.rs",
-      "hash": "f580081a12380c9a8e12dc881a24726d269a34c9f3f6f04c8c0549f7c5fd1fb5",
-      "mtime": 1774274192541667,
+      "hash": "cdb4d29c36d9c8488877aa4e156aa600890926eb909358abab4db00f41ee6401",
+      "mtime": 1774274325048500,
       "public_functions": [],
       "public_types": [
         "AggregateCommandHandler",

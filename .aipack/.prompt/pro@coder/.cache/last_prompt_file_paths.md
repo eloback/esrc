@@ -6,18 +6,15 @@ file_content_mode: udiffx
 
 ## All resolve files(sent to AI with content, in this order)
 
+- crates/esrc-cqrs/examples/cafe/domain.rs
 - crates/esrc-cqrs/examples/cafe/main.rs
+- crates/esrc-cqrs/examples/cafe/projector.rs
 - crates/esrc-cqrs/src/command.rs
-- crates/esrc-cqrs/src/lib.rs
 - crates/esrc-cqrs/src/nats/aggregate_command_handler.rs
 - crates/esrc-cqrs/src/nats/command_dispatcher.rs
-- crates/esrc-cqrs/src/nats/live_view_query.rs
-- crates/esrc-cqrs/src/nats/memory_view_query.rs
 - crates/esrc-cqrs/src/nats/query_dispatcher.rs
 - crates/esrc-cqrs/src/query.rs
-- crates/esrc-cqrs/src/registry.rs
-- crates/esrc-cqrs/tests/integration_nats.rs
-- crates/esrc-cqrs/Cargo.toml
+- crates/esrc-cqrs/src/nats/client.rs
 - crates/esrc-cqrs/src/nats/mod.rs
 
 # Working Files
@@ -55,6 +52,7 @@ None
   - registry.rs
 - crates/esrc-cqrs/src/nats/
   - aggregate_command_handler.rs
+  - client.rs
   - command_dispatcher.rs
   - durable_projector_handler.rs
   - live_view_query.rs
@@ -68,17 +66,6 @@ None
   - Cargo.toml
 - crates/opentelemetry-nats/src/
   - lib.rs
-- examples/cafe/
-  - domain.rs
-  - error.rs
-  - main.rs
-  - projector.rs
-  - tab.rs
-  - table.rs
-- examples/cafe/tab/
-  - tests.rs
-- examples/zero_copy/
-  - main.rs
 - src/
   - aggregate.rs
   - envelope.rs

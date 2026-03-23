@@ -1,15 +1,5 @@
 # Context Files Descriptions (Sent to AI for selection)
 
-- examples/cafe/error.rs
-    - Summary: Defines the Cafe example's tab-related error type used for tab state and payment validation.
-    - When To Use: Include when working with the cafe example's error handling or any code that matches on or returns tab-related errors.
-    - Types: TabError
-
-- examples/cafe/tab.rs
-    - Summary: Defines a cafe tab aggregate with commands, events, and state transitions for opening a tab, placing orders, marking items served, and closing the tab with payment validation.
-    - When To Use: Use when you need the domain model and business rules for the cafe tab example, especially the command/event definitions or how the aggregate validates and applies tab lifecycle changes.
-    - Types: Item, TabCommand, TabEvent, Tab
-
 - src/error.rs
     - Summary: Defines the crate’s common event-sourcing error type and a Result alias for operations that can fail with these errors.
     - When To Use: Include this file when handling, matching, or propagating the library’s standardized errors, or when using the event-sourcing Result alias.
@@ -30,11 +20,6 @@
 - src/nats/convert.rs
     - Summary: Implements conversion from async_nats JetStream error types into the crate's unified Error type, including a special mapping for wrong last sequence publish errors to Conflict.
     - When To Use: Include this file when working on NATS/JetStream error handling, especially error conversion, mapping external NATS errors into the crate's Error type, or diagnosing publish/stream/consumer-related failures.
-
-- examples/cafe/tab/tests.rs
-    - Summary: Unit tests for the cafe tab aggregate, covering opening a tab, placing orders, marking items served, and closing tabs with both success and error cases.
-    - When To Use: Include this file when you need to understand or validate the expected behavior of the Tab domain logic, event transitions, and error handling in the cafe example.
-    - Functions: open_tab, order_with_unopened_tab, order, serve_twice, serve, close_with_underpayment, close
 
 - src/kurrent/convert.rs
     - Summary: Implements conversion from kurrentdb errors into the crate's Error type, mapping optimistic concurrency conflicts to Conflict and all other errors to Internal.
@@ -125,12 +110,6 @@
     - Types: Aggregate, Root
     - Functions: Root::with_aggregate, Root::id, Root::last_sequence, Root::into_inner, Root::new, Root::try_apply
 
-- examples/cafe/table.rs
-    - Summary: Defines ActiveTables, a project state manager that tracks open cafe tables by UUID and table number, with helper queries for active tables.
-    - When To Use: Use when you need to understand or modify how table open/close events are stored, queried, or projected into shared state in the cafe example.
-    - Types: ActiveTables
-    - Functions: new, is_active, get_table_numbers, project
-
 - src/view.rs
     - Summary: Defines the `View` trait, a lightweight reactive read model built from an event stream for query/projection purposes.
     - When To Use: Include this file when working with event-sourced read models, projections, or any code that implements or uses the `View` trait to replay/apply events.
@@ -181,11 +160,6 @@
     - When To Use: Use when handling CQRS command errors, serializing/deserializing errors across the transport boundary, or converting between esrc::error::Error and the CQRS-specific serializable Error type.
     - Types: Error
     - Functions: from_esrc_error
-
-- crates/esrc-cqrs/src/lib.rs
-    - Summary: Top-level library module for the `esrc-cqrs` crate. It documents the CQRS extension, exposes modules for command handling, queries, projectors, the main registry, and optional NATS integrations, and re-exports the primary CQRS traits and registry type.
-    - When To Use: Include this file when you need the crate’s public API surface, an overview of CQRS support, or to find where command handlers, query handlers, projector handlers, and the registry are defined and re-exported.
-    - Types: CommandHandler, Error, ProjectorHandler, CqrsRegistry, QueryHandler
 
 - crates/esrc-cqrs/src/nats/aggregate_command_handler.rs
     - Summary: Defines a generic NATS-backed aggregate command handler plus request/reply envelopes for routing, deserializing, applying, and responding to aggregate commands.
@@ -251,22 +225,6 @@
     - Types: CounterState, Counter, CounterCommand, CounterEvent, CounterError, RecordingProjector, ProjectorError
     - Functions: test_command_request_response_success, test_command_error_does_not_break_dispatcher, test_projector_receives_events, test_projector_acks_messages_no_redelivery, test_projector_error_propagates, test_multiple_commands_same_aggregate_occ, test_malformed_payload_returns_error, test_registry_accessors, test_query_returns_aggregate_state, test_query_default_state_for_new_aggregate, test_query_malformed_payload_returns_error, test_registry_query_handlers_accessor
 
-- examples/cafe/domain.rs
-    - Summary: Defines a cafe order domain aggregate with order state, commands, events, error handling, and aggregate command/event application logic.
-    - When To Use: Include this file when you need the core domain model for the cafe example, especially order lifecycle behavior, command processing, event definitions, or aggregate state transitions.
-    - Types: OrderStatus, Order, OrderCommand, OrderEvent, OrderError, OrderState
-    - Functions: from_order, process, apply
-
-- examples/cafe/main.rs
-    - Summary: Entry point for the cafe CQRS example using NATS/JetStream. It wires together the NATS store, command dispatcher, query dispatcher, and durable projector, then sends sample order commands and queries to demonstrate the flow.
-    - When To Use: Include this file when you need the runnable cafe domain example, especially to understand how `esrc-cqrs` components are assembled and executed with NATS, JetStream, commands, queries, and projectors.
-    - Functions: main
-
-- examples/cafe/projector.rs
-    - Summary: Defines `OrderProjector`, a `Project` implementation that handles `OrderEvent`s and prints order activity to stdout.
-    - When To Use: Use this file when you need the projection logic for cafe order events, especially to understand how order events are rendered/logged during event handling.
-    - Types: OrderProjector
-
 - src/event.rs
     - Summary: Defines the core event abstractions for the crate, including the Event and EventGroup traits, the Sequence wrapper for stream ordering, and re-exports for publish/replay/subscribe/truncate event-store operations.
     - When To Use: Use this file when you need the central event-sourcing API surface: event type definitions, stream sequence handling, grouping of event types, or to access the main publish/replay/subscribe/truncate traits and helpers.
@@ -320,8 +278,19 @@
     - Summary: Git ignore rules for the esrc-cqrs crate, excluding build artifacts, backup Rust files, and local development tool files.
     - When To Use: Include when you need to understand which generated, local, or environment-specific files are intentionally excluded from version control for this crate.
 
+- crates/esrc-cqrs/src/nats/client.rs
+    - Summary: Defines a high-level CQRS NATS client wrapper that builds command/query envelopes, sends requests, and converts replies into raw or typed results.
+    - When To Use: Include this file when working with CQRS request dispatch over NATS, especially for sending commands or queries through the convenience client and handling reply deserialization/error conversion.
+    - Types: CqrsClient
+    - Functions: new, inner, send_command, dispatch_command, send_query, dispatch_query
+
 - crates/esrc-cqrs/src/nats/mod.rs
     - Summary: NATS CQRS integration module that wires together command dispatching over core NATS request/reply, query dispatching, and projector execution over JetStream durable pull consumers.
     - When To Use: Include this file when you need the NATS-backed CQRS entry points, especially to understand or import the dispatcher and projector runner types re-exported from this module.
     - Types: AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler, NatsCommandDispatcher, NatsQueryDispatcher, QueryEnvelope, QueryReply, NatsProjectorRunner, LiveViewQuery, MemoryView, MemoryViewQuery
+
+- crates/esrc-cqrs/src/lib.rs
+    - Summary: Top-level library module for the `esrc-cqrs` crate. It documents the CQRS extension, exposes modules for command handling, queries, projectors, the main registry, and optional NATS integrations, and re-exports the primary CQRS traits and registry type.
+    - When To Use: Include this file when you need the crate’s public API surface, an overview of CQRS support, or to find where command handlers, query handlers, projector handlers, and the registry are defined and re-exported.
+    - Types: CommandHandler, Error, ProjectorHandler, CqrsRegistry, QueryHandler
 
