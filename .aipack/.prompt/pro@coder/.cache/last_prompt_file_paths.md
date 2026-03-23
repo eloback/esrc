@@ -1,21 +1,19 @@
 
 ====
-file_content_mode: udiffx
+file_content_mode: 
 
 # Context Files
 
 ## All resolve files(sent to AI with content, in this order)
 
-- crates/esrc-cqrs/examples/cafe/domain.rs
-- crates/esrc-cqrs/examples/cafe/main.rs
-- crates/esrc-cqrs/examples/cafe/projector.rs
 - crates/esrc-cqrs/src/command.rs
-- crates/esrc-cqrs/src/nats/aggregate_command_handler.rs
 - crates/esrc-cqrs/src/nats/command_dispatcher.rs
 - crates/esrc-cqrs/src/nats/query_dispatcher.rs
 - crates/esrc-cqrs/src/query.rs
+- crates/esrc-cqrs/src/registry.rs
 - crates/esrc-cqrs/src/nats/client.rs
 - crates/esrc-cqrs/src/nats/mod.rs
+- crates/esrc-cqrs/src/lib.rs
 
 # Working Files
 

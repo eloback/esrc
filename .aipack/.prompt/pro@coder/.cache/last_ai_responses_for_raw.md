@@ -1,148 +1,40 @@
 ====
->   Info: Duration: 25s | ~$0.0765 | Prompt Tokens: 15,747 (cached: 0, cache_creation: 0) | Completion Tokens: 1,949 
+>   Info: Duration: 23s | ~$0.046 | Prompt Tokens: 11,225 (cached: 0, cache_creation: 0) | Completion Tokens: 819 
 >  Model: claude-sonnet-4-6 | Adapter: Anthropic
->  Files: Context Files: 10 | Working Files: 0 | Knowledge Files: 0
->   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
+>  Files: Context Files: 8 | Working Files: 0 | Knowledge Files: 0
+>   Note: write_mode is false, so content below this line **WILL** be included in next run/prompt.
 
-Looking at the task, I need to modify the cafe example to use `CqrsClient` for some of the commands and queries, demonstrating its ergonomic API.
+This is an architectural analysis question, not a code change request. Here is a breakdown of the trade-offs.
 
-The current `main.rs` uses raw NATS client calls with manual envelope construction. I'll update it to use `CqrsClient` for some interactions, showing both `dispatch_command` and `send_command` / `dispatch_query` variants.
+## Merging the Command and Query Dispatchers
 
-<FILE_CHANGES>
+### Advantages
 
-<FILE_PATCH file_path="crates/esrc-cqrs/examples/cafe/main.rs">
-@@
- use esrc::nats::NatsStore;
- use esrc_cqrs::nats::{
--    AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler, LiveViewQuery,
--    NatsCommandDispatcher, NatsQueryDispatcher, QueryEnvelope, QueryReply,
-+    AggregateCommandHandler, CommandEnvelope, CommandReply, CqrsClient, DurableProjectorHandler,
-+    LiveViewQuery, NatsCommandDispatcher, NatsQueryDispatcher, QueryEnvelope, QueryReply,
- };
-@@
-     // Spawn a client driver task that sends commands after a brief delay.
-     let driver_client = client.clone();
-     tokio::spawn(async move {
-         // Give the dispatcher a moment to start listening.
-         sleep(Duration::from_millis(500)).await;
- 
-         let order_id = Uuid::new_v4();
- 
--        // Place an order.
--        let place_cmd = CommandEnvelope {
--            id: order_id,
--            command: OrderCommand::PlaceOrder {
--                item: "Espresso".to_string(),
--                quantity: 2,
--            },
--        };
--        let payload = serde_json::to_vec(&place_cmd).expect("serialize place command");
--        let subject = esrc_cqrs::nats::command_dispatcher::command_subject(SERVICE_NAME, "Order");
--        let reply = driver_client
--            .request(subject.clone(), payload.into())
--            .await
--            .unwrap();
--        let reply: CommandReply = serde_json::from_slice(&reply.payload).unwrap();
--        println!("[client] PlaceOrder reply: {:?}", reply);
--        assert!(reply.success);
-+        // Place an order using CqrsClient::dispatch_command, which converts
-+        // a failed reply into Err automatically.
-+        let cqrs = CqrsClient::new(driver_client.clone());
-+        let placed_id = cqrs
-+            .dispatch_command(
-+                SERVICE_NAME,
-+                "Order",
-+                order_id,
-+                OrderCommand::PlaceOrder {
-+                    item: "Espresso".to_string(),
-+                    quantity: 2,
-+                },
-+            )
-+            .await
-+            .expect("PlaceOrder command failed");
-+        println!("[client] PlaceOrder dispatch_command id: {:?}", placed_id);
-+        assert_eq!(placed_id, order_id);
- 
-         sleep(Duration::from_millis(200)).await;
- 
--        // Query the order state after placing it.
--        let query_subject =
--            esrc_cqrs::nats::query_dispatcher::query_subject(QUERY_SERVICE_NAME, "Order.GetState");
--        let query_payload =
--            serde_json::to_vec(&QueryEnvelope { id: order_id }).expect("serialize query");
--        let reply = driver_client
--            .request(query_subject.clone(), query_payload.into())
--            .await
--            .unwrap();
--        let reply: QueryReply = serde_json::from_slice(&reply.payload).unwrap();
--        println!("[client] Order.GetState reply: {:?}", reply);
--        assert!(reply.success);
-+        // Query the order state using CqrsClient::dispatch_query for a typed result.
-+        let order_state: OrderState = cqrs
-+            .dispatch_query(QUERY_SERVICE_NAME, "Order.GetState", order_id)
-+            .await
-+            .expect("Order.GetState query failed");
-+        println!("[client] Order.GetState dispatch_query: {:?}", order_state);
-+        assert_eq!(order_state.item.as_deref(), Some("Espresso"));
- 
-         sleep(Duration::from_millis(200)).await;
- 
--        // Complete the order.
--        let complete_cmd = CommandEnvelope {
--            id: order_id,
--            command: OrderCommand::CompleteOrder,
--        };
--        let payload = serde_json::to_vec(&complete_cmd).expect("serialize complete command");
--        let reply = driver_client
--            .request(subject.clone(), payload.into())
--            .await
--            .unwrap();
--        let reply: CommandReply = serde_json::from_slice(&reply.payload).unwrap();
--        println!("[client] CompleteOrder reply: {:?}", reply);
--        assert!(reply.success);
-+        // Complete the order using CqrsClient::send_command to inspect the raw reply.
-+        let complete_reply: CommandReply = cqrs
-+            .send_command(SERVICE_NAME, "Order", order_id, OrderCommand::CompleteOrder)
-+            .await
-+            .expect("CompleteOrder request failed");
-+        println!("[client] CompleteOrder send_command reply: {:?}", complete_reply);
-+        assert!(complete_reply.success);
- 
-         sleep(Duration::from_millis(200)).await;
- 
--        // Query again after completing the order.
--        let query_payload =
--            serde_json::to_vec(&QueryEnvelope { id: order_id }).expect("serialize query");
--        let reply = driver_client
--            .request(query_subject.clone(), query_payload.into())
--            .await
--            .unwrap();
--        let reply: QueryReply = serde_json::from_slice(&reply.payload).unwrap();
--        println!("[client] Order.GetState reply: {:?}", reply);
--        assert!(reply.success);
-+        // Query again using send_query to access the raw QueryReply fields.
-+        let raw_reply: QueryReply = cqrs
-+            .send_query(QUERY_SERVICE_NAME, "Order.GetState", order_id)
-+            .await
-+            .expect("Order.GetState request failed");
-+        println!("[client] Order.GetState send_query reply: {:?}", raw_reply);
-+        assert!(raw_reply.success);
- 
-         // Let the projector process the events before shutdown.
-</FILE_PATCH>
+- **Single service registration** - Both dispatchers call `client.service_builder().start(...)` separately. Merging them into one dispatcher means one NATS service registration, one service group, and a unified endpoint tree. NATS service discovery (e.g., `nats micro info`) would show all endpoints under one service rather than two.
 
-</FILE_CHANGES>
+- **Reduced boilerplate at the call site** - `CqrsRegistry` currently calls `run` on two separate dispatcher instances. A merged dispatcher would accept both handler slices in a single `run` call, reducing setup code.
 
-The changes demonstrate all four `CqrsClient` methods in the cafe example:
+- **Shared JoinSet management** - Both dispatchers independently spawn endpoint tasks into a `JoinSet` and await them. A merged implementation handles a single `JoinSet`, simplifying shutdown and error propagation.
 
-- `dispatch_command` for `PlaceOrder`, which returns `Ok(Uuid)` directly or `Err` on failure, no envelope construction needed.
-- `dispatch_query` for the first `Order.GetState`, returning a typed `OrderState` directly.
-- `send_command` for `CompleteOrder`, returning the raw `CommandReply` so the caller can inspect `reply.error` if needed.
-- `send_query` for the second `Order.GetState`, returning the raw `QueryReply` with access to `reply.data` and `reply.error`.
+- **Consistent service version** - `CMD_SERVICE_VERSION` and `QUERY_SERVICE_VERSION` are separate constants. Merging removes the risk of them diverging and simplifies the NATS service metadata.
 
-The `CommandEnvelope`, `QueryEnvelope`, and `QueryReply` imports are kept because they are still re-exported from `mod.rs` and may be used by other consumers. Only the unused ones in `main.rs` are effectively replaced by the `CqrsClient` calls.
+- **Single point of configuration** - TLS, authentication tokens, connection options, and any middleware (e.g., tracing, metrics) would be applied once rather than having to be threaded into two separate dispatcher constructors.
 
-<suggested_git_command>
-git commit -a -m "^ esrc-cqrs/cafe - Update cafe example to demonstrate CqrsClient usage"
-</suggested_git_command>
+### Disadvantages
+
+- **Different store mutability requirements** - This is the core design tension. Command handlers require `&mut S` (to publish events), while query handlers require `&S` (read-only). A merged dispatcher must accommodate both, which means either wrapping the store in a `Mutex` / `RwLock` to allow concurrent sharing, or cloning the store per-request, which is exactly what the current split design avoids cleanly.
+
+- **Separation of concerns is lost** - Commands and queries have fundamentally different semantics. Keeping them in separate types makes it possible to deploy a query-only service (e.g., a read replica) or a command-only service without carrying the unused half. Merging conflates them.
+
+- **Independent scaling is harder** - In a NATS cluster, command endpoints and query endpoints can be independently queue-grouped across different process instances. A merged service makes it harder to scale the two sides independently because they share the same service definition.
+
+- **Subject namespace collision risk** - If a command handler and a query handler happen to share the same `name()` string, a merged dispatcher would either silently shadow one or panic at registration time. The current split design isolates the two namespaces by convention (e.g., a command service named `myapp-cqrs` vs. a query service named `myapp-query`).
+
+- **Error isolation is weaker** - If the command endpoint loop panics or errors, it currently only affects the command `JoinSet`. In a merged design, a single endpoint failure could take down the entire service, impacting both reads and writes.
+
+- **Test complexity** - Unit and integration tests for commands and queries are naturally separated today. A merged dispatcher requires setting up both handler slices even when only one side is under test.
+
+### Summary
+
+The current split is motivated primarily by the `&mut S` vs. `&S` distinction at the type level. If the store type were wrapped in `Arc<RwLock<S>>` or similar, the mutability argument disappears and merging becomes more attractive. Without that change, merging the two dispatchers pushes the borrow-checker problem into the merged implementation and forces an interior-mutability solution that may not be desirable for all store types.
 

@@ -107,8 +107,8 @@
     },
     "crates/esrc-cqrs/examples/cafe/main.rs": {
       "file_path": "crates/esrc-cqrs/examples/cafe/main.rs",
-      "hash": "3b7929b8d97aac556c04b73c3dd43aaec82071b9d24a507aa3758f518abaa129",
-      "mtime": 1774080596192716,
+      "hash": "d69d30a1dc087e13eef8a129ff189603e45d33610497372f278360a7bc5abe94",
+      "mtime": 1774277581758546,
       "public_functions": [
         "main"
       ],

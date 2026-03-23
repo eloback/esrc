@@ -130,11 +130,6 @@
     - When To Use: Include when working with the cafe example’s tab lifecycle, payment, or service-flow logic that needs to return or match on tab errors.
     - Types: TabError
 
-- crates/esrc-cqrs/examples/cafe/main.rs
-    - Summary: Executable cafe example showing how to wire up esrc-cqrs with NATS/JetStream, including command dispatching, query handling, and a durable projector for an order aggregate.
-    - When To Use: Include this file when you need an end-to-end usage example of the CQRS setup, dispatcher wiring, projector execution, and NATS subject naming for the cafe domain.
-    - Functions: main
-
 - crates/esrc-cqrs/examples/cafe/projector.rs
     - Summary: Defines an OrderProjector that handles OrderEvent values and prints order activity to stdout.
     - When To Use: Include this file when you need the example CQRS projector implementation for cafe order events, especially to understand how OrderEvent is projected or logged.
@@ -293,4 +288,9 @@
     - Summary: Top-level library module for the `esrc-cqrs` crate. It documents the CQRS extension, exposes modules for command handling, queries, projectors, the main registry, and optional NATS integrations, and re-exports the primary CQRS traits and registry type.
     - When To Use: Include this file when you need the crate’s public API surface, an overview of CQRS support, or to find where command handlers, query handlers, projector handlers, and the registry are defined and re-exported.
     - Types: CommandHandler, Error, ProjectorHandler, CqrsRegistry, QueryHandler
+
+- crates/esrc-cqrs/examples/cafe/main.rs
+    - Summary: Executable cafe example showing how to wire up esrc-cqrs with NATS/JetStream, including command dispatching, query handling, and a durable projector for an order aggregate.
+    - When To Use: Include this file when you need an end-to-end usage example of the CQRS setup, dispatcher wiring, projector execution, and NATS subject naming for the cafe domain.
+    - Functions: main
 
