@@ -1,19 +1,23 @@
 
 ====
-file_content_mode: 
+file_content_mode: udiffx
 
 # Context Files
 
 ## All resolve files(sent to AI with content, in this order)
 
-- crates/esrc-cqrs/src/command.rs
+- crates/esrc-cqrs/src/nats/aggregate_command_handler.rs
 - crates/esrc-cqrs/src/nats/command_dispatcher.rs
+- crates/esrc-cqrs/src/nats/durable_projector_handler.rs
+- crates/esrc-cqrs/src/nats/projector_runner.rs
 - crates/esrc-cqrs/src/nats/query_dispatcher.rs
-- crates/esrc-cqrs/src/query.rs
-- crates/esrc-cqrs/src/registry.rs
+- src/nats.rs
 - crates/esrc-cqrs/src/nats/client.rs
 - crates/esrc-cqrs/src/nats/mod.rs
 - crates/esrc-cqrs/src/lib.rs
+- crates/esrc-cqrs/src/nats/live_view_query.rs
+- crates/esrc-cqrs/src/nats/memory_view_query.rs
+- crates/esrc-cqrs/examples/cafe/main.rs
 
 # Working Files
 
@@ -37,10 +41,6 @@ None
   - error.rs
   - main.rs
   - projector.rs
-  - tab.rs
-  - table.rs
-- crates/esrc-cqrs/examples/cafe/tab/
-  - tests.rs
 - crates/esrc-cqrs/src/
   - command.rs
   - error.rs

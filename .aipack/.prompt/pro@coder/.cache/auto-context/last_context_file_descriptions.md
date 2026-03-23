@@ -119,31 +119,10 @@
     - Summary: Workspace and root package manifest for the esrc Rust project, defining shared dependencies, feature flags, and member crates/examples.
     - When To Use: Use this file when you need to understand the project structure, enabled feature combinations, dependency versions, workspace members, or package metadata for builds and integration context.
 
-- crates/esrc-cqrs/examples/cafe/domain.rs
-    - Summary: Defines the cafe order domain model for a CQRS example, including the Order aggregate, commands, events, errors, and a read-model projection.
-    - When To Use: Include this file when you need the domain logic for the cafe example, especially the order aggregate behavior, event types, command handling, or state projection.
-    - Types: OrderStatus, Order, OrderCommand, OrderEvent, OrderError, OrderState
-    - Functions: OrderState::from_order, Order::process, Order::apply, View::apply
-
 - crates/esrc-cqrs/examples/cafe/error.rs
     - Summary: Defines the cafe example’s tab-related domain error type used to represent invalid tab states and operations.
     - When To Use: Include when working with the cafe example’s tab lifecycle, payment, or service-flow logic that needs to return or match on tab errors.
     - Types: TabError
-
-- crates/esrc-cqrs/examples/cafe/projector.rs
-    - Summary: Defines an OrderProjector that handles OrderEvent values and prints order activity to stdout.
-    - When To Use: Include this file when you need the example CQRS projector implementation for cafe order events, especially to understand how OrderEvent is projected or logged.
-    - Types: OrderProjector
-
-- crates/esrc-cqrs/examples/cafe/tab/tests.rs
-    - Summary: Empty test file for the cafe tab example in the esrc-cqrs crate.
-    - When To Use: Include when working on or adding tests for the cafe tab example; currently contains no test logic.
-
-- crates/esrc-cqrs/examples/cafe/table.rs
-    - Summary: Defines the ActiveTables projection for the cafe example, tracking open table numbers by event ID in an async shared map.
-    - When To Use: Use this file when you need the cafe example’s table projection logic, the ActiveTables state holder, or the Project implementation that reacts to TabEvent opened/closed events.
-    - Types: ActiveTables
-    - Functions: ActiveTables::new, ActiveTables::is_active, ActiveTables::get_table_numbers, ActiveTables::project
 
 - crates/esrc-cqrs/src/command.rs
     - Summary: Defines the CQRS command-handling trait used to route and process incoming command messages against an event store.
@@ -173,18 +152,6 @@
     - When To Use: Include this file when working on NATS-backed projector execution, durable consumer setup, or understanding how projector handlers are wired to resume event streams.
     - Types: DurableProjectorHandler<P>
     - Functions: new(durable_name: &'static str, projector: P) -> Self, name(&self) -> &'static str, run<'a>(&'a self, store: &'a NatsStore) -> error::Result<()>
-
-- crates/esrc-cqrs/src/nats/live_view_query.rs
-    - Summary: Defines LiveViewQuery, a CQRS/NATS query handler that rebuilds a view by replaying an aggregate's full event stream on each request and returns a projected, serialized read model.
-    - When To Use: Include this file when you need the implementation or behavior of on-demand live view queries over NATS, especially for replay-based query handling, query routing, or view projection logic.
-    - Types: LiveViewQuery<V, R>
-    - Functions: LiveViewQuery::new(handler_name: &'static str, projection: fn(&V) -> R) -> Self, QueryHandler<NatsStore>::name(&self) -> &'static str, QueryHandler<NatsStore>::handle<'a>(&'a self, store: &'a NatsStore, payload: &'a [u8]) -> error::Result<Vec<u8>>
-
-- crates/esrc-cqrs/src/nats/memory_view_query.rs
-    - Summary: Defines an in-memory projected view store and a NATS query handler that reads snapshots from that store to answer queries as serialized JSON replies.
-    - When To Use: Include this file when working on NATS-based query handling, in-memory read model/projection state, or the shared view used by both event projection and query response generation.
-    - Types: MemoryView<V>, MemoryViewQuery<V, R>
-    - Functions: MemoryView::new, MemoryViewQuery::new
 
 - crates/esrc-cqrs/src/nats/projector_runner.rs
     - Summary: Defines a NATS-specific projector runner that wraps a ProjectorHandler and executes it against a NatsStore, typically in its own Tokio task for concurrent projector execution.
@@ -264,11 +231,6 @@
     - Summary: Cargo manifest for the esrc-cqrs crate, defining package metadata, feature flags, and dependencies for CQRS command/event handler registry support.
     - When To Use: Include this file when you need to understand the crate's build configuration, enabled features, or dependency relationships for the CQRS registry integration.
 
-- crates/esrc-cqrs/examples/cafe/tab.rs
-    - Summary: Defines a café tab CQRS example aggregate with commands, events, and state transitions for opening a tab, ordering items, marking items served, and closing the tab.
-    - When To Use: Use this file when you need the tab domain example for understanding or testing aggregate command/event handling, state evolution, or the cafe example workflow.
-    - Types: Item, TabCommand, TabEvent, Tab
-
 - crates/esrc-cqrs/.gitignore
     - Summary: Git ignore rules for the esrc-cqrs crate, excluding build artifacts, backup Rust files, and local development tool files.
     - When To Use: Include when you need to understand which generated, local, or environment-specific files are intentionally excluded from version control for this crate.
@@ -288,6 +250,29 @@
     - Summary: Top-level library module for the `esrc-cqrs` crate. It documents the CQRS extension, exposes modules for command handling, queries, projectors, the main registry, and optional NATS integrations, and re-exports the primary CQRS traits and registry type.
     - When To Use: Include this file when you need the crate’s public API surface, an overview of CQRS support, or to find where command handlers, query handlers, projector handlers, and the registry are defined and re-exported.
     - Types: CommandHandler, Error, ProjectorHandler, CqrsRegistry, QueryHandler
+
+- crates/esrc-cqrs/src/nats/live_view_query.rs
+    - Summary: Defines LiveViewQuery, a CQRS/NATS query handler that rebuilds a view by replaying an aggregate's full event stream on each request and returns a projected, serialized read model.
+    - When To Use: Include this file when you need the implementation or behavior of on-demand live view queries over NATS, especially for replay-based query handling, query routing, or view projection logic.
+    - Types: LiveViewQuery<V, R>
+    - Functions: LiveViewQuery::new(handler_name: &'static str, projection: fn(&V) -> R) -> Self, LiveViewQuery::new_for_serializable_view(handler_name: &'static str) -> Self, QueryHandler<NatsStore>::name(&self) -> &'static str, QueryHandler<NatsStore>::handle<'a>(&'a self, store: &'a NatsStore, payload: &'a [u8]) -> error::Result<Vec<u8>>
+
+- crates/esrc-cqrs/examples/cafe/domain.rs
+    - Summary: Defines the cafe order domain model for a CQRS example, including the Order aggregate, commands, events, errors, and a read-model projection.
+    - When To Use: Include this file when you need the domain logic for the cafe example, especially the order aggregate behavior, event types, command handling, or state projection.
+    - Types: OrderStatus, Order, OrderCommand, OrderEvent, OrderError, OrderState
+    - Functions: Order::process, Order::apply, View::apply
+
+- crates/esrc-cqrs/examples/cafe/projector.rs
+    - Summary: Defines an OrderProjector that handles OrderEvent values and prints order activity to stdout.
+    - When To Use: Include this file when you need the example CQRS projector implementation for cafe order events, especially to understand how OrderEvent is projected or logged.
+    - Types: OrderProjector
+
+- crates/esrc-cqrs/src/nats/memory_view_query.rs
+    - Summary: Defines an in-memory projected view store and a NATS query handler that reads snapshots from that store to answer queries as serialized JSON replies.
+    - When To Use: Include this file when working on NATS-based query handling, in-memory read model/projection state, or the shared view used by both event projection and query response generation.
+    - Types: MemoryView<V>, MemoryViewQuery<V, R>
+    - Functions: MemoryView::new, MemoryViewQuery::new, MemoryViewQuery::new_for_serializable_view
 
 - crates/esrc-cqrs/examples/cafe/main.rs
     - Summary: Executable cafe example showing how to wire up esrc-cqrs with NATS/JetStream, including command dispatching, query handling, and a durable projector for an order aggregate.

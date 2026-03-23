@@ -76,10 +76,9 @@
     },
     "crates/esrc-cqrs/examples/cafe/domain.rs": {
       "file_path": "crates/esrc-cqrs/examples/cafe/domain.rs",
-      "hash": "032641324ba340df869274a43d103fe267f860b881b7e64bbb58246d0aaa69fb",
-      "mtime": 1774080596192540,
+      "hash": "a5523f235c9b98941f832d50fd20aa5818358f772b6c3a6865f3eb7d5938b4cb",
+      "mtime": 1774289468629948,
       "public_functions": [
-        "OrderState::from_order",
         "Order::process",
         "Order::apply",
         "View::apply"
@@ -107,8 +106,8 @@
     },
     "crates/esrc-cqrs/examples/cafe/main.rs": {
       "file_path": "crates/esrc-cqrs/examples/cafe/main.rs",
-      "hash": "d69d30a1dc087e13eef8a129ff189603e45d33610497372f278360a7bc5abe94",
-      "mtime": 1774277581758546,
+      "hash": "3f50103e94008bd14f21fdb31327eedc0fe163453b725227445ad122c26995b1",
+      "mtime": 1774290756896362,
       "public_functions": [
         "main"
       ],
@@ -118,8 +117,8 @@
     },
     "crates/esrc-cqrs/examples/cafe/projector.rs": {
       "file_path": "crates/esrc-cqrs/examples/cafe/projector.rs",
-      "hash": "676a96b411eee6cd1b44851c4a1ba0912c58a502eedfd5c9cd3f1110cf21ff48",
-      "mtime": 1774080596192716,
+      "hash": "cafd4ee0923f3ec4caf88137e79ead0d8b7ccc9ac67b8ef3b4c7387f0e55668d",
+      "mtime": 1774289521431221,
       "public_functions": [],
       "public_types": [
         "OrderProjector"
@@ -303,10 +302,11 @@
     },
     "crates/esrc-cqrs/src/nats/live_view_query.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/live_view_query.rs",
-      "hash": "0ad64920a8398d9540323f01923fb09573240c4ac9624a18acd02d879baf27c2",
-      "mtime": 1774080596194050,
+      "hash": "616646a57b961befce397f8f3066449b6451f0f1adfd73f89e6b8d37ab480fb7",
+      "mtime": 1774289387408213,
       "public_functions": [
         "LiveViewQuery::new(handler_name: &'static str, projection: fn(&V) -> R) -> Self",
+        "LiveViewQuery::new_for_serializable_view(handler_name: &'static str) -> Self",
         "QueryHandler<NatsStore>::name(&self) -> &'static str",
         "QueryHandler<NatsStore>::handle<'a>(&'a self, store: &'a NatsStore, payload: &'a [u8]) -> error::Result<Vec<u8>>"
       ],
@@ -318,11 +318,12 @@
     },
     "crates/esrc-cqrs/src/nats/memory_view_query.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/memory_view_query.rs",
-      "hash": "3afb8daba93a21ed3b5c2994fd9aa079646bacc4b1cd5a10d81510127f9accba",
-      "mtime": 1774080596194050,
+      "hash": "340c29041895d37925c80894a0f627e444c12a9a468af63eaf48ba46948567e9",
+      "mtime": 1774290013936762,
       "public_functions": [
         "MemoryView::new",
-        "MemoryViewQuery::new"
+        "MemoryViewQuery::new",
+        "MemoryViewQuery::new_for_serializable_view"
       ],
       "public_types": [
         "MemoryView<V>",
