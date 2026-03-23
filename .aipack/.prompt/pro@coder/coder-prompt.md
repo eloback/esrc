@@ -48,51 +48,28 @@ model: claude-sonnet-4-6
 ## (see PATH_TO_PRO_CODER_DIR/README.md for full pro@coder documentation)
 ```
 
-Following the plan rules create a plan to: create a ServiceCommandHandler where it will define a service for a vertical slice or entire api to declare a service for it's own commands, don't forget to create a example and tests for this feature.
-example for reference:
-
-```rs
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum Commands {
-    RegistrarEscrituracao { id: Uuid, name: String, date: NaiveDate },
-}
-pub struct MyServiceHandler {
-    external_api_handler: ExternalApi,
-}
-impl ServiceCommandHandler<Commands> for MyServiceHandler {
-    ...
-}
-cqrs_registry.register_command(ServiceCommandHandler::<Commands>::new("my_api_service"))
-```
+Following the plan rules execute the next setup in the plan.
 
 ====
->   Info: Duration: 49s | ~$0.1175 | Prompt Tokens: 22,183 (cached: 0, cache_creation: 0) | Completion Tokens: 3,396 
+>   Info: Duration: 48s | ~$0.1996 | Prompt Tokens: 48,132 (cached: 0, cache_creation: 0) | Completion Tokens: 3,678 
 >  Model: claude-sonnet-4-6 | Adapter: Anthropic
->  Files: Context Files: 9 | Working Files: 0 | Knowledge Files: 0
+>  Files: Context Files: 46 | Working Files: 0 | Knowledge Files: 0
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
-Looking at the plan rules and the existing plan files, I need to create/update `plan-1-todo-steps.md` with a plan for the `ServiceCommandHandler` feature, including examples and tests.
+I'll implement the first step: **Define NatsServiceCommandHandler trait and adapter**.
 
-The existing plan already has two steps related to this feature. I need to review them and potentially refine or add to them based on the more detailed user instructions that include an example and tests requirement.
+Let me analyze what needs to be done:
 
-The user's example shows:
-- A `ServiceCommandHandler<Commands>` trait (not generic over store in the impl side)
-- `register_command(ServiceCommandHandler::<Commands>::new("my_api_service"))` - this suggests a wrapper struct
-- The trait is implemented by the user's struct
-
-Let me design a clean plan:
-
-1. Define the `ServiceCommandHandler` trait and adapter struct
-2. Add reply helper and client method
-3. Add example and integration tests
-
-The existing two steps cover points 1 and 2 but don't mention tests and examples explicitly. The user wants tests and examples added. I should revise the plan to incorporate these, potentially adding a third step for the example and tests, or folding them into the existing steps.
-
-Looking at the existing steps, step 1 doesn't mention tests, and the example is mentioned only as a usage snippet. I'll update the plan to add a dedicated step for the cafe example extension and integration tests.
+1. Add `NatsServiceCommandHandler<S, C>` trait to `crates/esrc-cqrs/src/command.rs`
+2. Create `crates/esrc-cqrs/src/nats/command/service_command_handler.rs`
+3. Update `crates/esrc-cqrs/src/nats/command/mod.rs`
+4. Update `crates/esrc-cqrs/src/nats/mod.rs`
+5. Update `crates/esrc-cqrs/src/lib.rs`
+6. Update plan files
 
 
 
 <suggested_git_command>
 git add -A .
-git commit -a -m "+ esrc-cqrs plan - Add ServiceCommandHandler plan with trait, reply helper, example, and tests"
+git commit -m "+ esrc-cqrs - Add NatsServiceCommandHandler trait and ServiceCommandHandler adapter"
 </suggested_git_command>

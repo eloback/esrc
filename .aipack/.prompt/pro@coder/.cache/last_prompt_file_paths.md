@@ -6,13 +6,50 @@ file_content_mode: udiffx
 
 ## All resolve files(sent to AI with content, in this order)
 
-- crates/esrc-cqrs/src/command.rs
+- src/event/truncate.rs
+- src/kurrent/convert.rs
+- src/kurrent/subject.rs
+- src/kurrent.rs
+- src/kurrent/header.rs
+- src/version.rs
+- src/event/subscribe.rs
+- src/event/replay.rs
+- src/nats/subject.rs
+- src/event/publish.rs
+- src/kurrent/event.rs
+- src/envelope.rs
+- src/kurrent/envelope.rs
+- src/nats/header.rs
+- src/project.rs
+- src/nats/envelope.rs
+- src/aggregate.rs
+- Cargo.toml
+- crates/esrc-cqrs/src/nats/projector_runner.rs
+- crates/esrc-cqrs/src/nats/query_dispatcher.rs
+- crates/esrc-cqrs/src/projector.rs
+- crates/esrc-cqrs/src/query.rs
 - crates/esrc-cqrs/src/registry.rs
+- src/event.rs
+- src/lib.rs
+- src/nats.rs
+- src/nats/event.rs
 - crates/esrc-cqrs/Cargo.toml
 - crates/esrc-cqrs/examples/cafe/domain.rs
-- crates/esrc-cqrs/tests/integration_nats.rs
+- crates/esrc-cqrs/examples/cafe/projector.rs
+- crates/esrc-cqrs/src/nats/query/mod.rs
+- crates/esrc-cqrs/src/nats/query/live_view_query.rs
+- crates/esrc-cqrs/src/nats/client/mod.rs
+- crates/esrc-cqrs/src/nats/durable_projector_handler.rs
+- crates/esrc-cqrs/src/nats/command/aggregate_command_handler.rs
+- crates/esrc-cqrs/src/nats/query/memory_view_query.rs
+- crates/esrc-cqrs/src/nats/mod.rs
+- crates/esrc-cqrs/src/error.rs
+- crates/esrc-cqrs/src/nats/command_dispatcher.rs
+- src/error.rs
+- crates/esrc-cqrs/src/nats/client/cqrs_client.rs
 - crates/esrc-cqrs/examples/cafe/main.rs
 - crates/esrc-cqrs/src/lib.rs
+- crates/esrc-cqrs/src/nats/command/mod.rs
 - .aipack/.prompt/pro@coder/dev/plan/_plan-rules.md
 - .aipack/.prompt/pro@coder/dev/plan/plan-1-todo-steps.md
 
