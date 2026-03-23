@@ -192,16 +192,19 @@
     },
     "crates/esrc-cqrs/src/lib.rs": {
       "file_path": "crates/esrc-cqrs/src/lib.rs",
-      "hash": "28dc13698329ee08def1604db006255a74b229d04388bfcade387c2a03faeb5b",
-      "mtime": 1774303324435711,
+      "hash": "0a464457ed65392151d98a1bb76175cfca42b2c8a003982cd85afade7186afc8",
+      "mtime": 1774303753073094,
       "public_functions": [],
       "public_types": [
         "CommandHandler",
+        "NatsServiceCommandHandler",
         "Error",
+        "CqrsClient",
+        "ServiceCommandHandler",
+        "ServiceCommandReply",
         "ProjectorHandler",
         "CqrsRegistry",
-        "QueryHandler",
-        "CqrsClient"
+        "QueryHandler"
       ],
       "summary": "Top-level library module for the `esrc-cqrs` crate. It documents the CQRS extension, exposes modules for command handling, queries, projectors, the main registry, and optional NATS integrations, and re-exports the primary CQRS traits and registry type.",
       "when_to_use": "Include this file when you need the crate’s public API surface, an overview of CQRS support, or to find where command handlers, query handlers, projector handlers, and the registry are defined and re-exported."
@@ -274,21 +277,23 @@
     },
     "crates/esrc-cqrs/src/nats/client/cqrs_client.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/client/cqrs_client.rs",
-      "hash": "56a966dc5891cfa5cadd483afeb7643cf2fa22cfa87eea7e7a1c9ebb70428d76",
-      "mtime": 1774296200446362,
+      "hash": "24f5dfd1d9788c1b0cc261ad13426d0874cd00df2ad52e4ab47de32e135ffbeb",
+      "mtime": 1774303753073094,
       "public_functions": [
         "new",
         "inner",
         "send_command",
         "dispatch_command",
         "send_query",
-        "dispatch_query"
+        "dispatch_query",
+        "send_service_command",
+        "dispatch_service_command"
       ],
       "public_types": [
         "CqrsClient"
       ],
-      "summary": "Defines a high-level CQRS client wrapper around async_nats::Client that builds command/query envelopes, sends NATS requests, and deserializes replies. It also provides convenience dispatch methods that convert CQRS reply success/error handling into Result-based APIs.",
-      "when_to_use": "Include this file when working with CQRS over NATS, especially if you need the client-side helper for sending commands or queries, constructing subjects/envelopes, or handling reply deserialization and error conversion."
+      "summary": "Defines a high-level CQRS client wrapper around async_nats::Client that builds command/query envelopes, sends NATS requests, and deserializes replies. It also provides convenience dispatch methods for command, query, and service-command flows with Result-based error handling.",
+      "when_to_use": "Include this file when working with CQRS over NATS, especially if you need the client-side helper for sending commands, queries, or service commands, constructing subjects/envelopes, or handling reply deserialization and error conversion."
     },
     "crates/esrc-cqrs/src/nats/client/mod.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/client/mod.rs",
@@ -317,8 +322,9 @@
     },
     "crates/esrc-cqrs/src/nats/command/mod.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/command/mod.rs",
-      "hash": "e19fde00f065689ee37d2269c51abeed8039c28c40302edbef68b0e93e34011e",
-      "mtime": 1774303324435711,
+      "hash": "881951167991b08ec0932a2dcd41761f5512a2b68cc997d9eac7763e10acf99a",
+      "mtime": 1774303753073094,
+      "public_functions": [],
       "public_types": [
         "AggregateCommandHandler",
         "CommandEnvelope",
@@ -330,16 +336,20 @@
     },
     "crates/esrc-cqrs/src/nats/command/service_command_handler.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/command/service_command_handler.rs",
-      "hash": "30bca09a52acecf95aa326adb876c566d518bca581ba4b918a81298ee83efcc9",
-      "mtime": 1774303324435711,
+      "hash": "54f12d53915d7697b3b894976796d94da57d9570534883e7d62fe638a0b3e58a",
+      "mtime": 1774303753073094,
       "public_functions": [
-        "ServiceCommandHandler::new"
+        "ServiceCommandHandler::new",
+        "ServiceCommandReply::ok",
+        "ServiceCommandReply::ok_with",
+        "ServiceCommandReply::err"
       ],
       "public_types": [
-        "ServiceCommandHandler<H, C>"
+        "ServiceCommandHandler<H, C>",
+        "ServiceCommandReply<R>"
       ],
-      "summary": "Defines an adapter that wraps a NATS service command handler and exposes it through the generic CommandHandler interface by deserializing JSON payloads and delegating to the underlying handler.",
-      "when_to_use": "Use this file when you need to understand or include the bridge between NATS service command handlers and the generic command registry/dispatcher, especially for JSON command deserialization and endpoint name forwarding."
+      "summary": "Defines adapters that wrap a NATS service command handler and expose it through the generic CommandHandler interface by deserializing JSON payloads and delegating to the underlying handler, plus a convenience ServiceCommandReply envelope type for serialized responses.",
+      "when_to_use": "Use this file when you need the bridge between NATS service command handlers and the generic command registry/dispatcher, including JSON command deserialization, endpoint name forwarding, and the optional reply envelope type."
     },
     "crates/esrc-cqrs/src/nats/command_dispatcher.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/command_dispatcher.rs",
@@ -406,8 +416,8 @@
     },
     "crates/esrc-cqrs/src/nats/mod.rs": {
       "file_path": "crates/esrc-cqrs/src/nats/mod.rs",
-      "hash": "9ba8de4cbca7dcfc2e2ce2957e69a8bb526f98eb1ad31e40f3d05c953d53a6d9",
-      "mtime": 1774303324435711,
+      "hash": "5148b35cd536d9c7b90c5ed8a171e0f65afff8118392eaded03ce17120940ec5",
+      "mtime": 1774303753073094,
       "public_functions": [],
       "public_types": [
         "NatsCommandDispatcher",

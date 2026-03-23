@@ -1,34 +1,44 @@
-## Step - Add ServiceCommandReply helper and CqrsClient dispatch method
+## Step - Add cafe example extension and integration tests for ServiceCommandHandler
       status: active
 time-created: 2026-03-23 18:55:03
-time-current: 2026-03-23 19:08:14
+time-current: 2026-03-23 19:32:56
 
 References: see the definition in plan-3-done-steps.md,
-step 'Step - Define NatsServiceCommandHandler trait and adapter'.
+steps 'Step - Define NatsServiceCommandHandler trait and adapter' and
+'Step - Add ServiceCommandReply helper and CqrsClient dispatch method'.
 
-- In `crates/esrc-cqrs/src/nats/command/service_command_handler.rs`:
-  - Add `ServiceCommandReply<R>` struct (generic over `R: Serialize + DeserializeOwned`) with
-    fields `success: bool`, `data: Option<R>`, `error: Option<crate::Error>`.
-  - Derive `Serialize`, `Deserialize`, `Debug`.
-  - This is an opt-in convenience type; the user may use it or return any other serializable
-    bytes from their `handle` implementation.
-  - Add a `ServiceCommandReply::<()>::ok()` constructor and `ServiceCommandReply::err(e)` constructor.
+Add a concrete demonstration and automated tests for the new `ServiceCommandHandler`.
 
-- In `crates/esrc-cqrs/src/nats/client/cqrs_client.rs`:
-  - Add method `dispatch_service_command<C, R>(&self, service_name, command_name, command: C) -> Result<R>`
-    where `C: Serialize`, `R: DeserializeOwned`.
-    - Sends the serialized command to subject `<service_name>.<command_name>`.
-    - Deserializes the raw reply bytes as `R` and returns it.
-  - This is intentionally low-level: the user chooses `R` to match whatever their handler returns.
+- Extend `crates/esrc-cqrs/examples/cafe/`:
+  - Add a `service.rs` module containing:
+    - A `CafeCommands` enum with at least two variants (e.g., `PlaceOrder { ... }`,
+      `CompleteOrder { id: Uuid }`).
+    - A `CafeServiceHandler` struct implementing `NatsServiceCommandHandler<NatsStore, CafeCommands>`.
+    - The handler routes each variant to the appropriate domain logic using the store.
+  - Wire `CafeServiceHandler` into `main.rs` via `registry.register_command(ServiceCommandHandler::new(...))`.
+  - Add driver client calls using `CqrsClient::dispatch_service_command` to send each variant and
+    print/assert the reply.
 
-- Update `crates/esrc-cqrs/src/lib.rs` re-exports to expose `ServiceCommandReply`.
+- In `crates/esrc-cqrs/tests/integration_nats.rs`:
+  - Add a section `// -- ServiceCommandHandler tests --` with:
+    - `test_service_command_handler_success`: send a well-formed command through the service
+      handler, assert the reply has `success: true` and the store reflects the event.
+    - `test_service_command_handler_error`: send a command that triggers a domain error,
+      assert the reply has `success: false` and a populated `error` field.
+    - `test_service_command_handler_malformed_payload`: send garbage bytes, assert that the
+      dispatcher returns an error response and remains alive for subsequent requests.
+  - Reuse the existing `TestCtx`, `spawn_dispatcher`, and `CounterEvent` types.
+  - Implement a `CounterServiceHandler` that wraps `CounterCommand` dispatch through the
+    service handler path, so the tests exercise the new code path end-to-end.
 
 ### Implementation Considerations
 
-- `ServiceCommandReply<()>` gets a dedicated `ok()` constructor (no data), while the generic
-  `ok_with(data: R)` constructor covers cases where data needs to be returned.
-- `send_service_command` is the low-level raw variant; `dispatch_service_command` unwraps the
-  `ServiceCommandReply` envelope and returns `Result<R>` for ergonomic use.
-- The `ServiceCommandHandler` struct was also created in this step since it was absent from the
-  prior active step's implementation (the file existed but was empty). It now contains the full
-  adapter wiring: deserialization of `C` from raw bytes, delegation to the inner handler.
+- `service.rs` uses `CafeCommands` enum with `PlaceOrder` and `CompleteOrder` variants, each
+  carrying the aggregate `id: Uuid` since the service handler receives the full command in one shot.
+- Integration tests use a `CounterServiceHandler` wrapping the existing `Counter` aggregate and
+  `CounterCommand` enum, reusing all existing test infrastructure.
+- A local `esrc_to_cqrs` helper in the test file converts `esrc::error::Error` to `esrc_cqrs::Error`
+  with proper `External` downcast for `CounterError`.
+- The duplicate `ServiceCommandHandler` struct definition in `service_command_handler.rs` was
+  removed as part of this step; the file now has a single clean definition.
+- `plan-1-todo-steps.md` had this step listed; it has been moved to active.

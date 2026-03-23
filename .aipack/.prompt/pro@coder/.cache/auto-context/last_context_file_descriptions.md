@@ -258,12 +258,6 @@
     - When To Use: Include this file when handling, matching, or propagating the library’s standardized errors, or when using the event-sourcing Result alias.
     - Types: Error, Result
 
-- crates/esrc-cqrs/src/nats/client/cqrs_client.rs
-    - Summary: Defines a high-level CQRS client wrapper around async_nats::Client that builds command/query envelopes, sends NATS requests, and deserializes replies. It also provides convenience dispatch methods that convert CQRS reply success/error handling into Result-based APIs.
-    - When To Use: Include this file when working with CQRS over NATS, especially if you need the client-side helper for sending commands or queries, constructing subjects/envelopes, or handling reply deserialization and error conversion.
-    - Types: CqrsClient
-    - Functions: new, inner, send_command, dispatch_command, send_query, dispatch_query
-
 - crates/esrc-cqrs/examples/cafe/main.rs
     - Summary: Executable cafe example showing how to wire up esrc-cqrs with NATS/JetStream, including command dispatching, query handling, and a durable projector for an order aggregate.
     - When To Use: Include this file when you need an end-to-end usage example of the CQRS setup, dispatcher wiring, projector execution, and NATS subject naming for the cafe domain.
@@ -277,7 +271,13 @@
 - crates/esrc-cqrs/src/lib.rs
     - Summary: Top-level library module for the `esrc-cqrs` crate. It documents the CQRS extension, exposes modules for command handling, queries, projectors, the main registry, and optional NATS integrations, and re-exports the primary CQRS traits and registry type.
     - When To Use: Include this file when you need the crate’s public API surface, an overview of CQRS support, or to find where command handlers, query handlers, projector handlers, and the registry are defined and re-exported.
-    - Types: CommandHandler, Error, ProjectorHandler, CqrsRegistry, QueryHandler, CqrsClient
+    - Types: CommandHandler, NatsServiceCommandHandler, Error, CqrsClient, ServiceCommandHandler, ServiceCommandReply, ProjectorHandler, CqrsRegistry, QueryHandler
+
+- crates/esrc-cqrs/src/nats/client/cqrs_client.rs
+    - Summary: Defines a high-level CQRS client wrapper around async_nats::Client that builds command/query envelopes, sends NATS requests, and deserializes replies. It also provides convenience dispatch methods for command, query, and service-command flows with Result-based error handling.
+    - When To Use: Include this file when working with CQRS over NATS, especially if you need the client-side helper for sending commands, queries, or service commands, constructing subjects/envelopes, or handling reply deserialization and error conversion.
+    - Types: CqrsClient
+    - Functions: new, inner, send_command, dispatch_command, send_query, dispatch_query, send_service_command, dispatch_service_command
 
 - crates/esrc-cqrs/src/nats/command/mod.rs
     - Summary: Module wiring for NATS command handling. It exposes the aggregate command handler module and service command handler adapter, and re-exports the main command-handling types.
@@ -285,10 +285,10 @@
     - Types: AggregateCommandHandler, CommandEnvelope, CommandReply, ServiceCommandHandler
 
 - crates/esrc-cqrs/src/nats/command/service_command_handler.rs
-    - Summary: Defines an adapter that wraps a NATS service command handler and exposes it through the generic CommandHandler interface by deserializing JSON payloads and delegating to the underlying handler.
-    - When To Use: Use this file when you need to understand or include the bridge between NATS service command handlers and the generic command registry/dispatcher, especially for JSON command deserialization and endpoint name forwarding.
-    - Types: ServiceCommandHandler<H, C>
-    - Functions: ServiceCommandHandler::new
+    - Summary: Defines adapters that wrap a NATS service command handler and expose it through the generic CommandHandler interface by deserializing JSON payloads and delegating to the underlying handler, plus a convenience ServiceCommandReply envelope type for serialized responses.
+    - When To Use: Use this file when you need the bridge between NATS service command handlers and the generic command registry/dispatcher, including JSON command deserialization, endpoint name forwarding, and the optional reply envelope type.
+    - Types: ServiceCommandHandler<H, C>, ServiceCommandReply<R>
+    - Functions: ServiceCommandHandler::new, ServiceCommandReply::ok, ServiceCommandReply::ok_with, ServiceCommandReply::err
 
 - crates/esrc-cqrs/src/nats/mod.rs
     - Summary: NATS CQRS integration module that wires together command dispatching over core NATS request/reply, query dispatching, and projector execution over JetStream durable pull consumers.
