@@ -1,10 +1,5 @@
 # Context Files Descriptions (Sent to AI for selection)
 
-- src/error.rs
-    - Summary: Defines the crate’s common event-sourcing error type and a Result alias for operations that can fail with these errors.
-    - When To Use: Include this file when handling, matching, or propagating the library’s standardized errors, or when using the event-sourcing Result alias.
-    - Types: Error, Result
-
 - src/event/future.rs
     - Summary: Defines a helper trait for converting a `Future` into a `Send` future, working around a compiler issue where `Send` cannot be inferred for an inner future.
     - When To Use: Include this file when working with async/event code that needs to guarantee a future is `Send`, especially when compiler inference fails for nested futures.
@@ -119,39 +114,10 @@
     - Summary: Workspace and root package manifest for the esrc Rust project, defining shared dependencies, feature flags, and member crates/examples.
     - When To Use: Use this file when you need to understand the project structure, enabled feature combinations, dependency versions, workspace members, or package metadata for builds and integration context.
 
-- crates/esrc-cqrs/examples/cafe/error.rs
-    - Summary: Defines the cafe example’s tab-related domain error type used to represent invalid tab states and operations.
-    - When To Use: Include when working with the cafe example’s tab lifecycle, payment, or service-flow logic that needs to return or match on tab errors.
-    - Types: TabError
-
 - crates/esrc-cqrs/src/command.rs
     - Summary: Defines the CQRS command-handling trait used to route and process incoming command messages against an event store.
     - When To Use: Include this file when working with command dispatch, implementing new command handlers, or understanding how raw command payloads are handled and replied to in the CQRS layer.
     - Types: CommandHandler
-
-- crates/esrc-cqrs/src/error.rs
-    - Summary: Defines the serializable CQRS error type used for transport over NATS, plus conversion from the core esrc error type and helpers to recover typed external errors.
-    - When To Use: Use when handling CQRS command errors, serializing/deserializing errors across the transport boundary, or converting between esrc::error::Error and the CQRS-specific serializable Error type.
-    - Types: Error
-    - Functions: from_esrc_error
-
-- crates/esrc-cqrs/src/nats/aggregate_command_handler.rs
-    - Summary: Defines a generic NATS-backed aggregate command handler plus request/reply envelopes for routing, deserializing, applying, and responding to aggregate commands.
-    - When To Use: Use this file when you need to handle commands sent over NATS for an event-sourced aggregate, including loading the aggregate, applying a command, and returning a serialized success reply.
-    - Types: CommandEnvelope<C>, CommandReply, AggregateCommandHandler<A>
-    - Functions: AggregateCommandHandler::new, CommandHandler<NatsStore>::name, CommandHandler<NatsStore>::handle
-
-- crates/esrc-cqrs/src/nats/command_dispatcher.rs
-    - Summary: Implements a NATS-based command dispatcher that registers erased command handlers as request/reply endpoints on a NATS service and forwards requests to them, plus a helper for building command subjects.
-    - When To Use: Include this file when you need to understand or modify how CQRS command handlers are exposed over NATS, how requests are dispatched to handlers, or how command subject names are constructed.
-    - Types: NatsCommandDispatcher
-    - Functions: NatsCommandDispatcher::new, NatsCommandDispatcher::run, command_subject
-
-- crates/esrc-cqrs/src/nats/durable_projector_handler.rs
-    - Summary: Defines a projector handler that uses a NATS JetStream durable consumer so event processing can resume from the last checkpoint after restarts.
-    - When To Use: Include this file when working on NATS-backed projector execution, durable consumer setup, or understanding how projector handlers are wired to resume event streams.
-    - Types: DurableProjectorHandler<P>
-    - Functions: new(durable_name: &'static str, projector: P) -> Self, name(&self) -> &'static str, run<'a>(&'a self, store: &'a NatsStore) -> error::Result<()>
 
 - crates/esrc-cqrs/src/nats/projector_runner.rs
     - Summary: Defines a NATS-specific projector runner that wraps a ProjectorHandler and executes it against a NatsStore, typically in its own Tokio task for concurrent projector execution.
@@ -180,12 +146,6 @@
     - When To Use: Include this file when you need to understand or use the CQRS handler registry, register command/projector/query implementations, access registered handlers or the shared store, or run projectors concurrently.
     - Types: CqrsRegistry<S>, ErasedCommandHandler<S>, ErasedProjectorHandler<S>, ErasedQueryHandler<S>
     - Functions: CqrsRegistry::new, CqrsRegistry::register_command, CqrsRegistry::register_projector, CqrsRegistry::register_query, CqrsRegistry::command_handlers, CqrsRegistry::projector_handlers, CqrsRegistry::query_handlers, CqrsRegistry::store, CqrsRegistry::run_projectors
-
-- crates/esrc-cqrs/tests/integration_nats.rs
-    - Summary: Integration tests for esrc-cqrs against a live NATS JetStream server, covering command dispatch, durable event storage, projector behavior, error propagation, malformed payload handling, query handling, and registry accessors.
-    - When To Use: Include this file when you need to understand or verify the NATS/JetStream integration behavior of esrc-cqrs, especially request/reply command and query handling, projector execution, durability, or end-to-end test setup.
-    - Types: CounterState, Counter, CounterCommand, CounterEvent, CounterError, RecordingProjector, ProjectorError
-    - Functions: test_command_request_response_success, test_command_error_does_not_break_dispatcher, test_projector_receives_events, test_projector_acks_messages_no_redelivery, test_projector_error_propagates, test_multiple_commands_same_aggregate_occ, test_malformed_payload_returns_error, test_registry_accessors, test_query_returns_aggregate_state, test_query_default_state_for_new_aggregate, test_query_malformed_payload_returns_error, test_registry_query_handlers_accessor
 
 - src/event.rs
     - Summary: Defines the core event abstractions for the crate, including the Event and EventGroup traits, the Sequence wrapper for stream ordering, and re-exports for publish/replay/subscribe/truncate event-store operations.
@@ -223,10 +183,6 @@
     - Summary: Nix bootstrap helper that reads devenv.lock, resolves flake/path inputs (including relative paths), and constructs per-node flake/devenv evaluation data.
     - When To Use: Use when you need to understand or modify how the project bootstraps devenv/flake inputs from the lockfile, especially lock resolution and lazy evaluation behavior.
 
-- crates/esrc-cqrs/.devenv/nixpkgs-config-c7c9559ef5bdea25.nix
-    - Summary: Nix configuration snippet that defines the allowUnfreePredicate logic for nixpkgs, controlling which unfree packages are permitted.
-    - When To Use: Include when working on Nix/devenv configuration for this crate, especially if you need to understand or modify how unfree packages are allowed or filtered.
-
 - crates/esrc-cqrs/Cargo.toml
     - Summary: Cargo manifest for the esrc-cqrs crate, defining package metadata, feature flags, and dependencies for CQRS command/event handler registry support.
     - When To Use: Include this file when you need to understand the crate's build configuration, enabled features, or dependency relationships for the CQRS registry integration.
@@ -234,28 +190,6 @@
 - crates/esrc-cqrs/.gitignore
     - Summary: Git ignore rules for the esrc-cqrs crate, excluding build artifacts, backup Rust files, and local development tool files.
     - When To Use: Include when you need to understand which generated, local, or environment-specific files are intentionally excluded from version control for this crate.
-
-- crates/esrc-cqrs/src/nats/client.rs
-    - Summary: Defines a high-level CQRS NATS client wrapper that builds command/query envelopes, sends requests, and converts replies into raw or typed results.
-    - When To Use: Include this file when working with CQRS request dispatch over NATS, especially for sending commands or queries through the convenience client and handling reply deserialization/error conversion.
-    - Types: CqrsClient
-    - Functions: new, inner, send_command, dispatch_command, send_query, dispatch_query
-
-- crates/esrc-cqrs/src/nats/mod.rs
-    - Summary: NATS CQRS integration module that wires together command dispatching over core NATS request/reply, query dispatching, and projector execution over JetStream durable pull consumers.
-    - When To Use: Include this file when you need the NATS-backed CQRS entry points, especially to understand or import the dispatcher and projector runner types re-exported from this module.
-    - Types: AggregateCommandHandler, CommandEnvelope, CommandReply, DurableProjectorHandler, NatsCommandDispatcher, NatsQueryDispatcher, QueryEnvelope, QueryReply, NatsProjectorRunner, LiveViewQuery, MemoryView, MemoryViewQuery
-
-- crates/esrc-cqrs/src/lib.rs
-    - Summary: Top-level library module for the `esrc-cqrs` crate. It documents the CQRS extension, exposes modules for command handling, queries, projectors, the main registry, and optional NATS integrations, and re-exports the primary CQRS traits and registry type.
-    - When To Use: Include this file when you need the crate’s public API surface, an overview of CQRS support, or to find where command handlers, query handlers, projector handlers, and the registry are defined and re-exported.
-    - Types: CommandHandler, Error, ProjectorHandler, CqrsRegistry, QueryHandler
-
-- crates/esrc-cqrs/src/nats/live_view_query.rs
-    - Summary: Defines LiveViewQuery, a CQRS/NATS query handler that rebuilds a view by replaying an aggregate's full event stream on each request and returns a projected, serialized read model.
-    - When To Use: Include this file when you need the implementation or behavior of on-demand live view queries over NATS, especially for replay-based query handling, query routing, or view projection logic.
-    - Types: LiveViewQuery<V, R>
-    - Functions: LiveViewQuery::new(handler_name: &'static str, projection: fn(&V) -> R) -> Self, LiveViewQuery::new_for_serializable_view(handler_name: &'static str) -> Self, QueryHandler<NatsStore>::name(&self) -> &'static str, QueryHandler<NatsStore>::handle<'a>(&'a self, store: &'a NatsStore, payload: &'a [u8]) -> error::Result<Vec<u8>>
 
 - crates/esrc-cqrs/examples/cafe/domain.rs
     - Summary: Defines the cafe order domain model for a CQRS example, including the Order aggregate, commands, events, errors, and a read-model projection.
@@ -268,14 +202,90 @@
     - When To Use: Include this file when you need the example CQRS projector implementation for cafe order events, especially to understand how OrderEvent is projected or logged.
     - Types: OrderProjector
 
-- crates/esrc-cqrs/src/nats/memory_view_query.rs
-    - Summary: Defines an in-memory projected view store and a NATS query handler that reads snapshots from that store to answer queries as serialized JSON replies.
-    - When To Use: Include this file when working on NATS-based query handling, in-memory read model/projection state, or the shared view used by both event projection and query response generation.
+- crates/esrc-cqrs/src/nats/query/mod.rs
+    - Summary: Module entry point for NATS query handlers, re-exporting live-view and memory-view query implementations.
+    - When To Use: Use this file when you need the available NATS query abstractions or want to import the query handler types from a single module path.
+    - Types: LiveViewQuery, MemoryView, MemoryViewQuery
+
+- crates/esrc-cqrs/src/nats/query/live_view_query.rs
+    - Summary: Implements a NATS query handler that rebuilds a view by replaying an aggregate's full event history on each request, then returns a projected serializable read model.
+    - When To Use: Use when you need to understand or modify live query handling for replay-on-demand read models over NATS, especially the QueryHandler implementation, replay logic, or projection behavior.
+    - Types: LiveViewQuery<V, R>
+    - Functions: LiveViewQuery::new, LiveViewQuery::new_for_serializable_view
+
+- crates/esrc-cqrs/src/nats/client/mod.rs
+    - Summary: Module entry point for the NATS CQRS client, exposing the high-level ergonomic CQRS client API.
+    - When To Use: Use this file when you need the public CQRS client type for NATS-based command/query dispatch or want to trace what the client module exports.
+    - Types: CqrsClient
+
+- crates/esrc-cqrs/src/nats/durable_projector_handler.rs
+    - Summary: Defines a projector handler that uses a NATS JetStream durable consumer so event processing can resume from the last checkpoint after restarts.
+    - When To Use: Include this file when working on NATS-backed projector execution, durable consumer setup, or understanding how projector handlers are wired to resume event streams.
+    - Types: DurableProjectorHandler<P>
+    - Functions: new(durable_name: &'static str, projector: P) -> Self, name(&self) -> &'static str, run<'a>(&'a self, store: &'a NatsStore) -> error::Result<()>
+
+- crates/esrc-cqrs/.devenv/nixpkgs-config-c7c9559ef5bdea25.nix
+    - Summary: Nix configuration snippet that defines the allowUnfreePredicate logic for nixpkgs, controlling which unfree packages are permitted.
+    - When To Use: Include when working on Nix/devenv configuration for this crate, especially if you need to understand or modify how unfree packages are allowed or filtered.
+
+- crates/esrc-cqrs/src/nats/command/aggregate_command_handler.rs
+    - Summary: Implements a generic NATS-backed command handler for aggregates. It defines the command envelope format, loads an aggregate from the NATS store, applies a command, and serializes a standardized reply while converting framework errors into CQRS-friendly errors.
+    - When To Use: Use this file when working on NATS command handling for aggregates, command envelope serialization/deserialization, aggregate command execution flow, or error conversion between esrc and cqrs error types.
+    - Types: CommandEnvelope<C>, AggregateCommandHandler<A>
+    - Functions: AggregateCommandHandler::new, convert_esrc_error<A>
+
+- crates/esrc-cqrs/tests/integration_nats.rs
+    - Summary: Integration tests for esrc-cqrs against a live NATS JetStream server, covering command dispatch, durable event storage, projector behavior, error propagation, malformed payload handling, query handling, and registry accessors.
+    - When To Use: Include this file when you need to understand or verify the NATS/JetStream integration behavior of esrc-cqrs, especially request/reply command and query handling, projector execution, durability, or end-to-end test setup.
+    - Types: CounterState, Counter, CounterCommand, CounterEvent, CounterError, RecordingProjector, ProjectorError
+    - Functions: test_command_request_response_success, test_command_error_does_not_break_dispatcher, test_projector_receives_events, test_projector_acks_messages_no_redelivery, test_projector_error_propagates, test_multiple_commands_same_aggregate_occ, test_malformed_payload_returns_error, test_registry_accessors, test_query_returns_aggregate_state, test_query_default_state_for_new_aggregate, test_query_malformed_payload_returns_error, test_registry_query_handlers_accessor
+
+- crates/esrc-cqrs/src/nats/query/memory_view_query.rs
+    - Summary: Implements an in-memory CQRS projection store and a NATS query handler that reads projected views from shared memory and serializes query replies.
+    - When To Use: Include this file when working on NATS-based query handling, in-memory projections/read models, or code that needs to project events into shared views and answer queries from those views.
     - Types: MemoryView<V>, MemoryViewQuery<V, R>
     - Functions: MemoryView::new, MemoryViewQuery::new, MemoryViewQuery::new_for_serializable_view
+
+- crates/esrc-cqrs/src/nats/mod.rs
+    - Summary: NATS CQRS integration module that wires together command dispatching over core NATS request/reply, query dispatching, and projector execution over JetStream durable pull consumers.
+    - When To Use: Include this file when you need the NATS-backed CQRS entry points, especially to understand or import the dispatcher and projector runner types re-exported from this module.
+    - Types: NatsCommandDispatcher, NatsProjectorRunner, NatsQueryDispatcher, QueryEnvelope, QueryReply, DurableProjectorHandler
+
+- crates/esrc-cqrs/src/error.rs
+    - Summary: Defines the serializable CQRS error type used for transport over NATS, plus conversion from the core esrc error type and helpers to recover typed external errors.
+    - When To Use: Use when handling CQRS command errors, serializing/deserializing errors across the transport boundary, or converting between esrc::error::Error and the CQRS-specific serializable Error type.
+    - Types: Error, Result
+    - Functions: from_esrc_error
+
+- crates/esrc-cqrs/src/nats/command_dispatcher.rs
+    - Summary: Implements a NATS-based command dispatcher that registers erased command handlers as request/reply endpoints on a NATS service and forwards requests to them, plus a helper for building command subjects.
+    - When To Use: Include this file when you need to understand or modify how CQRS command handlers are exposed over NATS, how requests are dispatched to handlers, or how command subject names are constructed.
+    - Types: CommandReply, NatsCommandDispatcher
+    - Functions: NatsCommandDispatcher::new, NatsCommandDispatcher::run, command_subject
+
+- src/error.rs
+    - Summary: Defines the crate’s common event-sourcing error type and a Result alias for operations that can fail with these errors.
+    - When To Use: Include this file when handling, matching, or propagating the library’s standardized errors, or when using the event-sourcing Result alias.
+    - Types: Error, Result
+
+- crates/esrc-cqrs/src/nats/client/cqrs_client.rs
+    - Summary: Defines a high-level CQRS client wrapper around async_nats::Client that builds command/query envelopes, sends NATS requests, and deserializes replies. It also provides convenience dispatch methods that convert CQRS reply success/error handling into Result-based APIs.
+    - When To Use: Include this file when working with CQRS over NATS, especially if you need the client-side helper for sending commands or queries, constructing subjects/envelopes, or handling reply deserialization and error conversion.
+    - Types: CqrsClient
+    - Functions: new, inner, send_command, dispatch_command, send_query, dispatch_query
 
 - crates/esrc-cqrs/examples/cafe/main.rs
     - Summary: Executable cafe example showing how to wire up esrc-cqrs with NATS/JetStream, including command dispatching, query handling, and a durable projector for an order aggregate.
     - When To Use: Include this file when you need an end-to-end usage example of the CQRS setup, dispatcher wiring, projector execution, and NATS subject naming for the cafe domain.
     - Functions: main
+
+- crates/esrc-cqrs/src/lib.rs
+    - Summary: Top-level library module for the `esrc-cqrs` crate. It documents the CQRS extension, exposes modules for command handling, queries, projectors, the main registry, and optional NATS integrations, and re-exports the primary CQRS traits and registry type.
+    - When To Use: Include this file when you need the crate’s public API surface, an overview of CQRS support, or to find where command handlers, query handlers, projector handlers, and the registry are defined and re-exported.
+    - Types: CommandHandler, Error, ProjectorHandler, CqrsRegistry, QueryHandler, CqrsClient
+
+- crates/esrc-cqrs/src/nats/command/mod.rs
+    - Summary: Module wiring for NATS command handling. It exposes the aggregate command handler module and re-exports its main command-handling types.
+    - When To Use: Use this file when you need the command-side NATS CQRS wiring or want access to the aggregate command handler types via the module re-exports.
+    - Types: AggregateCommandHandler, CommandEnvelope, CommandReply
 
