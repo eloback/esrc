@@ -41,6 +41,7 @@ file_content_mode: udiffx
 - crates/esrc-cqrs/examples/cafe/domain.rs
 - crates/esrc-cqrs/examples/cafe/main.rs
 - crates/esrc-cqrs/examples/cafe/projector.rs
+- crates/esrc-cqrs/examples/cafe/service.rs
 - crates/esrc-cqrs/src/command.rs
 - crates/esrc-cqrs/src/error.rs
 - crates/esrc-cqrs/src/lib.rs
@@ -94,6 +95,7 @@ None
   - domain.rs
   - main.rs
   - projector.rs
+  - service.rs
 - crates/esrc-cqrs/src/
   - command.rs
   - error.rs
