@@ -158,6 +158,11 @@ impl NatsStore {
         self
     }
 
+    /// return a clone of the underlying Nats Client
+    pub fn client(&self) -> async_nats::Client {
+        self.context.client()
+    }
+
     /// Select the stream used for creating read-side consumers.
     fn reader_stream(&self) -> &JetStream {
         self.mirror_stream.as_ref().unwrap_or(&self.stream)
