@@ -102,10 +102,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "[client] Order state after CompleteOrder: status={:?}, item={:?}, quantity={}",
             order.status, order.item, order.quantity
         );
-
-        sleep(Duration::from_secs(1)).await;
     });
 
+    sleep(Duration::from_secs(3)).await;
     // Block on the command service (runs until NATS closes or shutdown).
     store.wait_graceful_shutdown().await;
 
