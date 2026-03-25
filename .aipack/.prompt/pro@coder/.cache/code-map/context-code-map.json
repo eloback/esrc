@@ -2,12 +2,12 @@
   "file_map": {
     "Cargo.toml": {
       "file_path": "Cargo.toml",
-      "hash": "db1b37cfa5ba75d19439821e7b832912cf27472e1b1e56fdcb944c5c745f56fa",
-      "mtime": 1774080596191219,
+      "hash": "6c2fb7ddfd66cb547006eec595d7b414dea13137627d09761c0641dccdacb4ac",
+      "mtime": 1774450241092984,
       "public_functions": [],
       "public_types": [],
-      "summary": "Workspace and root package manifest for the esrc Rust project, defining shared dependencies, feature flags, and member crates/examples.",
-      "when_to_use": "Use this file when you need to understand the project structure, enabled feature combinations, dependency versions, workspace members, or package metadata for builds and integration context."
+      "summary": "Workspace and root package manifest for the esrc project, which provides primitives for event sourcing and CQRS. It defines shared dependencies, workspace members (derive, opentelemetry-nats), and feature flags for NATS and KurrentDB integrations.",
+      "when_to_use": "Use this file to understand the project's dependency tree, available feature configurations (like 'nats' or 'kurrent'), and workspace structure for event-sourcing implementations."
     },
     "compilation_errors.txt": {
       "file_path": "compilation_errors.txt",
@@ -934,7 +934,7 @@
     "src/event.rs": {
       "file_path": "src/event.rs",
       "hash": "fef5ec0c6ad243f14ad9f60c5576646ff3829878ce67d1e0db9d4ddd0025fa8a",
-      "mtime": 1774080596195064,
+      "mtime": 1774450241092984,
       "public_functions": [
         "Sequence::new"
       ],
@@ -991,7 +991,7 @@
     "src/event/subscribe.rs": {
       "file_path": "src/event/subscribe.rs",
       "hash": "f3d1a3d5b293db96ab1cc6155ecc456487c45dada9a84dec6f4906a37d4711d5",
-      "mtime": 1757654559905985,
+      "mtime": 1774448954566272,
       "public_functions": [
         "subscribe",
         "observe"
@@ -1095,7 +1095,7 @@
     "src/lib.rs": {
       "file_path": "src/lib.rs",
       "hash": "ed6a727ce5a658c4421b2a4a04250bedf87342ed4a285c11302a9ecc4cdd4f1f",
-      "mtime": 1774080596195064,
+      "mtime": 1774450241092984,
       "public_functions": [],
       "public_types": [
         "Aggregate",
@@ -1109,21 +1109,23 @@
     },
     "src/nats.rs": {
       "file_path": "src/nats.rs",
-      "hash": "e9e6adf82851f9780fe1efe9608904c711e1f4a5ee4ae46090f5c388b7f5bd4b",
-      "mtime": 1774080596195064,
+      "hash": "f24839bbb089712acb68d1e64a9a8b82c990903e3b6b7376b06077b424d47bd1",
+      "mtime": 1774450241092984,
       "public_functions": [
         "NatsStore::try_new",
         "NatsStore::enable_mirror",
         "NatsStore::get_task_tracker",
         "NatsStore::wait_graceful_shutdown",
-        "NatsStore::update_durable_consumer_option"
+        "NatsStore::update_durable_consumer_option",
+        "NatsStore::client"
       ],
       "public_types": [
         "NatsStore",
-        "GracefulShutdown"
+        "GracefulShutdown",
+        "NatsEnvelope"
       ],
-      "summary": "Defines the NatsStore event-store wrapper over NATS JetStream, including stream setup, optional mirror stream support, consumer creation helpers, and graceful shutdown tracking.",
-      "when_to_use": "Include this file when working with NATS/JetStream-backed event storage, stream or consumer initialization, mirror/read-side setup, or graceful task shutdown logic."
+      "summary": "Defines NatsStore, a JetStream-backed event store with support for stream/mirror management, consumer configuration, and task lifecycle tracking for graceful shutdown.",
+      "when_to_use": "Include when interacting with NATS JetStream for event sourcing, initializing event streams, or managing asynchronous NATS-based background tasks."
     },
     "src/nats/convert.rs": {
       "file_path": "src/nats/convert.rs",
@@ -1152,7 +1154,7 @@
     "src/nats/event.rs": {
       "file_path": "src/nats/event.rs",
       "hash": "2fb4e07d92e0504febb6e394d0f363554d2e1ed09bd1d6a0679e0a883240640e",
-      "mtime": 1774080596195064,
+      "mtime": 1774450241092984,
       "public_functions": [
         "NatsStore::durable_observe",
         "Replay::replay",
