@@ -4,6 +4,8 @@
 
 /// Materialize and mutate Aggregates on top of event streams.
 pub mod aggregate;
+/// Read models built from event streams, without commands or errors.
+pub mod view;
 /// Generic event wrappers that can be deserialized safely into Event types.
 pub mod envelope;
 /// Common error types used throughout the esrc modules.
@@ -14,8 +16,6 @@ pub mod event;
 pub mod project;
 /// (De)Serialize types with extra version information for upcasting.
 pub mod version;
-/// Read models built from event streams, without commands or errors.
-pub mod view;
 
 /// An event store implementation on top of NATS Jetstream.
 #[cfg(feature = "nats")]
