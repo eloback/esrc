@@ -1,4 +1,4 @@
-use esrc::envelope::TryFromEnvelope;
+use esrc::envelope::TryFromEnvelope as _;
 use esrc::event::Event;
 use esrc::version::DeserializeVersion;
 use esrc_derive::TryFromEnvelope;

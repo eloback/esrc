@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use esrc::event::Event;
 use esrc::version::DeserializeVersion;
 use serde::{Deserialize, Deserializer};

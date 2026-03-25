@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use esrc::event::{Event, EventGroup};
+use esrc::event::{Event as EsrcEvent, EventGroup as _};
 use esrc_derive::{Event, EventGroup};
 
 mod fixtures;
@@ -92,7 +92,7 @@ fn event_group_ignore() {
 #[allow(unused)]
 fn event_group_lifetime() {
     #[derive(EventGroup)]
-    enum TestGroup<'a, T: Event> {
+    enum TestGroup<'a, T: EsrcEvent> {
         Foo(T),
         Lifetime(LifetimeEvent<'a>),
     }

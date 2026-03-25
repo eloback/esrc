@@ -1,6 +1,8 @@
 use std::marker::PhantomData;
 
-use esrc::version::{DeserializeVersion, SerializeVersion};
+use esrc::version::{
+    DeserializeVersion as EsrcDeserializeVersion, SerializeVersion as EsrcSerializeVersion,
+};
 use esrc_derive::{DeserializeVersion, SerializeVersion};
 use serde::{Deserialize, Serialize};
 
@@ -22,7 +24,7 @@ fn deserialize_version() {
         }
     }
 
-    impl SerializeVersion for TestEvent {
+    impl EsrcSerializeVersion for TestEvent {
         fn version() -> usize {
             1
         }
@@ -51,7 +53,7 @@ fn deserialize_version_lifetime() {
         }
     }
 
-    impl<'a> SerializeVersion for TestEvent<'a> {
+    impl<'a> EsrcSerializeVersion for TestEvent<'a> {
         fn version() -> usize {
             2
         }
@@ -91,13 +93,13 @@ fn deserialize_version_previous() {
         }
     }
 
-    impl<'a> SerializeVersion for TestEvent1<'a> {
+    impl<'a> EsrcSerializeVersion for TestEvent1<'a> {
         fn version() -> usize {
             1
         }
     }
 
-    impl<'a> SerializeVersion for TestEvent2<'a> {
+    impl<'a> EsrcSerializeVersion for TestEvent2<'a> {
         fn version() -> usize {
             2
         }
