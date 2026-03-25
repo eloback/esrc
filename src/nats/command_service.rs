@@ -36,7 +36,7 @@ impl CommandService for NatsStore {
         // The endpoint subject uses a wildcard to capture the aggregate UUID
         // from the last token, e.g. `<event_name>.*`.
         let mut endpoint = group
-            .endpoint("command")
+            .endpoint("command.*")
             .await
             .map_err(|e| Error::Internal(e.into()))?;
 
