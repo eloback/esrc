@@ -62,13 +62,12 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn start_observer<S, P>(store: S, active_tables: P)
+fn start_observer<P>(store: NatsStore, active_tables: P)
 where
-    S: SubscribeExt + Send + Sync + 'static,
     P: for<'de> esrc::project::Project<'de> + Send + 'static,
 {
     tokio::spawn(async move {
-        if let Err(e) = store.observe(active_tables).await {
+        if let Err(e) = store.observe_with_ack(active_tables, store.clone()).await {
             eprintln!("Error observing events: {e}");
         }
     });

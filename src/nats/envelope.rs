@@ -1,6 +1,6 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use async_nats::{jetstream, Message};
+use async_nats::jetstream;
 use serde_json::Deserializer;
 use uuid::Uuid;
 
@@ -23,7 +23,7 @@ pub struct NatsEnvelope {
 
     name: String,
     version: usize,
-    message: Message,
+    message: jetstream::Message,
 }
 
 impl NatsEnvelope {
@@ -63,8 +63,13 @@ impl NatsEnvelope {
 
             name: name.into_owned(),
             version,
-            message: message.split().0,
+            message,
         })
+    }
+
+    /// Acknowledge this message, indicating that it has been successfully processed.
+    pub async fn ack(&self) -> error::Result<()> {
+        self.message.ack().await.map_err(Error::Internal)
     }
 }
 

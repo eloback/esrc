@@ -15,7 +15,7 @@ pub mod truncate;
 
 pub use publish::{Publish, PublishExt};
 pub use replay::{Replay, ReplayExt, ReplayOne, ReplayOneExt};
-pub use subscribe::{Subscribe, SubscribeExt};
+pub use subscribe::{Subscribe, SubscribeExt, Acknowledge};
 pub use truncate::Truncate;
 
 mod future;

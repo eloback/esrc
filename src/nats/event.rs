@@ -7,7 +7,9 @@ use super::header::VERSION_KEY;
 use super::subject::NatsSubject;
 use super::{NatsEnvelope, NatsStore};
 use crate::error::{self, Error};
-use crate::event::{Event, EventGroup, Publish, Replay, ReplayOne, Sequence, Subscribe, Truncate};
+use crate::event::{
+    Acknowledge, Event, EventGroup, Publish, Replay, ReplayOne, Sequence, Subscribe, Truncate,
+};
 use crate::version::SerializeVersion;
 
 impl Publish for NatsStore {
@@ -123,5 +125,11 @@ impl Truncate for NatsStore {
             .await?;
 
         Ok(())
+    }
+}
+
+impl Acknowledge<NatsEnvelope> for NatsStore {
+    async fn acknowledge(&self, envelope: &NatsEnvelope) -> error::Result<()> {
+        envelope.ack().await
     }
 }
