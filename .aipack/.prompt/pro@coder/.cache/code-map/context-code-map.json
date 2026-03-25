@@ -933,8 +933,8 @@
     },
     "src/event.rs": {
       "file_path": "src/event.rs",
-      "hash": "5d37e76b7cc122754f7e1389d6d2337296c39d8c3f3b3200f4945a6744e35239",
-      "mtime": 1774464384242396,
+      "hash": "6cf224bb86bd5ef1328bc2906faba59b3f52e96b86001ab7e0d85dfa91d70601",
+      "mtime": 1774465962825959,
       "public_functions": [
         "Sequence::new"
       ],
@@ -945,6 +945,7 @@
         "CommandError",
         "CommandErrorKind",
         "CommandService",
+        "CommandServiceExt",
         "Publish",
         "PublishExt",
         "Replay",
@@ -955,24 +956,26 @@
         "SubscribeExt",
         "Truncate"
       ],
-      "summary": "Defines core event-sourcing abstractions, including the Event and EventGroup traits, the Sequence struct for stream ordering, and re-exports of traits and types for commands and event store operations.",
+      "summary": "Defines core event-sourcing abstractions, including the Event and EventGroup traits, the Sequence struct for stream ordering, and re-exports of traits and types for commands and event store operations like publishing, replaying, and subscribing.",
       "when_to_use": "Use this file when defining event structures, managing stream positions with Sequence, or utilizing traits for publishing, replaying, subscribing, or truncating events."
     },
     "src/event/command_service.rs": {
       "file_path": "src/event/command_service.rs",
-      "hash": "4b2d1ac5875ec9d3bb0362a7b8bff0c6f88faabbb6dc70c84f4265908ff255ba",
-      "mtime": 1774464237563214,
+      "hash": "8a028f909369f1486a482e0684909ccedc0eed95d379cc3f93eff892278cd84f",
+      "mtime": 1774465962826077,
       "public_functions": [
         "CommandError::new",
-        "CommandService::serve"
+        "CommandService::serve",
+        "CommandServiceExt::spawn_service"
       ],
       "public_types": [
         "CommandError",
         "CommandErrorKind",
-        "CommandService"
+        "CommandService",
+        "CommandServiceExt"
       ],
-      "summary": "Defines the error types and the `CommandService` trait for processing aggregate commands in an event-sourced system.",
-      "when_to_use": "Include this file when implementing or consuming a service that handles commands for event-sourced aggregates and returns structured error responses."
+      "summary": "Defines error types and traits (CommandService, CommandServiceExt) for serving and spawning background command processing tasks for event-sourced aggregates.",
+      "when_to_use": "Include when implementing command processing logic, background command services, or error handling for aggregate commands."
     },
     "src/event/future.rs": {
       "file_path": "src/event/future.rs",
@@ -1158,13 +1161,14 @@
     },
     "src/nats/command_service.rs": {
       "file_path": "src/nats/command_service.rs",
-      "hash": "d88d8272646facdfaa49ebdc072e33e193a16bd72a808a2171d5ce0f4e49a563",
-      "mtime": 1774465089030980,
+      "hash": "7a70561c11fcd07e19b8a3ec38659f2eaca4a46dc2d568ae80925d0b5d95a29d",
+      "mtime": 1774465962825959,
       "public_functions": [
-        "serve"
+        "serve",
+        "spawn_service"
       ],
-      "summary": "Implements the CommandService trait for NatsStore, enabling NATS microservices to handle command processing for domain aggregates.",
-      "when_to_use": "Use this file to understand the integration between NATS microservices and the aggregate command handling logic, including request parsing, state reconstruction, and error handling."
+      "summary": "Implements CommandService and CommandServiceExt traits for NatsStore, providing the logic to run domain aggregates as NATS microservices that process commands, manage state, and handle concurrency.",
+      "when_to_use": "Use when implementing or debugging command-based interactions over NATS, specifically regarding how commands are dispatched to aggregates and how responses or errors are returned."
     },
     "src/nats/convert.rs": {
       "file_path": "src/nats/convert.rs",

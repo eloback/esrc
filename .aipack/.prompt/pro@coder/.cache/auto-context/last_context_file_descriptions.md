@@ -125,31 +125,31 @@
     - Types: NatsStore, NatsEnvelope
     - Functions: NatsStore::durable_observe, Replay::replay, ReplayOne::replay_one, Subscribe::subscribe, Truncate::truncate
 
-- src/event/command_service.rs
-    - Summary: Defines the error types and the `CommandService` trait for processing aggregate commands in an event-sourced system.
-    - When To Use: Include this file when implementing or consuming a service that handles commands for event-sourced aggregates and returns structured error responses.
-    - Types: CommandError, CommandErrorKind, CommandService
-    - Functions: CommandError::new, CommandService::serve
-
-- src/event.rs
-    - Summary: Defines core event-sourcing abstractions, including the Event and EventGroup traits, the Sequence struct for stream ordering, and re-exports of traits and types for commands and event store operations.
-    - When To Use: Use this file when defining event structures, managing stream positions with Sequence, or utilizing traits for publishing, replaying, subscribing, or truncating events.
-    - Types: Sequence, Event, EventGroup, CommandError, CommandErrorKind, CommandService, Publish, PublishExt, Replay, ReplayExt, ReplayOne, ReplayOneExt, Subscribe, SubscribeExt, Truncate
-    - Functions: Sequence::new
-
 - src/lib.rs
     - Summary: Crate root for the event-sourcing library, declaring core modules for aggregates, envelopes, errors, events, projections, and versioning, and re-exporting key types.
     - When To Use: Include this when looking for the main entry points of the library or understanding the overall module structure and available integrations.
     - Types: Aggregate, Envelope, Error, Event, EventGroup, View
-
-- src/nats/command_service.rs
-    - Summary: Implements the CommandService trait for NatsStore, enabling NATS microservices to handle command processing for domain aggregates.
-    - When To Use: Use this file to understand the integration between NATS microservices and the aggregate command handling logic, including request parsing, state reconstruction, and error handling.
-    - Functions: serve
 
 - src/nats.rs
     - Summary: Implements NatsStore, a NATS JetStream-backed event store providing stream and mirror management, consumer configuration, and task lifecycle tracking for graceful shutdowns.
     - When To Use: Use when interacting with NATS JetStream for event sourcing, specifically for stream initialization, consumer setup, or managing asynchronous task lifecycles.
     - Types: NatsStore, GracefulShutdown, NatsEnvelope
     - Functions: NatsStore::try_new, NatsStore::enable_mirror, NatsStore::get_task_tracker, NatsStore::wait_graceful_shutdown, NatsStore::update_durable_consumer_option, NatsStore::client
+
+- src/event.rs
+    - Summary: Defines core event-sourcing abstractions, including the Event and EventGroup traits, the Sequence struct for stream ordering, and re-exports of traits and types for commands and event store operations like publishing, replaying, and subscribing.
+    - When To Use: Use this file when defining event structures, managing stream positions with Sequence, or utilizing traits for publishing, replaying, subscribing, or truncating events.
+    - Types: Sequence, Event, EventGroup, CommandError, CommandErrorKind, CommandService, CommandServiceExt, Publish, PublishExt, Replay, ReplayExt, ReplayOne, ReplayOneExt, Subscribe, SubscribeExt, Truncate
+    - Functions: Sequence::new
+
+- src/nats/command_service.rs
+    - Summary: Implements CommandService and CommandServiceExt traits for NatsStore, providing the logic to run domain aggregates as NATS microservices that process commands, manage state, and handle concurrency.
+    - When To Use: Use when implementing or debugging command-based interactions over NATS, specifically regarding how commands are dispatched to aggregates and how responses or errors are returned.
+    - Functions: serve, spawn_service
+
+- src/event/command_service.rs
+    - Summary: Defines error types and traits (CommandService, CommandServiceExt) for serving and spawning background command processing tasks for event-sourced aggregates.
+    - When To Use: Include when implementing command processing logic, background command services, or error handling for aggregate commands.
+    - Types: CommandError, CommandErrorKind, CommandService, CommandServiceExt
+    - Functions: CommandError::new, CommandService::serve, CommandServiceExt::spawn_service
 

@@ -21,3 +21,16 @@ time-created: 2026-03-25 15:39:07
 - Used `async_nats::service::ServiceExt` to build the NATS service from the existing client handle.
 - The `serialize_error` helper provides a safe fallback if the error struct itself cannot be serialized.
 - The `#[cfg(feature = "nats")]` guard on the new module mirrors the convention used for other nats sub-modules.
+
+## Step - Add spawn_service background task variant on NatsStore
+      status: done
+time-created: 2026-03-25 15:39:07
+   time-done: 2026-03-25 16:56:09
+
+- Defined `CommandServiceExt` trait in `src/event/command_service.rs` alongside `CommandService`, with a `spawn_service` async method.
+- Re-exported `CommandServiceExt` from `src/event.rs`.
+- Implemented `CommandServiceExt::spawn_service` on `NatsStore` in `src/nats/command_service.rs`.
+- The implementation clones the store (which is `Clone`) and spawns a tokio task via the existing `TaskTracker`.
+- `stream_cancel::Tripwire` produces a `(Trigger, Valve)` pair; the `Trigger` is sent to the `GracefulShutdown` exit channel so `wait_graceful_shutdown()` cancels the task by dropping the trigger, firing the valve.
+- The spawned task uses `tokio::select!` to race `serve` against the valve, ensuring clean shutdown on signal.
+- `A: 'static` bound is required because the spawned task must be `'static`.
