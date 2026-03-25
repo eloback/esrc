@@ -4,6 +4,8 @@ use std::iter;
 #[doc(inline)]
 pub use esrc_derive::{Event, EventGroup};
 
+/// Serve aggregate commands over a transport endpoint.
+pub mod command_service;
 /// Publish events to an event store.
 pub mod publish;
 /// Replay existing events in an event store.
@@ -13,6 +15,7 @@ pub mod subscribe;
 /// Truncate (delete) old events from an event store.
 pub mod truncate;
 
+pub use command_service::{CommandError, CommandErrorKind, CommandService};
 pub use publish::{Publish, PublishExt};
 pub use replay::{Replay, ReplayExt, ReplayOne, ReplayOneExt};
 pub use subscribe::{Subscribe, SubscribeExt};

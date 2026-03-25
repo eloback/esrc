@@ -17,19 +17,17 @@ file_content_mode: udiffx
 ## All resolve files(sent to AI with content, in this order)
 
 - src/event/replay.rs
-- src/nats/subject.rs
 - src/event/publish.rs
 - src/aggregate.rs
 - src/error.rs
 - src/event.rs
-- src/lib.rs
-- src/nats.rs
-- src/nats/event.rs
 - _workbench/service/dev-chat.md
+- _workbench/service/plan-1-todo-steps.md
 
 ## Post (just for info, included in the All resolved files above)
 
 - _workbench/service/dev-chat.md
+- _workbench/service/plan-1-todo-steps.md
 
 # Working Files
 
