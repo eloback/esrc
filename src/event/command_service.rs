@@ -1,6 +1,7 @@
 use crate::aggregate::Aggregate;
 use crate::error;
 
+
 /// A structured error response returned to the caller when a command fails.
 ///
 /// This type is serialized as JSON and sent as the reply payload when the
@@ -91,6 +92,5 @@ pub trait CommandService {
     async fn serve<A>(&mut self) -> error::Result<()>
     where
         A: Aggregate,
-        A::Command: serde::de::DeserializeOwned,
-        A::Event: crate::version::DeserializeVersion + crate::version::SerializeVersion;
+        A::Command: serde::de::DeserializeOwned;
 }
