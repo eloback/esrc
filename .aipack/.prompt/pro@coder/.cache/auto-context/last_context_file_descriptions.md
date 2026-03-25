@@ -119,6 +119,17 @@
     - Summary: Workspace and root package manifest for the esrc project, which provides primitives for event sourcing and CQRS. It defines shared dependencies, workspace members (derive, opentelemetry-nats), and feature flags for NATS and KurrentDB integrations.
     - When To Use: Use this file to understand the project's dependency tree, available feature configurations (like 'nats' or 'kurrent'), and workspace structure for event-sourcing implementations.
 
+- src/event.rs
+    - Summary: Defines the core event abstractions for the crate, including the Event and EventGroup traits, the Sequence wrapper for stream ordering, and re-exports for publish/replay/subscribe/truncate event-store operations.
+    - When To Use: Use this file when you need the central event-sourcing API surface: event type definitions, stream sequence handling, grouping of event types, or to access the main publish/replay/subscribe/truncate traits and helpers.
+    - Types: Sequence, Event, EventGroup
+    - Functions: Sequence::new
+
+- src/lib.rs
+    - Summary: Crate root for the event-sourcing library, declaring core modules for aggregates, envelopes, errors, events, projections, and versioning, plus optional event store integrations.
+    - When To Use: Use this file to understand the library’s overall module layout, available top-level re-exports, and which backend integrations are conditionally compiled.
+    - Types: Aggregate, Envelope, Error, Event, EventGroup
+
 - src/nats.rs
     - Summary: Defines NatsStore, a JetStream-backed event store with support for stream/mirror management, consumer configuration, and task lifecycle tracking for graceful shutdown.
     - When To Use: Include when interacting with NATS JetStream for event sourcing, initializing event streams, or managing asynchronous NATS-based background tasks.
@@ -130,21 +141,4 @@
     - When To Use: Use when you need the NATS event store behavior, especially for publishing events with headers, replaying or subscribing to event streams, durable projection consumption, or truncating aggregate streams.
     - Types: NatsStore, NatsEnvelope
     - Functions: NatsStore::durable_observe, Replay::replay, ReplayOne::replay_one, Subscribe::subscribe, Truncate::truncate
-
-- src/event/command_service.rs
-    - Summary: Defines the error types and the `CommandService` trait for processing aggregate commands in an event-sourced system.
-    - When To Use: Include this file when implementing or consuming a service that handles commands for event-sourced aggregates and returns structured error responses.
-    - Types: CommandError, CommandErrorKind, CommandService
-    - Functions: CommandError::new, CommandService::serve
-
-- src/event.rs
-    - Summary: Defines core event-sourcing abstractions, including the Event and EventGroup traits, the Sequence struct for stream ordering, and re-exports of traits and types for commands and event store operations.
-    - When To Use: Use this file when defining event structures, managing stream positions with Sequence, or utilizing traits for publishing, replaying, subscribing, or truncating events.
-    - Types: Sequence, Event, EventGroup, CommandError, CommandErrorKind, CommandService, Publish, PublishExt, Replay, ReplayExt, ReplayOne, ReplayOneExt, Subscribe, SubscribeExt, Truncate
-    - Functions: Sequence::new
-
-- src/lib.rs
-    - Summary: Crate root for the event-sourcing library, declaring core modules for aggregates, envelopes, errors, events, projections, and versioning, and re-exporting key types.
-    - When To Use: Include this when looking for the main entry points of the library or understanding the overall module structure and available integrations.
-    - Types: Aggregate, Envelope, Error, Event, EventGroup, View
 
