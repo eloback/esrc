@@ -16,6 +16,7 @@ pub mod subscribe;
 pub mod truncate;
 
 pub use command_service::{CommandError, CommandErrorKind, CommandService};
+pub use command_service::CommandServiceExt;
 pub use publish::{Publish, PublishExt};
 pub use replay::{Replay, ReplayExt, ReplayOne, ReplayOneExt};
 pub use subscribe::{Subscribe, SubscribeExt};
