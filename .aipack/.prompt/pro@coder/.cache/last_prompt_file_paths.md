@@ -18,21 +18,26 @@ file_content_mode: udiffx
 ## All resolve files(sent to AI with content, in this order)
 
 - src/event/replay.rs
+- src/nats/subject.rs
 - src/event/publish.rs
 - src/aggregate.rs
 - src/error.rs
-- src/nats.rs
-- src/event/command_service.rs
+- src/nats/event.rs
 - src/event.rs
+- src/event/command_service.rs
+- src/nats.rs
+- src/nats/command_service.rs
 - _workbench/service/dev-chat.md
 - _workbench/service/plan-1-todo-steps.md
 - _workbench/service/plan-2-active-step.md
+- _workbench/service/plan-3-done-steps.md
 
 ## Post (just for info, included in the All resolved files above)
 
 - _workbench/service/dev-chat.md
 - _workbench/service/plan-1-todo-steps.md
 - _workbench/service/plan-2-active-step.md
+- _workbench/service/plan-3-done-steps.md
 
 # Working Files
 
@@ -67,6 +72,7 @@ None
   - header.rs
   - subject.rs
 - src/nats/
+  - command_service.rs
   - convert.rs
   - envelope.rs
   - event.rs

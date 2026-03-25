@@ -1,5 +1,6 @@
 use async_nats::service::ServiceExt;
 use futures::StreamExt;
+use stream_cancel::Tripwire;
 use tracing::instrument;
 
 use crate::aggregate::Aggregate;
@@ -7,7 +8,7 @@ use crate::error::{self, Error};
 use crate::event::command_service::{CommandError, CommandErrorKind, CommandService};
 use crate::event::publish::PublishExt;
 use crate::event::replay::ReplayOneExt;
-use crate::event::{Event, Sequence};
+use crate::event::Event;
 use crate::version::{DeserializeVersion, SerializeVersion};
 
 use super::NatsStore;
@@ -52,22 +53,21 @@ impl CommandService for NatsStore {
                     );
                     reply_error(&request, err).await;
                     continue;
-                }
+                },
             };
 
             // Deserialize the command from the request payload.
-            let command: A::Command =
-                match serde_json::from_slice(&request.message.payload) {
-                    Ok(cmd) => cmd,
-                    Err(e) => {
-                        let err = CommandError::new(
-                            CommandErrorKind::InvalidPayload,
-                            format!("failed to deserialize command: {e}"),
-                        );
-                        reply_error(&request, err).await;
-                        continue;
-                    }
-                };
+            let command: A::Command = match serde_json::from_slice(&request.message.payload) {
+                Ok(cmd) => cmd,
+                Err(e) => {
+                    let err = CommandError::new(
+                        CommandErrorKind::InvalidPayload,
+                        format!("failed to deserialize command: {e}"),
+                    );
+                    reply_error(&request, err).await;
+                    continue;
+                },
+            };
 
             // Load the aggregate from sequence 0.
             let root = match self.read::<A>(id).await {
@@ -79,7 +79,7 @@ impl CommandService for NatsStore {
                     );
                     reply_error(&request, err).await;
                     continue;
-                }
+                },
             };
 
             // Process the command and publish the resulting event.
@@ -89,32 +89,70 @@ impl CommandService for NatsStore {
                     if let Err(e) = request.respond(Ok(bytes::Bytes::new())).await {
                         tracing::warn!("failed to send success reply: {e}");
                     }
-                }
+                },
                 Err(Error::Conflict) => {
                     let err = CommandError::new(
                         CommandErrorKind::Conflict,
                         "optimistic concurrency conflict",
                     );
                     reply_error(&request, err).await;
-                }
+                },
                 Err(Error::External(e)) => {
-                    let err = CommandError::new(
-                        CommandErrorKind::Domain,
-                        format!("domain error: {e}"),
-                    );
+                    let err =
+                        CommandError::new(CommandErrorKind::Domain, format!("domain error: {e}"));
                     reply_error(&request, err).await;
-                }
+                },
                 Err(e) => {
                     let err = CommandError::new(
                         CommandErrorKind::Internal,
                         format!("internal error: {e}"),
                     );
                     reply_error(&request, err).await;
-                }
+                },
             }
         }
 
         Ok(())
+    }
+}
+
+impl NatsStore {
+    /// Spawn `serve` as a background task integrated with graceful shutdown.
+    ///
+    /// This wraps [`CommandService::serve`] in a tracked, cancellable task
+    /// using the `GracefulShutdown` / `TaskTracker` already present on
+    /// `NatsStore`. The task will be cancelled when
+    /// [`NatsStore::wait_graceful_shutdown`] is called.
+    pub fn spawn_service<A>(&self)
+    where
+        A: Aggregate + 'static,
+        A::Event: SerializeVersion + DeserializeVersion,
+        A::Command: serde::de::DeserializeOwned + Send,
+    {
+        let store = self.clone();
+        let (trigger, tripwire) = Tripwire::new();
+
+        let exit_tx = self.graceful_shutdown.exit_tx.clone();
+        let task_tracker = self.graceful_shutdown.task_tracker.clone();
+
+        task_tracker.spawn(async move {
+            // Register the trigger so it is cancelled during graceful shutdown.
+            if exit_tx.send(trigger).await.is_err() {
+                tracing::warn!("failed to register shutdown trigger for command service");
+                return;
+            }
+
+            tokio::select! {
+                result = store.serve::<A>() => {
+                    if let Err(e) = result {
+                        tracing::error!("command service for '{}' exited with error: {e}", A::Event::name());
+                    }
+                }
+                _ = tripwire => {
+                    tracing::info!("command service for '{}' shutting down gracefully", A::Event::name());
+                }
+            }
+        });
     }
 }
 

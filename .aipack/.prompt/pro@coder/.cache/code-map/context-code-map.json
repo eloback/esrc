@@ -960,8 +960,8 @@
     },
     "src/event/command_service.rs": {
       "file_path": "src/event/command_service.rs",
-      "hash": "3c7aa8808834ac349a17113d34b5f5179610bf7797154d88da11a2f41478984b",
-      "mtime": 1774471573584043,
+      "hash": "b187a2cbe084723ddcf54f01ac2714e841c977671ca0e7856f8176e644e75dea",
+      "mtime": 1774472138499794,
       "public_functions": [],
       "public_types": [
         "CommandError",
@@ -1134,8 +1134,8 @@
     },
     "src/nats.rs": {
       "file_path": "src/nats.rs",
-      "hash": "f24839bbb089712acb68d1e64a9a8b82c990903e3b6b7376b06077b424d47bd1",
-      "mtime": 1774471140587467,
+      "hash": "ae2ccd9bba2ab67189fa442a6fe6e7c77dec9ecf4ff8a70615e3a194421d22f0",
+      "mtime": 1774472138499794,
       "public_functions": [
         "NatsStore::try_new",
         "NatsStore::enable_mirror",
@@ -1149,8 +1149,19 @@
         "GracefulShutdown",
         "NatsEnvelope"
       ],
-      "summary": "Defines NatsStore, a JetStream-backed event store with support for stream/mirror management, consumer configuration, and task lifecycle tracking for graceful shutdown.",
-      "when_to_use": "Include when interacting with NATS JetStream for event sourcing, initializing event streams, or managing asynchronous NATS-based background tasks."
+      "summary": "Defines the NatsStore, a JetStream-backed event store implementation. It manages stream and mirror configuration, durable/ordered consumer setup, and provides a GracefulShutdown mechanism for managing asynchronous tasks.",
+      "when_to_use": "Include when using NATS JetStream as an event store backend, requiring management of streams, consumers, or coordinated task shutdown."
+    },
+    "src/nats/command_service.rs": {
+      "file_path": "src/nats/command_service.rs",
+      "hash": "faaa9d60ec233565b4f081b473adcc990baeba4a5a65b6f39aea17e164e357fc",
+      "mtime": 1774472138499794,
+      "public_functions": [
+        "serve"
+      ],
+      "public_types": [],
+      "summary": "Implements the CommandService trait for NatsStore, providing a NATS-based microservice that listens for commands, replays aggregate state, and processes updates using optimistic concurrency.",
+      "when_to_use": "Use this file to understand or modify how the system handles incoming command requests via NATS, specifically the lifecycle of fetching state, executing domain logic, and replying to the caller."
     },
     "src/nats/convert.rs": {
       "file_path": "src/nats/convert.rs",
