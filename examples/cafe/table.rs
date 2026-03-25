@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use esrc::envelope::TryFromEnvelope;
 use esrc::project::{Context, Project};
-use esrc::Envelope;
+use esrc::{Envelope, EventGroup};
+use esrc_derive::{DeserializeVersion, SerializeVersion};
+use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
@@ -30,8 +33,27 @@ impl ActiveTables {
     }
 }
 
+#[derive(
+    Deserialize,
+    DeserializeVersion,
+    Serialize,
+    SerializeVersion,
+    PartialEq,
+    Debug,
+    Clone,
+    TryFromEnvelope,
+)]
+pub enum TabProjectionEvents {
+    TabEvent(TabEvent),
+}
+impl EventGroup for TabProjectionEvents {
+    fn names() -> impl Iterator<Item = &'static str> {
+        ["TabProjection"].into_iter()
+    }
+}
+
 impl<'a> Project<'a> for ActiveTables {
-    type EventGroup = TabEvent;
+    type EventGroup = TabProjectionEvents;
     type Error = TabError;
 
     async fn project<E>(
@@ -44,10 +66,15 @@ impl<'a> Project<'a> for ActiveTables {
         let id = Context::id(&context);
         let mut map = self.table_numbers.write().await;
 
-        if let TabEvent::Opened { table_number, .. } = *context {
-            map.insert(id, table_number);
-        } else if let TabEvent::Closed { .. } = *context {
-            map.remove(&id);
+        match (*context).clone() {
+            TabProjectionEvents::TabEvent(event) => {
+                if let TabEvent::Opened { table_number, .. } = event {
+                    map.insert(id, table_number);
+                } else if let TabEvent::Closed { .. } = event {
+                    map.remove(&id);
+                }
+            },
+            _ => (),
         }
 
         Ok(())

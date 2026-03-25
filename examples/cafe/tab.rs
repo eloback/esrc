@@ -20,7 +20,7 @@ pub enum TabCommand {
     Close { amount_paid: f64 },
 }
 
-#[derive(Event, Deserialize, DeserializeVersion, Serialize, SerializeVersion, PartialEq, Debug)]
+#[derive(Event, Deserialize, DeserializeVersion, Serialize, SerializeVersion, PartialEq, Debug, Clone)]
 pub enum TabEvent {
     Opened {
         table_number: u64,
