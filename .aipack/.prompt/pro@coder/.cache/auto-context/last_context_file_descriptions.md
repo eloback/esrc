@@ -104,6 +104,17 @@
     - When To Use: Include this file when working with event-sourced read models, projections, or any code that implements or uses the `View` trait to replay/apply events.
     - Types: View
 
+- examples/cafe/domain.rs
+    - Summary: Defines the cafe order domain model including the Order aggregate, its commands, events, errors, and the OrderState view model.
+    - When To Use: Include this file when working with the cafe example domain logic, including command processing, event application, and view projections.
+    - Types: OrderStatus, Order, OrderCommand, OrderEvent, OrderError, OrderState
+    - Functions: process, apply
+
+- examples/cafe/projector.rs
+    - Summary: Defines `OrderProjector`, a `Project` implementation that handles `OrderEvent`s and prints order activity to stdout.
+    - When To Use: Use this file when you need the projection logic for cafe order events, especially to understand how order events are rendered/logged during event handling.
+    - Types: OrderProjector
+
 - src/error.rs
     - Summary: Defines the crate’s common event-sourcing error type and a Result alias for operations that can fail with these errors.
     - When To Use: Include this file when handling, matching, or propagating the library’s standardized errors, or when using the event-sourcing Result alias.
@@ -120,10 +131,6 @@
     - When To Use: Use when you need the NATS event store behavior, especially for publishing events with headers, replaying or subscribing to event streams, durable projection consumption, or truncating aggregate streams.
     - Types: NatsStore, NatsEnvelope
     - Functions: NatsStore::durable_observe, Replay::replay, ReplayOne::replay_one, Subscribe::subscribe, Truncate::truncate
-
-- Cargo.toml
-    - Summary: Workspace and root package manifest for the esrc project, defining shared dependencies, workspace members (derive, opentelemetry-nats), and feature flags for NATS and KurrentDB integrations.
-    - When To Use: Use this file to understand the project's dependency tree, available feature configurations, and workspace structure for event-sourcing implementations.
 
 - src/event.rs
     - Summary: Defines the core event abstractions for the crate, including the Event and EventGroup traits, the Sequence struct for stream ordering, and re-exports for publish, replay, subscribe, truncate, and command service operations.
@@ -151,4 +158,13 @@
     - Summary: Implements the CommandService trait for NatsStore, providing a NATS-based microservice architecture for command handling. It includes logic for listening to commands, replaying aggregate state, processing domain logic, and spawning these services as graceful background tasks.
     - When To Use: Use this file when implementing or debugging NATS-based command services, aggregate state reconstruction during command processing, or the lifecycle of background command consumers.
     - Functions: serve, spawn_service
+
+- Cargo.toml
+    - Summary: Workspace and root package manifest for the esrc project, defining shared dependencies, workspace members (derive, opentelemetry-nats), and feature flags for NATS and KurrentDB integrations.
+    - When To Use: Use this file to understand the project's dependency tree, available feature configurations, and workspace structure for event-sourcing implementations.
+
+- examples/cafe/main.rs
+    - Summary: Main entry point for the cafe example demonstrating `esrc-cqrs` integration with NATS. It configures a `CqrsRegistry` for aggregate commands, live and memory query views, and durable projectors, and includes a driver task illustrating command/query dispatch via `CqrsClient`.
+    - When To Use: Refer to this file when setting up a NATS-based CQRS infrastructure, specifically for examples of registering different types of handlers and projectors within a CqrsRegistry.
+    - Functions: main
 

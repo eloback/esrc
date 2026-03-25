@@ -3,7 +3,7 @@
     "Cargo.toml": {
       "file_path": "Cargo.toml",
       "hash": "36d155ba126595d48a927cf78fe01c77122f261cf5996cb97c1a8bb1475f2bc5",
-      "mtime": 1774473120209374,
+      "mtime": 1774475336209826,
       "public_functions": [],
       "public_types": [],
       "summary": "Workspace and root package manifest for the esrc project, defining shared dependencies, workspace members (derive, opentelemetry-nats), and feature flags for NATS and KurrentDB integrations.",
@@ -777,10 +777,9 @@
     },
     "examples/cafe/domain.rs": {
       "file_path": "examples/cafe/domain.rs",
-      "hash": "032641324ba340df869274a43d103fe267f860b881b7e64bbb58246d0aaa69fb",
-      "mtime": 1774080596194064,
+      "hash": "a5523f235c9b98941f832d50fd20aa5818358f772b6c3a6865f3eb7d5938b4cb",
+      "mtime": 1774289468629948,
       "public_functions": [
-        "from_order",
         "process",
         "apply"
       ],
@@ -792,8 +791,8 @@
         "OrderError",
         "OrderState"
       ],
-      "summary": "Defines a cafe order domain aggregate with order state, commands, events, error handling, and aggregate command/event application logic.",
-      "when_to_use": "Include this file when you need the core domain model for the cafe example, especially order lifecycle behavior, command processing, event definitions, or aggregate state transitions."
+      "summary": "Defines the cafe order domain model including the Order aggregate, its commands, events, errors, and the OrderState view model.",
+      "when_to_use": "Include this file when working with the cafe example domain logic, including command processing, event application, and view projections."
     },
     "examples/cafe/error.rs": {
       "file_path": "examples/cafe/error.rs",
@@ -807,24 +806,36 @@
     },
     "examples/cafe/main.rs": {
       "file_path": "examples/cafe/main.rs",
-      "hash": "3b7929b8d97aac556c04b73c3dd43aaec82071b9d24a507aa3758f518abaa129",
-      "mtime": 1774080596194064,
+      "hash": "18077274b312dc2c06814fce25304538820011873d2913bce7c03086d3d21ad9",
+      "mtime": 1774475460607775,
       "public_functions": [
         "main"
       ],
-      "summary": "Entry point for the cafe CQRS example using NATS/JetStream. It wires together the NATS store, command dispatcher, query dispatcher, and durable projector, then sends sample order commands and queries to demonstrate the flow.",
-      "when_to_use": "Include this file when you need the runnable cafe domain example, especially to understand how `esrc-cqrs` components are assembled and executed with NATS, JetStream, commands, queries, and projectors."
+      "summary": "Main entry point for the cafe example demonstrating `esrc-cqrs` integration with NATS. It configures a `CqrsRegistry` for aggregate commands, live and memory query views, and durable projectors, and includes a driver task illustrating command/query dispatch via `CqrsClient`.",
+      "when_to_use": "Refer to this file when setting up a NATS-based CQRS infrastructure, specifically for examples of registering different types of handlers and projectors within a CqrsRegistry."
     },
     "examples/cafe/projector.rs": {
       "file_path": "examples/cafe/projector.rs",
-      "hash": "676a96b411eee6cd1b44851c4a1ba0912c58a502eedfd5c9cd3f1110cf21ff48",
-      "mtime": 1774080596195064,
+      "hash": "cafd4ee0923f3ec4caf88137e79ead0d8b7ccc9ac67b8ef3b4c7387f0e55668d",
+      "mtime": 1774289521431221,
       "public_functions": [],
       "public_types": [
         "OrderProjector"
       ],
       "summary": "Defines `OrderProjector`, a `Project` implementation that handles `OrderEvent`s and prints order activity to stdout.",
       "when_to_use": "Use this file when you need the projection logic for cafe order events, especially to understand how order events are rendered/logged during event handling."
+    },
+    "examples/cafe/service.rs": {
+      "file_path": "examples/cafe/service.rs",
+      "hash": "e35f0eac253336bb410703fe0bf69889c08424688ec25cfdc04230bb7d3c14ed",
+      "mtime": 1774372053796289,
+      "public_functions": [],
+      "public_types": [
+        "CafeCommands",
+        "CafeServiceHandler"
+      ],
+      "summary": "Defines the service layer for a cafe application, including a unified command enum (CafeCommands) and a command handler (CafeServiceHandler) that processes NATS-based commands by interacting with the Order domain aggregate.",
+      "when_to_use": "Use this file as a reference for implementing a centralized command handler that routes multiple service-level commands to specific aggregate actions using esrc-cqrs."
     },
     "examples/cafe/tab.rs": {
       "file_path": "examples/cafe/tab.rs",
@@ -1155,8 +1166,8 @@
     },
     "src/nats/command_service.rs": {
       "file_path": "src/nats/command_service.rs",
-      "hash": "b3f8cb5d2ac352f5fe633d87dcb01560570faae84920c3ba0e9dac9ffd4f9735",
-      "mtime": 1774473120209374,
+      "hash": "0149a272a7ab9da2ddfbbfa65887f814e30c927db618540f6198b2437068d0e6",
+      "mtime": 1774474667571369,
       "public_functions": [
         "serve",
         "spawn_service"

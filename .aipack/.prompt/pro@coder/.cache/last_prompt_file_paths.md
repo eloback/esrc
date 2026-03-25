@@ -17,10 +17,16 @@ file_content_mode: udiffx
 
 ## All resolve files(sent to AI with content, in this order)
 
-- src/error.rs
+- src/event/replay.rs
+- src/event/publish.rs
+- examples/cafe/domain.rs
+- examples/cafe/projector.rs
+- src/event.rs
 - src/event/command_service.rs
 - src/nats.rs
 - src/nats/command_service.rs
+- Cargo.toml
+- examples/cafe/main.rs
 - _workbench/service/dev-chat.md
 - _workbench/service/plan-1-todo-steps.md
 - _workbench/service/plan-2-active-step.md
