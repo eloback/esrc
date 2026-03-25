@@ -4,6 +4,20 @@ use serde::{Deserialize, Serialize};
 
 use crate::error;
 
+impl CommandError {
+    /// Map the error kind to a NATS-compatible status code.
+    pub fn status_code(&self) -> String {
+        match self.kind {
+            CommandErrorKind::InvalidId => "400".to_string(),
+            CommandErrorKind::InvalidPayload => "400".to_string(),
+            CommandErrorKind::Conflict => "409".to_string(),
+            CommandErrorKind::Replay => "500".to_string(),
+            CommandErrorKind::Domain => "422".to_string(),
+            CommandErrorKind::Internal => "500".to_string(),
+        }
+    }
+}
+
 /// A structured error response returned to callers when a command fails.
 ///
 /// This is serialized as JSON in the NATS reply payload alongside

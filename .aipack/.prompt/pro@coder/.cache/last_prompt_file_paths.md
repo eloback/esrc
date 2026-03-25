@@ -21,15 +21,18 @@ file_content_mode: udiffx
 - src/event/publish.rs
 - src/aggregate.rs
 - src/error.rs
+- src/nats.rs
+- src/event/command_service.rs
 - src/event.rs
-- src/lib.rs
 - _workbench/service/dev-chat.md
 - _workbench/service/plan-1-todo-steps.md
+- _workbench/service/plan-2-active-step.md
 
 ## Post (just for info, included in the All resolved files above)
 
 - _workbench/service/dev-chat.md
 - _workbench/service/plan-1-todo-steps.md
+- _workbench/service/plan-2-active-step.md
 
 # Working Files
 
@@ -51,6 +54,7 @@ None
   - version.rs
   - view.rs
 - src/event/
+  - command_service.rs
   - future.rs
   - publish.rs
   - replay.rs

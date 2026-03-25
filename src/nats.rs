@@ -19,6 +19,8 @@ pub mod convert;
 pub mod envelope;
 #[doc(hidden)]
 pub mod event;
+/// Command service implementation for NatsStore.
+pub mod command_service;
 
 pub use envelope::NatsEnvelope;
 

@@ -933,18 +933,43 @@
     },
     "src/event.rs": {
       "file_path": "src/event.rs",
-      "hash": "fef5ec0c6ad243f14ad9f60c5576646ff3829878ce67d1e0db9d4ddd0025fa8a",
-      "mtime": 1774471140682128,
+      "hash": "5f1f320d1628c9cf5564e885428b622386826583b0b50b67d19d3ff3745cf34c",
+      "mtime": 1774471573585043,
       "public_functions": [
         "Sequence::new"
       ],
       "public_types": [
         "Sequence",
         "Event",
-        "EventGroup"
+        "EventGroup",
+        "Publish",
+        "PublishExt",
+        "Replay",
+        "ReplayExt",
+        "ReplayOne",
+        "ReplayOneExt",
+        "Subscribe",
+        "SubscribeExt",
+        "Truncate",
+        "CommandError",
+        "CommandErrorKind",
+        "CommandService"
       ],
-      "summary": "Defines the core event abstractions for the crate, including the Event and EventGroup traits, the Sequence wrapper for stream ordering, and re-exports for publish/replay/subscribe/truncate event-store operations.",
-      "when_to_use": "Use this file when you need the central event-sourcing API surface: event type definitions, stream sequence handling, grouping of event types, or to access the main publish/replay/subscribe/truncate traits and helpers."
+      "summary": "Defines the core event abstractions for the crate, including the Event and EventGroup traits, the Sequence struct for stream ordering, and re-exports for publish, replay, subscribe, truncate, and command service operations.",
+      "when_to_use": "Use this file to define domain events, handle stream sequences, or access the primary traits for interacting with an event store."
+    },
+    "src/event/command_service.rs": {
+      "file_path": "src/event/command_service.rs",
+      "hash": "3c7aa8808834ac349a17113d34b5f5179610bf7797154d88da11a2f41478984b",
+      "mtime": 1774471573584043,
+      "public_functions": [],
+      "public_types": [
+        "CommandError",
+        "CommandErrorKind",
+        "CommandService"
+      ],
+      "summary": "Defines the CommandService trait and associated error structures for processing commands against event-sourced aggregates, specifically designed for integration with NATS services.",
+      "when_to_use": "Include this file when implementing command processing logic, defining aggregate-based service endpoints, or handling error responses from command execution."
     },
     "src/event/future.rs": {
       "file_path": "src/event/future.rs",

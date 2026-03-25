@@ -131,14 +131,19 @@
     - Types: NatsStore, GracefulShutdown, NatsEnvelope
     - Functions: NatsStore::try_new, NatsStore::enable_mirror, NatsStore::get_task_tracker, NatsStore::wait_graceful_shutdown, NatsStore::update_durable_consumer_option, NatsStore::client
 
-- src/event.rs
-    - Summary: Defines the core event abstractions for the crate, including the Event and EventGroup traits, the Sequence wrapper for stream ordering, and re-exports for publish/replay/subscribe/truncate event-store operations.
-    - When To Use: Use this file when you need the central event-sourcing API surface: event type definitions, stream sequence handling, grouping of event types, or to access the main publish/replay/subscribe/truncate traits and helpers.
-    - Types: Sequence, Event, EventGroup
-    - Functions: Sequence::new
-
 - src/lib.rs
     - Summary: Crate root for the event-sourcing library, declaring core modules for aggregates, envelopes, errors, events, projections, and versioning, plus optional event store integrations.
     - When To Use: Use this file to understand the library’s overall module layout, available top-level re-exports, and which backend integrations are conditionally compiled.
     - Types: Aggregate, Envelope, Error, Event, EventGroup
+
+- src/event/command_service.rs
+    - Summary: Defines the CommandService trait and associated error structures for processing commands against event-sourced aggregates, specifically designed for integration with NATS services.
+    - When To Use: Include this file when implementing command processing logic, defining aggregate-based service endpoints, or handling error responses from command execution.
+    - Types: CommandError, CommandErrorKind, CommandService
+
+- src/event.rs
+    - Summary: Defines the core event abstractions for the crate, including the Event and EventGroup traits, the Sequence struct for stream ordering, and re-exports for publish, replay, subscribe, truncate, and command service operations.
+    - When To Use: Use this file to define domain events, handle stream sequences, or access the primary traits for interacting with an event store.
+    - Types: Sequence, Event, EventGroup, Publish, PublishExt, Replay, ReplayExt, ReplayOne, ReplayOneExt, Subscribe, SubscribeExt, Truncate, CommandError, CommandErrorKind, CommandService
+    - Functions: Sequence::new
 
