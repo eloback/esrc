@@ -933,18 +933,46 @@
     },
     "src/event.rs": {
       "file_path": "src/event.rs",
-      "hash": "fef5ec0c6ad243f14ad9f60c5576646ff3829878ce67d1e0db9d4ddd0025fa8a",
-      "mtime": 1774450241092984,
+      "hash": "5d37e76b7cc122754f7e1389d6d2337296c39d8c3f3b3200f4945a6744e35239",
+      "mtime": 1774464384242396,
       "public_functions": [
         "Sequence::new"
       ],
       "public_types": [
         "Sequence",
         "Event",
-        "EventGroup"
+        "EventGroup",
+        "CommandError",
+        "CommandErrorKind",
+        "CommandService",
+        "Publish",
+        "PublishExt",
+        "Replay",
+        "ReplayExt",
+        "ReplayOne",
+        "ReplayOneExt",
+        "Subscribe",
+        "SubscribeExt",
+        "Truncate"
       ],
-      "summary": "Defines the core event abstractions for the crate, including the Event and EventGroup traits, the Sequence wrapper for stream ordering, and re-exports for publish/replay/subscribe/truncate event-store operations.",
-      "when_to_use": "Use this file when you need the central event-sourcing API surface: event type definitions, stream sequence handling, grouping of event types, or to access the main publish/replay/subscribe/truncate traits and helpers."
+      "summary": "Defines core event-sourcing abstractions, including the Event and EventGroup traits, the Sequence struct for stream ordering, and re-exports of traits and types for commands and event store operations.",
+      "when_to_use": "Use this file when defining event structures, managing stream positions with Sequence, or utilizing traits for publishing, replaying, subscribing, or truncating events."
+    },
+    "src/event/command_service.rs": {
+      "file_path": "src/event/command_service.rs",
+      "hash": "4b2d1ac5875ec9d3bb0362a7b8bff0c6f88faabbb6dc70c84f4265908ff255ba",
+      "mtime": 1774464237563214,
+      "public_functions": [
+        "CommandError::new",
+        "CommandService::serve"
+      ],
+      "public_types": [
+        "CommandError",
+        "CommandErrorKind",
+        "CommandService"
+      ],
+      "summary": "Defines the error types and the `CommandService` trait for processing aggregate commands in an event-sourced system.",
+      "when_to_use": "Include this file when implementing or consuming a service that handles commands for event-sourced aggregates and returns structured error responses."
     },
     "src/event/future.rs": {
       "file_path": "src/event/future.rs",
@@ -1094,18 +1122,19 @@
     },
     "src/lib.rs": {
       "file_path": "src/lib.rs",
-      "hash": "ed6a727ce5a658c4421b2a4a04250bedf87342ed4a285c11302a9ecc4cdd4f1f",
-      "mtime": 1774450241092984,
+      "hash": "c9750ba1c8bf7935358856c2e26d1e16de0d701a52ad05013a5c8f901f5e686f",
+      "mtime": 1774464440464295,
       "public_functions": [],
       "public_types": [
         "Aggregate",
         "Envelope",
         "Error",
         "Event",
-        "EventGroup"
+        "EventGroup",
+        "View"
       ],
-      "summary": "Crate root for the event-sourcing library, declaring core modules for aggregates, envelopes, errors, events, projections, and versioning, plus optional event store integrations.",
-      "when_to_use": "Use this file to understand the library’s overall module layout, available top-level re-exports, and which backend integrations are conditionally compiled."
+      "summary": "Crate root for the event-sourcing library, declaring core modules for aggregates, envelopes, errors, events, projections, and versioning, and re-exporting key types.",
+      "when_to_use": "Include this when looking for the main entry points of the library or understanding the overall module structure and available integrations."
     },
     "src/nats.rs": {
       "file_path": "src/nats.rs",

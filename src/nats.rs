@@ -13,6 +13,9 @@ use tracing::instrument;
 
 use crate::error;
 
+/// Implement CommandService for NatsStore.
+#[cfg(feature = "nats")]
+pub mod command_service;
 #[doc(hidden)]
 pub mod convert;
 /// Use a Jetstream message as an esrc Envelope.
