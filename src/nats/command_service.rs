@@ -157,16 +157,6 @@ impl NatsStore {
 }
 
 async fn reply_error(request: &async_nats::service::Request, error: CommandError) {
-    let payload = serde_json::to_vec(&error).unwrap_or_default();
-    if let Err(e) = request
-        .respond(Err(async_nats::service::error::Error {
-            status: error.status_code(),
-            description: error.message.clone(),
-        }))
-        .await
-    {
-        tracing::warn!("failed to send error reply: {e}");
-    }
     // The NATS service error response does not carry a custom body,
     // so we log the structured payload for observability.
     tracing::debug!(
@@ -174,4 +164,5 @@ async fn reply_error(request: &async_nats::service::Request, error: CommandError
         error_message = %error.message,
         "command service replied with error"
     );
+    todo!()
 }

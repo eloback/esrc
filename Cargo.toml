@@ -30,6 +30,7 @@ kurrentdb = "1.0.0"
 tracing-futures = { version = "0.2.5", features = ["futures-03"] }
 stream-cancel = "0.8"
 tokio-util = { version = "0.7", features = ["rt"] }
+bytes = "1.11"
 
 [package]
 name = "esrc"
@@ -70,6 +71,7 @@ kurrentdb = { workspace = true, optional = true }
 tokio.workspace = true
 stream-cancel.workspace = true
 tokio-util.workspace = true
+bytes.workspace = true
 time = { version = "0.3", features = ["serde", "macros"] }
 
 [dev-dependencies]

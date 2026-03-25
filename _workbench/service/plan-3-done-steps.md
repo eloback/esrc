@@ -1,16 +1,20 @@
 ## Step - Add CommandError response type and command_service module skeleton
+
       status: done
+
 time-created: 2026-03-25 15:39:07
-   time-done: 2026-03-25 17:54:46
+time-done: 2026-03-25 17:54:46
 
 - Created `src/event/command_service.rs` with the `CommandService` trait definition (blocking `serve` method).
 - Defined a serializable `CommandError` struct and `CommandErrorKind` enum for structured error replies.
 - Re-exported `CommandService`, `CommandError`, and `CommandErrorKind` from `src/event.rs` alongside the other event traits.
 
 ## Step - Implement blocking serve on NatsStore
+
       status: done
+
 time-created: 2026-03-25 15:39:07
-   time-done: 2026-03-25 17:56:52
+time-done: 2026-03-25 17:56:52
 
 - Created `src/nats/command_service.rs` and implemented `CommandService::serve` for `NatsStore`.
 - The endpoint subject is derived from `A::Event::name()`, using the wildcard pattern `<event_name>.*` to capture the aggregate UUID from the last subject token.
@@ -18,3 +22,16 @@ time-created: 2026-03-25 15:39:07
 - Added `status_code()` method to `CommandError` for mapping error kinds to HTTP-like status codes used by the NATS service error API.
 - The `serve` method clones `NatsStore` for each request to obtain a mutable handle for `try_write`, since `NatsStore` is `Clone`.
 - Service and group names are derived from `A::Event::name()`, endpoint is named `"command"`.
+
+## Step - Add spawn_service background task variant on NatsStore
+
+      status: done
+
+time-created: 2026-03-25 15:39:07
+time-current: 2026-03-25 18:11:52
+
+- Defined `spawn_service` as an inherent method on `NatsStore` (not a trait, since it is NATS-specific).
+- Uses `Tripwire` from `stream_cancel` for cancellation, matching the existing pattern in the codebase.
+- The spawned task is registered with the `TaskTracker` and the `Trigger` is sent to the `exit_tx` channel so that `wait_graceful_shutdown` cancels it.
+- `tokio::select!` is used to race between `serve` completing and the tripwire being triggered.
+- References: see the definition in plan-3-done-steps.md, step "Step - Implement blocking serve on NatsStore".

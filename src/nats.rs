@@ -13,14 +13,14 @@ use tracing::instrument;
 
 use crate::error;
 
+/// Command service implementation for NatsStore.
+pub mod command_service;
 #[doc(hidden)]
 pub mod convert;
 /// Use a Jetstream message as an esrc Envelope.
 pub mod envelope;
 #[doc(hidden)]
 pub mod event;
-/// Command service implementation for NatsStore.
-pub mod command_service;
 
 pub use envelope::NatsEnvelope;
 

@@ -83,9 +83,7 @@ pub trait CommandService {
     ///
     /// This method runs until the underlying transport is closed or an
     /// unrecoverable error occurs.
-    fn serve<A>(
-        &self,
-    ) -> impl Future<Output = error::Result<()>>
+    fn serve<A>(&self) -> impl Future<Output = error::Result<()>>
     where
         A: crate::aggregate::Aggregate,
         A::Event: crate::version::SerializeVersion + crate::version::DeserializeVersion,
