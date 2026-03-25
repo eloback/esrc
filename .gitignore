@@ -1,4 +1,6 @@
 debug/
 target/
 
+.devenv/
+
 **/*.rs.bk
