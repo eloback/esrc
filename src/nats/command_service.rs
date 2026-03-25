@@ -7,7 +7,7 @@ use super::NatsStore;
 use crate::aggregate::Aggregate;
 use crate::error::{self, Error};
 use crate::event::command_service::{CommandError, CommandErrorKind};
-use crate::event::{CommandService, CommandServiceExt};
+use crate::event::CommandService;
 use crate::event::{PublishExt, ReplayOneExt};
 
 impl CommandService for NatsStore {
@@ -136,46 +136,4 @@ fn serialize_error(err: &CommandError) -> bytes::Bytes {
                 b"{\"kind\":\"internal\",\"message\":\"serialization error\"}",
             )
         })
-}
-
-impl CommandServiceExt for NatsStore {
-    #[instrument(skip_all, level = "debug")]
-    async fn spawn_service<A>(&self) -> error::Result<()>
-    where
-        A: Aggregate + 'static,
-        A::Command: serde::de::DeserializeOwned,
-    {
-        let mut store = self.clone();
-        let tracker = self.graceful_shutdown.task_tracker.clone();
-        let exit_tx = self.graceful_shutdown.exit_tx.clone();
-
-        // Obtain a stream_cancel pair so the spawned task can be cancelled
-        // during graceful shutdown. The Trigger is sent to the shutdown
-        // receiver; dropping it signals cancellation to the Valve.
-        let (trigger, valve) = stream_cancel::Tripwire::new();
-
-        // Register the trigger with the graceful shutdown channel so
-        // wait_graceful_shutdown() will cancel this task when called.
-        exit_tx
-            .send(trigger)
-            .await
-            .map_err(|e| Error::Internal(e.into()))?;
-
-        tracker.spawn(async move {
-            // Wrap serve so that the task exits when the valve fires.
-            let serve = store.serve::<A>();
-            tokio::select! {
-                result = serve => {
-                    if let Err(e) = result {
-                        tracing::error!("command service exited with error: {e}");
-                    }
-                }
-                _ = valve => {
-                    tracing::debug!("command service task received shutdown signal");
-                }
-            }
-        });
-
-        Ok(())
-    }
 }

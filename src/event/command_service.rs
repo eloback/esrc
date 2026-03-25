@@ -1,7 +1,6 @@
 use crate::aggregate::Aggregate;
 use crate::error;
 
-
 /// A structured error response returned to the caller when a command fails.
 ///
 /// This type is serialized as JSON and sent as the reply payload when the
@@ -50,25 +49,6 @@ impl std::fmt::Display for CommandError {
 }
 
 impl std::error::Error for CommandError {}
-
-/// Spawn a background command service task for an aggregate.
-///
-/// This extends [`CommandService`] with a non-blocking variant that spawns the
-/// service loop in a background task and integrates with the host's graceful
-/// shutdown mechanism. The returned handle (or integration point) is
-/// implementation-specific.
-#[trait_variant::make(Send)]
-pub trait CommandServiceExt: CommandService {
-    /// Spawn a background task running the command service for aggregate `A`.
-    ///
-    /// The spawned task participates in graceful shutdown via whatever
-    /// mechanism the implementing type provides (e.g., a `TaskTracker`).
-    /// `Aggregate::Command` must implement `serde::de::DeserializeOwned`.
-    async fn spawn_service<A>(&self) -> error::Result<()>
-    where
-        A: Aggregate + 'static,
-        A::Command: serde::de::DeserializeOwned;
-}
 
 /// Serve incoming commands for an aggregate over a transport endpoint.
 ///

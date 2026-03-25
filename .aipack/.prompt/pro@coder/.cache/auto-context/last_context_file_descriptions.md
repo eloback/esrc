@@ -119,6 +119,12 @@
     - Summary: Workspace and root package manifest for the esrc project, which provides primitives for event sourcing and CQRS. It defines shared dependencies, workspace members (derive, opentelemetry-nats), and feature flags for NATS and KurrentDB integrations.
     - When To Use: Use this file to understand the project's dependency tree, available feature configurations (like 'nats' or 'kurrent'), and workspace structure for event-sourcing implementations.
 
+- src/nats.rs
+    - Summary: Defines NatsStore, a JetStream-backed event store with support for stream/mirror management, consumer configuration, and task lifecycle tracking for graceful shutdown.
+    - When To Use: Include when interacting with NATS JetStream for event sourcing, initializing event streams, or managing asynchronous NATS-based background tasks.
+    - Types: NatsStore, GracefulShutdown, NatsEnvelope
+    - Functions: NatsStore::try_new, NatsStore::enable_mirror, NatsStore::get_task_tracker, NatsStore::wait_graceful_shutdown, NatsStore::update_durable_consumer_option, NatsStore::client
+
 - src/nats/event.rs
     - Summary: Implements NATS-backed event store operations for publishing, replaying, subscribing, durable observation, and truncation of events, including header metadata handling and envelope conversion.
     - When To Use: Use when you need the NATS event store behavior, especially for publishing events with headers, replaying or subscribing to event streams, durable projection consumption, or truncating aggregate streams.
@@ -141,15 +147,4 @@
     - Summary: Crate root for the event-sourcing library, declaring core modules for aggregates, envelopes, errors, events, projections, and versioning, and re-exporting key types.
     - When To Use: Include this when looking for the main entry points of the library or understanding the overall module structure and available integrations.
     - Types: Aggregate, Envelope, Error, Event, EventGroup, View
-
-- src/nats/command_service.rs
-    - Summary: Implements the CommandService trait for NatsStore, enabling NATS microservices to handle command processing for domain aggregates.
-    - When To Use: Use this file to understand the integration between NATS microservices and the aggregate command handling logic, including request parsing, state reconstruction, and error handling.
-    - Functions: serve
-
-- src/nats.rs
-    - Summary: Implements NatsStore, a NATS JetStream-backed event store providing stream and mirror management, consumer configuration, and task lifecycle tracking for graceful shutdowns.
-    - When To Use: Use when interacting with NATS JetStream for event sourcing, specifically for stream initialization, consumer setup, or managing asynchronous task lifecycles.
-    - Types: NatsStore, GracefulShutdown, NatsEnvelope
-    - Functions: NatsStore::try_new, NatsStore::enable_mirror, NatsStore::get_task_tracker, NatsStore::wait_graceful_shutdown, NatsStore::update_durable_consumer_option, NatsStore::client
 

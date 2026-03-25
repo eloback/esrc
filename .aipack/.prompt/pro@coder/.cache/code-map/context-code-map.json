@@ -1138,8 +1138,8 @@
     },
     "src/nats.rs": {
       "file_path": "src/nats.rs",
-      "hash": "5b2eb2e2b70d84d3a3910eb0ad5cabbcde64be9548e97f7f3c4a20e22e127167",
-      "mtime": 1774465089034980,
+      "hash": "f24839bbb089712acb68d1e64a9a8b82c990903e3b6b7376b06077b424d47bd1",
+      "mtime": 1774450241092984,
       "public_functions": [
         "NatsStore::try_new",
         "NatsStore::enable_mirror",
@@ -1153,18 +1153,8 @@
         "GracefulShutdown",
         "NatsEnvelope"
       ],
-      "summary": "Implements NatsStore, a NATS JetStream-backed event store providing stream and mirror management, consumer configuration, and task lifecycle tracking for graceful shutdowns.",
-      "when_to_use": "Use when interacting with NATS JetStream for event sourcing, specifically for stream initialization, consumer setup, or managing asynchronous task lifecycles."
-    },
-    "src/nats/command_service.rs": {
-      "file_path": "src/nats/command_service.rs",
-      "hash": "d88d8272646facdfaa49ebdc072e33e193a16bd72a808a2171d5ce0f4e49a563",
-      "mtime": 1774465089030980,
-      "public_functions": [
-        "serve"
-      ],
-      "summary": "Implements the CommandService trait for NatsStore, enabling NATS microservices to handle command processing for domain aggregates.",
-      "when_to_use": "Use this file to understand the integration between NATS microservices and the aggregate command handling logic, including request parsing, state reconstruction, and error handling."
+      "summary": "Defines NatsStore, a JetStream-backed event store with support for stream/mirror management, consumer configuration, and task lifecycle tracking for graceful shutdown.",
+      "when_to_use": "Include when interacting with NATS JetStream for event sourcing, initializing event streams, or managing asynchronous NATS-based background tasks."
     },
     "src/nats/convert.rs": {
       "file_path": "src/nats/convert.rs",
