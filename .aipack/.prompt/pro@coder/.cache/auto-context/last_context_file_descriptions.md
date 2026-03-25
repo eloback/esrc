@@ -122,24 +122,24 @@
     - Functions: NatsStore::durable_observe, Replay::replay, ReplayOne::replay_one, Subscribe::subscribe, Truncate::truncate
 
 - Cargo.toml
-    - Summary: Workspace and root package manifest for the esrc project, which provides primitives for event sourcing and CQRS. It defines shared dependencies, workspace members (derive, opentelemetry-nats), and feature flags for NATS and KurrentDB integrations.
-    - When To Use: Use this file to understand the project's dependency tree, available feature configurations (like 'nats' or 'kurrent'), and workspace structure for event-sourcing implementations.
-
-- src/lib.rs
-    - Summary: Crate root for the event-sourcing library, declaring core modules for aggregates, envelopes, errors, events, projections, and versioning, plus optional event store integrations.
-    - When To Use: Use this file to understand the library’s overall module layout, available top-level re-exports, and which backend integrations are conditionally compiled.
-    - Types: Aggregate, Envelope, Error, Event, EventGroup
+    - Summary: Workspace and root package manifest for the esrc project, defining shared dependencies, workspace members (derive, opentelemetry-nats), and feature flags for NATS and KurrentDB integrations.
+    - When To Use: Use this file to understand the project's dependency tree, available feature configurations, and workspace structure for event-sourcing implementations.
 
 - src/event.rs
     - Summary: Defines the core event abstractions for the crate, including the Event and EventGroup traits, the Sequence struct for stream ordering, and re-exports for publish, replay, subscribe, truncate, and command service operations.
     - When To Use: Use this file to define domain events, handle stream sequences, or access the primary traits for interacting with an event store.
-    - Types: Sequence, Event, EventGroup, Publish, PublishExt, Replay, ReplayExt, ReplayOne, ReplayOneExt, Subscribe, SubscribeExt, Truncate, CommandError, CommandErrorKind, CommandService
+    - Types: CommandError, CommandErrorKind, CommandService, Event, EventGroup, Publish, PublishExt, Replay, ReplayExt, ReplayOne, ReplayOneExt, Sequence, Subscribe, SubscribeExt, Truncate
     - Functions: Sequence::new
 
 - src/event/command_service.rs
-    - Summary: Defines the CommandService trait and associated error structures for processing commands against event-sourced aggregates, specifically designed for integration with NATS services.
+    - Summary: Defines the CommandService trait and associated error structures (CommandError, CommandErrorKind) for processing commands against event-sourced aggregates, including NATS-compatible error mapping.
     - When To Use: Include this file when implementing command processing logic, defining aggregate-based service endpoints, or handling error responses from command execution.
     - Types: CommandError, CommandErrorKind, CommandService
+
+- src/lib.rs
+    - Summary: The crate root for the event-sourcing library, defining core modules and re-exporting primary types like Aggregate, Envelope, Event, and View.
+    - When To Use: Use this file to understand the library's module structure, re-exported types, and feature-gated backend implementations for NATS and Kurrentdb.
+    - Types: Aggregate, Envelope, Error, Event, EventGroup, View
 
 - src/nats.rs
     - Summary: Defines the NatsStore, a JetStream-backed event store implementation. It manages stream and mirror configuration, durable/ordered consumer setup, and provides a GracefulShutdown mechanism for managing asynchronous tasks.
@@ -148,7 +148,7 @@
     - Functions: NatsStore::try_new, NatsStore::enable_mirror, NatsStore::get_task_tracker, NatsStore::wait_graceful_shutdown, NatsStore::update_durable_consumer_option, NatsStore::client
 
 - src/nats/command_service.rs
-    - Summary: Implements the CommandService trait for NatsStore, providing a NATS-based microservice that listens for commands, replays aggregate state, and processes updates using optimistic concurrency.
-    - When To Use: Use this file to understand or modify how the system handles incoming command requests via NATS, specifically the lifecycle of fetching state, executing domain logic, and replying to the caller.
-    - Functions: serve
+    - Summary: Implements the CommandService trait for NatsStore, providing a NATS-based microservice architecture for command handling. It includes logic for listening to commands, replaying aggregate state, processing domain logic, and spawning these services as graceful background tasks.
+    - When To Use: Use this file when implementing or debugging NATS-based command services, aggregate state reconstruction during command processing, or the lifecycle of background command consumers.
+    - Functions: serve, spawn_service
 

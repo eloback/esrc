@@ -1,24 +1,17 @@
 ====
->   Info: Duration: 27s | ~$0.159 | Prompt Tokens: 21,632 (cached: 0, cache_creation: 0) | Completion Tokens: 2,035 
+>   Info: Duration: 16s | ~$0.0903 | Prompt Tokens: 14,896 (cached: 0, cache_creation: 0) | Completion Tokens: 631 
 >  Model: claude-opus-4-6 | Adapter: Anthropic
->  Files: Context Files: 14 | Working Files: 0 | Knowledge Files: 2
+>  Files: Context Files: 10 | Working Files: 0 | Knowledge Files: 2
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
-Looking at the plan, the current active step "Implement blocking serve on NatsStore" is already implemented. The next step in `plan-1-todo-steps.md` is "Add spawn_service background task variant on NatsStore".
+Looking at the current `reply_error` function in `src/nats/command_service.rs`, it uses `todo!()` and the design needs to change so that the NATS reply always sends `Ok(...)` (i.e., a successful NATS response), but the payload itself contains the error information. The caller then parses the response payload to determine success (empty body) or failure (JSON `CommandError`).
 
-Let me implement this step: move the active step to done, activate the next step, and implement it.
+This also requires bounding `Serialize` on `CommandError` (already done) and ensuring the error is serialized into the response payload rather than using NATS service error mechanisms.
 
-I need to add a `spawn_service` method that wraps the blocking `serve` in a background task, integrated with the existing `GracefulShutdown` / `TaskTracker` on `NatsStore`.
-
-Looking at how `GracefulShutdown` works in `src/nats.rs`, I can see:
-- `task_tracker: TaskTracker` for tracking spawned tasks
-- `exit_tx: Sender<Trigger>` / `exit_rx` for shutdown triggers using `stream_cancel`
-- `wait_graceful_shutdown` drops triggers to cancel and then waits
-
-I'll add `spawn_service` as an inherent method on `NatsStore` (not a trait, since it's NATS-specific) that spawns `serve` in a tracked task with cancellation support.
+Let me create the plan.
 
 
 
 <suggested_git_command>
-git commit -a -m "+ nats/command_service - Add spawn_service background task with graceful shutdown"
+git commit -a -m ". service plan - Add todo step for reply_error payload-based error response"
 </suggested_git_command>
