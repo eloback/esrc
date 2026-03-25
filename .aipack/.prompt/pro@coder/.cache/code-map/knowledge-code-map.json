@@ -1,0 +1,15 @@
+{
+  "file_map": {
+    "nats_service.md": {
+      "file_path": "nats_service.md",
+      "hash": "2eb1f97a16695405f7ff022052d6febde1b2e5410c0a7dfe8395e901cd8e7486",
+      "mtime": 1774450241092984,
+      "public_functions": [
+        "main",
+        "decode_input"
+      ],
+      "summary": "A Rust code example demonstrating how to implement a NATS service using the async_nats crate, featuring service building, endpoint grouping (min/max), and asynchronous request handling.",
+      "when_to_use": "Use this file as a reference when building microservices or request-response systems with NATS in Rust, specifically for learning how to use the Service API."
+    }
+  }
+}

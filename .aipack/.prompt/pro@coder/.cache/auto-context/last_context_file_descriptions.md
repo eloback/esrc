@@ -115,9 +115,21 @@
     - Types: Subscribe, SubscribeExt
     - Functions: subscribe, observe
 
+- src/nats/event.rs
+    - Summary: Implements NATS-backed event store operations for publishing, replaying, subscribing, durable observation, and truncation of events, including header metadata handling and envelope conversion.
+    - When To Use: Use when you need the NATS event store behavior, especially for publishing events with headers, replaying or subscribing to event streams, durable projection consumption, or truncating aggregate streams.
+    - Types: NatsStore, NatsEnvelope
+    - Functions: NatsStore::durable_observe, Replay::replay, ReplayOne::replay_one, Subscribe::subscribe, Truncate::truncate
+
 - Cargo.toml
     - Summary: Workspace and root package manifest for the esrc project, which provides primitives for event sourcing and CQRS. It defines shared dependencies, workspace members (derive, opentelemetry-nats), and feature flags for NATS and KurrentDB integrations.
     - When To Use: Use this file to understand the project's dependency tree, available feature configurations (like 'nats' or 'kurrent'), and workspace structure for event-sourcing implementations.
+
+- src/nats.rs
+    - Summary: Defines NatsStore, a JetStream-backed event store with support for stream/mirror management, consumer configuration, and task lifecycle tracking for graceful shutdown.
+    - When To Use: Include when interacting with NATS JetStream for event sourcing, initializing event streams, or managing asynchronous NATS-based background tasks.
+    - Types: NatsStore, GracefulShutdown, NatsEnvelope
+    - Functions: NatsStore::try_new, NatsStore::enable_mirror, NatsStore::get_task_tracker, NatsStore::wait_graceful_shutdown, NatsStore::update_durable_consumer_option, NatsStore::client
 
 - src/event.rs
     - Summary: Defines the core event abstractions for the crate, including the Event and EventGroup traits, the Sequence wrapper for stream ordering, and re-exports for publish/replay/subscribe/truncate event-store operations.
@@ -129,16 +141,4 @@
     - Summary: Crate root for the event-sourcing library, declaring core modules for aggregates, envelopes, errors, events, projections, and versioning, plus optional event store integrations.
     - When To Use: Use this file to understand the library’s overall module layout, available top-level re-exports, and which backend integrations are conditionally compiled.
     - Types: Aggregate, Envelope, Error, Event, EventGroup
-
-- src/nats.rs
-    - Summary: Defines NatsStore, a JetStream-backed event store with support for stream/mirror management, consumer configuration, and task lifecycle tracking for graceful shutdown.
-    - When To Use: Include when interacting with NATS JetStream for event sourcing, initializing event streams, or managing asynchronous NATS-based background tasks.
-    - Types: NatsStore, GracefulShutdown, NatsEnvelope
-    - Functions: NatsStore::try_new, NatsStore::enable_mirror, NatsStore::get_task_tracker, NatsStore::wait_graceful_shutdown, NatsStore::update_durable_consumer_option, NatsStore::client
-
-- src/nats/event.rs
-    - Summary: Implements NATS-backed event store operations for publishing, replaying, subscribing, durable observation, and truncation of events, including header metadata handling and envelope conversion.
-    - When To Use: Use when you need the NATS event store behavior, especially for publishing events with headers, replaying or subscribing to event streams, durable projection consumption, or truncating aggregate streams.
-    - Types: NatsStore, NatsEnvelope
-    - Functions: NatsStore::durable_observe, Replay::replay, ReplayOne::replay_one, Subscribe::subscribe, Truncate::truncate
 

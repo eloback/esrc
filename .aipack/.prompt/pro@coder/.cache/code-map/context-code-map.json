@@ -3,7 +3,7 @@
     "Cargo.toml": {
       "file_path": "Cargo.toml",
       "hash": "6c2fb7ddfd66cb547006eec595d7b414dea13137627d09761c0641dccdacb4ac",
-      "mtime": 1774450241092984,
+      "mtime": 1774471140278050,
       "public_functions": [],
       "public_types": [],
       "summary": "Workspace and root package manifest for the esrc project, which provides primitives for event sourcing and CQRS. It defines shared dependencies, workspace members (derive, opentelemetry-nats), and feature flags for NATS and KurrentDB integrations.",
@@ -934,7 +934,7 @@
     "src/event.rs": {
       "file_path": "src/event.rs",
       "hash": "fef5ec0c6ad243f14ad9f60c5576646ff3829878ce67d1e0db9d4ddd0025fa8a",
-      "mtime": 1774450241092984,
+      "mtime": 1774471140682128,
       "public_functions": [
         "Sequence::new"
       ],
@@ -1095,7 +1095,7 @@
     "src/lib.rs": {
       "file_path": "src/lib.rs",
       "hash": "ed6a727ce5a658c4421b2a4a04250bedf87342ed4a285c11302a9ecc4cdd4f1f",
-      "mtime": 1774450241092984,
+      "mtime": 1774471140682128,
       "public_functions": [],
       "public_types": [
         "Aggregate",
@@ -1110,7 +1110,7 @@
     "src/nats.rs": {
       "file_path": "src/nats.rs",
       "hash": "f24839bbb089712acb68d1e64a9a8b82c990903e3b6b7376b06077b424d47bd1",
-      "mtime": 1774450241092984,
+      "mtime": 1774471140587467,
       "public_functions": [
         "NatsStore::try_new",
         "NatsStore::enable_mirror",

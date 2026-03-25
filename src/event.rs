@@ -12,11 +12,14 @@ pub mod replay;
 pub mod subscribe;
 /// Truncate (delete) old events from an event store.
 pub mod truncate;
+/// Serve aggregates as command-handling service endpoints.
+pub mod command_service;
 
 pub use publish::{Publish, PublishExt};
 pub use replay::{Replay, ReplayExt, ReplayOne, ReplayOneExt};
 pub use subscribe::{Subscribe, SubscribeExt};
 pub use truncate::Truncate;
+pub use command_service::{CommandError, CommandErrorKind, CommandService};
 
 #[doc(hidden)]
 pub mod future;
