@@ -18,11 +18,9 @@ file_content_mode: udiffx
 ## All resolve files(sent to AI with content, in this order)
 
 - src/error.rs
-- _workbench/service/dev-chat.md
 - src/event/command_service.rs
+- src/nats.rs
 - src/nats/command_service.rs
-- _workbench/service/plan-3-done-steps.md
-- _workbench/service/plan-1-todo-steps.md
 - _workbench/service/dev-chat.md
 - _workbench/service/plan-1-todo-steps.md
 - _workbench/service/plan-2-active-step.md

@@ -157,12 +157,21 @@ impl NatsStore {
 }
 
 async fn reply_error(request: &async_nats::service::Request, error: CommandError) {
-    // The NATS service error response does not carry a custom body,
-    // so we log the structured payload for observability.
     tracing::debug!(
         error_kind = ?error.kind,
         error_message = %error.message,
         "command service replied with error"
     );
-    todo!()
+
+    let payload = match serde_json::to_vec(&error) {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            tracing::error!("failed to serialize CommandError: {e}");
+            return;
+        },
+    };
+
+    if let Err(e) = request.respond(Ok(payload.into())).await {
+        tracing::warn!("failed to send error reply: {e}");
+    }
 }
