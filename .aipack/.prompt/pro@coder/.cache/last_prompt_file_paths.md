@@ -6,38 +6,25 @@ file_content_mode: udiffx
 
 ## All resolve files(sent to AI with content, in this order)
 
-- _workbench/service/_plan-rules.md
-- nats_service.md
+- _workbench/service-errors/_plan-rules.md
 
 ## Pre (just for info, included in the All resolved files above)
 
-- _workbench/service/_plan-rules.md
+- _workbench/service-errors/_plan-rules.md
 
 # Context Files
 
 ## All resolve files(sent to AI with content, in this order)
 
-- src/event/replay.rs
-- src/event/publish.rs
-- examples/cafe/domain.rs
-- examples/cafe/projector.rs
+- src/error.rs
 - src/event.rs
 - src/event/command_service.rs
-- src/nats.rs
-- src/nats/command_service.rs
-- Cargo.toml
-- examples/cafe/main.rs
-- _workbench/service/dev-chat.md
-- _workbench/service/plan-1-todo-steps.md
-- _workbench/service/plan-2-active-step.md
-- _workbench/service/plan-3-done-steps.md
+- _workbench/service-errors/dev-chat.md
+- _workbench/service-errors/dev-chat.md
 
 ## Post (just for info, included in the All resolved files above)
 
-- _workbench/service/dev-chat.md
-- _workbench/service/plan-1-todo-steps.md
-- _workbench/service/plan-2-active-step.md
-- _workbench/service/plan-3-done-steps.md
+- _workbench/service-errors/dev-chat.md
 
 # Working Files
 

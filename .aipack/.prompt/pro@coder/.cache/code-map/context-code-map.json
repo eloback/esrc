@@ -777,22 +777,18 @@
     },
     "examples/cafe/domain.rs": {
       "file_path": "examples/cafe/domain.rs",
-      "hash": "a5523f235c9b98941f832d50fd20aa5818358f772b6c3a6865f3eb7d5938b4cb",
-      "mtime": 1774289468629948,
-      "public_functions": [
-        "process",
-        "apply"
-      ],
+      "hash": "b5bc55f08c4927b828d1f65d2e030b64dcb9b04d391182e4710bfebebdb3b0c2",
+      "mtime": 1774475570720603,
+      "public_functions": [],
       "public_types": [
         "OrderStatus",
         "Order",
         "OrderCommand",
         "OrderEvent",
-        "OrderError",
-        "OrderState"
+        "OrderError"
       ],
-      "summary": "Defines the cafe order domain model including the Order aggregate, its commands, events, errors, and the OrderState view model.",
-      "when_to_use": "Include this file when working with the cafe example domain logic, including command processing, event application, and view projections."
+      "summary": "Defines the cafe order domain model including the Order aggregate, its commands, events, and errors.",
+      "when_to_use": "Include this file when working with the cafe example domain logic, including command processing and event application."
     },
     "examples/cafe/error.rs": {
       "file_path": "examples/cafe/error.rs",
@@ -806,13 +802,13 @@
     },
     "examples/cafe/main.rs": {
       "file_path": "examples/cafe/main.rs",
-      "hash": "18077274b312dc2c06814fce25304538820011873d2913bce7c03086d3d21ad9",
-      "mtime": 1774475460607775,
+      "hash": "090e2241b4b6cef72611ce504305b7cdcd9d9a92feeb38d980ed545c6f3649fb",
+      "mtime": 1774476529074217,
       "public_functions": [
         "main"
       ],
-      "summary": "Main entry point for the cafe example demonstrating `esrc-cqrs` integration with NATS. It configures a `CqrsRegistry` for aggregate commands, live and memory query views, and durable projectors, and includes a driver task illustrating command/query dispatch via `CqrsClient`.",
-      "when_to_use": "Refer to this file when setting up a NATS-based CQRS infrastructure, specifically for examples of registering different types of handlers and projectors within a CqrsRegistry."
+      "summary": "Main entry point for the cafe example demonstrating `esrc` command service usage with NATS. It initializes a `NatsStore`, spawns an aggregate service for 'Order', and simulates client interactions by sending commands over NATS and querying aggregate state.",
+      "when_to_use": "Use this file as a reference for setting up a NATS-backed event sourcing system with `esrc`, focusing on the command service pattern and aggregate state retrieval."
     },
     "examples/cafe/projector.rs": {
       "file_path": "examples/cafe/projector.rs",
@@ -1166,8 +1162,8 @@
     },
     "src/nats/command_service.rs": {
       "file_path": "src/nats/command_service.rs",
-      "hash": "0149a272a7ab9da2ddfbbfa65887f814e30c927db618540f6198b2437068d0e6",
-      "mtime": 1774474667571369,
+      "hash": "115485a8771c29ff619ba4bd3e0955cc07594103325783287130ec988840c746",
+      "mtime": 1774476424236699,
       "public_functions": [
         "serve",
         "spawn_service"
