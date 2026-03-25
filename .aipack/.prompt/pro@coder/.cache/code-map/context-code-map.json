@@ -11,12 +11,12 @@
     },
     "compilation_errors.txt": {
       "file_path": "compilation_errors.txt",
-      "hash": "fa0fa6419664bd717926d08595bc35ae308b9930df366f4fedda7fa6fd8df875",
-      "mtime": 1774042790421594,
+      "hash": "17dcd09c734778df099173b61d735dccde6e412777061aa80eb5741948cd1d81",
+      "mtime": 1774469590702719,
       "public_functions": [],
       "public_types": [],
-      "summary": "Rust compiler error log showing a failed downcast to `serde_json::Value` because it does not implement `StdError`.",
-      "when_to_use": "Use when diagnosing the specific compilation failure in `crates/esrc-cqrs/src/error.rs` around error downcasting and trait bounds."
+      "summary": "Rust compilation error log for `src/nats/command_service.rs` detailing unresolved 'bytes' module, missing 'Event' trait scope, type inference failures in NATS service builders, and unsatisfied 'DeserializeVersion'/'SerializeVersion' trait bounds.",
+      "when_to_use": "Use this file to diagnose and fix compilation issues in the NATS command service, specifically regarding dependency imports, trait visibility, and generic bound requirements."
     },
     "crates/esrc-cqrs/.devenv/bootstrap/bootstrapLib.nix": {
       "file_path": "crates/esrc-cqrs/.devenv/bootstrap/bootstrapLib.nix",

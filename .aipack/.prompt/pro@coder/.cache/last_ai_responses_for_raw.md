@@ -1,98 +1,119 @@
 ====
->   Info: Duration: 22s | ~$0.0916 | Prompt Tokens: 21,387 (cached: 0, cache_creation: 0) | Completion Tokens: 1,831 
+>   Info: Duration: 24s | ~$0.0927 | Prompt Tokens: 23,395 (cached: 0, cache_creation: 0) | Completion Tokens: 1,500 
 >  Model: claude-sonnet-4-6 | Adapter: Anthropic
->  Files: Context Files: 13 | Working Files: 0 | Knowledge Files: 1
+>  Files: Context Files: 15 | Working Files: 0 | Knowledge Files: 1
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
-Looking at the plan files, the active step is "Add spawn_service background task variant on NatsStore" which appears to already be implemented (based on the context files showing `CommandServiceExt` in `src/event/command_service.rs` and `spawn_service` in `src/nats/command_service.rs`).
+Looking at the compilation errors, I need to fix the following issues in `src/nats/command_service.rs`:
 
-However, reviewing the todo file, this is still listed as the active step and the todo file has it as the next step to implement. The active step file shows it as `active` with an implementation already done. Since there are no more todo steps, I need to:
+1. `bytes` crate is not in `Cargo.toml` - need to add it, or use `async_nats`'s re-export of bytes.
+2. Missing `use crate::event::Event;` import for the `name()` method.
+3. Type inference issues with `service_builder().start()` and `.endpoint()`.
+4. Missing trait bounds `DeserializeVersion` and `SerializeVersion` on the `serve` method.
 
-1. Move the active step to done
-2. Inform the user there are no more steps
+For the `bytes` crate, `async-nats` already depends on `bytes` and re-exports it, so I can use `bytes::Bytes` via `async_nats::bytes` or just add `bytes` to `Cargo.toml`. The cleanest fix is to add `bytes` as a workspace dependency and use it directly. Actually, looking at the code, `async_nats` re-exports bytes, so I can use `use async_nats::bytes` or just import from there. The simplest fix is to add `bytes` to the workspace and use it.
 
-Let me verify the implementation is complete by checking the provided context files. Yes, `src/event/command_service.rs` has `CommandServiceExt` trait and `src/nats/command_service.rs` has the `spawn_service` implementation. The active step is fully implemented.
+Let me also check the type inference issue: `client().service_builder().start(...)` returns a `Result<Service, ...>`, so I need to specify the type explicitly.
 
-Now I'll move the active step to done and clear the active step file, then inform the user.
+For the `serve` trait bounds, I need to add `A::Event: DeserializeVersion + SerializeVersion` to the `where` clause, and also update the trait definition in `src/event/command_service.rs`.
 
 <FILE_CHANGES>
 
-<FILE_PATCH file_path="_workbench/service/plan-2-active-step.md">
+<FILE_PATCH file_path="Cargo.toml">
 @@
--## Step - Add spawn_service background task variant on NatsStore
--      status: active
--time-created: 2026-03-25 15:39:07
--time-current: 2026-03-25 16:12:06
--
--- Define a `CommandServiceExt` trait (or inherent method) with a `spawn_service` method that wraps the blocking `serve` in a background task.
--- Integrate with the existing `GracefulShutdown` / `TaskTracker` on `NatsStore` so the spawned task participates in graceful shutdown.
--- Re-export or expose `spawn_service` alongside the other NatsStore APIs.
--- References: see the definition in plan-3-done-steps.md, step "Step - Implement blocking serve on NatsStore".
--
--### Implementation Considerations
--
--- `CommandServiceExt` trait is defined in `src/event/command_service.rs` alongside `CommandService`, and re-exported from `src/event.rs`.
--- The `spawn_service` implementation on `NatsStore` clones the store (which is `Clone`) and spawns a `tokio` task via the existing `TaskTracker`.
--- `stream_cancel::Tripwire` is used to produce a `(Trigger, Valve)` pair; the `Trigger` is registered with the `GracefulShutdown` exit channel so `wait_graceful_shutdown()` will cancel the task by dropping the trigger, which fires the valve.
--- The spawned task uses `tokio::select!` to race `serve` against the valve, ensuring clean shutdown on signal.
--- `A: 'static` bound is required because the spawned task must be `'static`.
-</FILE_PATCH>
-
-<FILE_PATCH file_path="_workbench/service/plan-3-done-steps.md">
+ [workspace.dependencies]
+ anyhow = "1.0"
+ async-nats = "0.46"
++bytes = "1.0"
+ darling = "0.23"
 @@
- ## Step - Implement blocking serve on NatsStore
-       status: done
- time-created: 2026-03-25 15:39:07
-    time-done: 2026-03-25 16:12:06
+ kurrentdb = "1.0.0"
+ tracing-futures = { version = "0.2.5", features = ["futures-03"] }
+ stream-cancel = "0.8"
+@@
+ esrc-derive = { path = "./derive", version = "0.1.0", optional = true }
  
- - Created `src/nats/command_service.rs` and implemented `CommandService::serve` for `NatsStore`.
- - The endpoint subject is derived from `A::Event::name()`, using the wildcard pattern `<event_name>.*` to capture the aggregate UUID from the last subject token.
- - On each request: parse the UUID from the subject, call `read` (`ReplayOneExt`) to load `Root<A>` from sequence 0, deserialize the command from the request payload, call `try_write` (`PublishExt`), reply with an empty body on success or a JSON-serialized `CommandError` with a NATS error status on failure.
- - `Aggregate::Command` must implement `serde::de::DeserializeOwned`; enforce this bound at the call site only.
- - Wired the new module into `src/nats.rs`.
- - Used `async_nats::service::ServiceExt` to build the NATS service from the existing client handle.
- - The `serialize_error` helper provides a safe fallback if the error struct itself cannot be serialized.
- - The `#[cfg(feature = "nats")]` guard on the new module mirrors the convention used for other nats sub-modules.
-+
-+## Step - Add spawn_service background task variant on NatsStore
-+      status: done
-+time-created: 2026-03-25 15:39:07
-+   time-done: 2026-03-25 16:56:09
-+
-+- Defined `CommandServiceExt` trait in `src/event/command_service.rs` alongside `CommandService`, with a `spawn_service` async method.
-+- Re-exported `CommandServiceExt` from `src/event.rs`.
-+- Implemented `CommandServiceExt::spawn_service` on `NatsStore` in `src/nats/command_service.rs`.
-+- The implementation clones the store (which is `Clone`) and spawns a tokio task via the existing `TaskTracker`.
-+- `stream_cancel::Tripwire` produces a `(Trigger, Valve)` pair; the `Trigger` is sent to the `GracefulShutdown` exit channel so `wait_graceful_shutdown()` cancels the task by dropping the trigger, firing the valve.
-+- The spawned task uses `tokio::select!` to race `serve` against the valve, ensuring clean shutdown on signal.
-+- `A: 'static` bound is required because the spawned task must be `'static`.
+ async-nats = { workspace = true, optional = true }
++bytes = { workspace = true, optional = true }
+ tracing-futures.workspace = true
 </FILE_PATCH>
 
-<FILE_PATCH file_path="_workbench/service/plan-1-todo-steps.md">
+<FILE_PATCH file_path="src/nats/command_service.rs">
 @@
--## Step - Add spawn_service background task variant on NatsStore
--      status: not_started
--time-created: 2026-03-25 15:39:07
--
--- Define a `CommandServiceExt` trait (or inherent method) with a `spawn_service` method that wraps the blocking `serve` in a background task.
--- Integrate with the existing `GracefulShutdown` / `TaskTracker` on `NatsStore` so the spawned task participates in graceful shutdown.
--- Re-export or expose `spawn_service` alongside the other NatsStore APIs.
--- References: see the definition in plan-3-done-steps.md or plan-2-active-step.md, step "Step - Implement blocking serve on NatsStore".
+ use async_nats::service::ServiceExt;
+ use tracing::instrument;
+ use uuid::Uuid;
+ 
+ use super::subject::NatsSubject;
+ use super::NatsStore;
+ use crate::aggregate::Aggregate;
+ use crate::error::{self, Error};
+ use crate::event::command_service::{CommandError, CommandErrorKind};
+ use crate::event::{CommandService, CommandServiceExt};
+ use crate::event::{PublishExt, ReplayOneExt};
++use crate::event::Event;
++use crate::version::{DeserializeVersion, SerializeVersion};
+ 
+ impl CommandService for NatsStore {
+     #[instrument(skip_all, level = "debug")]
+     async fn serve<A>(&mut self) -> error::Result<()>
+     where
+         A: Aggregate,
+-        A::Command: serde::de::DeserializeOwned,
++        A::Command: serde::de::DeserializeOwned,
++        A::Event: DeserializeVersion + SerializeVersion,
+     {
+         let service_name = A::Event::name().to_owned();
+         let endpoint_subject = NatsSubject::Event(A::Event::name().into()).into_string("");
+@@
+         let service = self
+             .client()
+             .service_builder()
+             .start(&service_name, "0.1.0")
+             .await
+-            .map_err(|e| Error::Internal(e.into()))?;
++            .map_err(|e: async_nats::Error| Error::Internal(e.into()))?;
+ 
+         let mut endpoint = service
+             .endpoint(&endpoint_subject)
+             .await
+-            .map_err(|e| Error::Internal(e.into()))?;
++            .map_err(|e: async_nats::Error| Error::Internal(e.into()))?;
+ 
+         while let Some(request) = endpoint.next().await {
+@@
+             match self.try_write::<A>(root, command, None).await {
+                 Ok(_) => {
+-                    let _ = request.reply(bytes::Bytes::new()).await;
++                    let _ = request.reply(async_nats::bytes::Bytes::new()).await;
+                 },
+@@
+-fn serialize_error(err: &CommandError) -> bytes::Bytes {
++fn serialize_error(err: &CommandError) -> async_nats::bytes::Bytes {
+     serde_json::to_vec(err)
+-        .map(bytes::Bytes::from)
++        .map(async_nats::bytes::Bytes::from)
+         .unwrap_or_else(|_| {
+-            bytes::Bytes::from_static(
++            async_nats::bytes::Bytes::from_static(
+                 b"{\"kind\":\"internal\",\"message\":\"serialization error\"}",
+             )
+</FILE_PATCH>
+
+<FILE_PATCH file_path="src/event/command_service.rs">
+@@
+     async fn serve<A>(&mut self) -> error::Result<()>
+     where
+         A: Aggregate,
+-        A::Command: serde::de::DeserializeOwned;
++        A::Command: serde::de::DeserializeOwned,
++        A::Event: crate::version::DeserializeVersion + crate::version::SerializeVersion;
+ }
 </FILE_PATCH>
 
 </FILE_CHANGES>
 
-All steps are now complete. The active step "Add spawn_service background task variant on NatsStore" has been moved to done, the todo file is now empty, and the active step file has been cleared.
-
-The implementation across all three steps is complete:
-
-1. `CommandError` and `CommandErrorKind` types defined in `src/event/command_service.rs`.
-2. `CommandService` (blocking) and `CommandServiceExt` (spawned) traits defined and re-exported.
-3. Both traits implemented on `NatsStore` in `src/nats/command_service.rs`, with graceful shutdown integration via `GracefulShutdown` / `TaskTracker` and `stream_cancel::Tripwire`.
-
-There are no more steps in the plan.
-
 <suggested_git_command>
-git commit -a -m ". service plan - Move spawn_service step to done, all plan steps complete"
+git commit -a -m "- nats/command_service - Fix compilation errors: missing imports, type inference, and missing trait bounds"
 </suggested_git_command>
 

@@ -153,3 +153,7 @@
     - Types: CommandError, CommandErrorKind, CommandService, CommandServiceExt
     - Functions: CommandError::new, CommandService::serve, CommandServiceExt::spawn_service
 
+- compilation_errors.txt
+    - Summary: Rust compilation error log for `src/nats/command_service.rs` detailing unresolved 'bytes' module, missing 'Event' trait scope, type inference failures in NATS service builders, and unsatisfied 'DeserializeVersion'/'SerializeVersion' trait bounds.
+    - When To Use: Use this file to diagnose and fix compilation issues in the NATS command service, specifically regarding dependency imports, trait visibility, and generic bound requirements.
+

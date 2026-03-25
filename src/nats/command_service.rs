@@ -7,8 +7,10 @@ use super::NatsStore;
 use crate::aggregate::Aggregate;
 use crate::error::{self, Error};
 use crate::event::command_service::{CommandError, CommandErrorKind};
+use crate::event::Event;
 use crate::event::{CommandService, CommandServiceExt};
 use crate::event::{PublishExt, ReplayOneExt};
+use crate::version::{DeserializeVersion, SerializeVersion};
 
 impl CommandService for NatsStore {
     #[instrument(skip_all, level = "debug")]
@@ -16,6 +18,7 @@ impl CommandService for NatsStore {
     where
         A: Aggregate,
         A::Command: serde::de::DeserializeOwned,
+        A::Event: DeserializeVersion + SerializeVersion,
     {
         let service_name = A::Event::name().to_owned();
         let endpoint_subject = NatsSubject::Event(A::Event::name().into()).into_string("");
@@ -27,12 +30,12 @@ impl CommandService for NatsStore {
             .service_builder()
             .start(&service_name, "0.1.0")
             .await
-            .map_err(|e| Error::Internal(e.into()))?;
+            .map_err(|e: async_nats::Error| Error::Internal(e.into()))?;
 
         let mut endpoint = service
             .endpoint(&endpoint_subject)
             .await
-            .map_err(|e| Error::Internal(e.into()))?;
+            .map_err(|e: async_nats::Error| Error::Internal(e.into()))?;
 
         while let Some(request) = endpoint.next().await {
             // Extract UUID from the last subject token, e.g. "<event_name>.<uuid>".
@@ -92,7 +95,7 @@ impl CommandService for NatsStore {
 
             match self.try_write::<A>(root, command, None).await {
                 Ok(_) => {
-                    let _ = request.reply(bytes::Bytes::new()).await;
+                    let _ = request.reply(async_nats::bytes::Bytes::new()).await;
                 },
                 Err(Error::Conflict) => {
                     let err = CommandError::new(
@@ -128,11 +131,11 @@ impl CommandService for NatsStore {
     }
 }
 
-fn serialize_error(err: &CommandError) -> bytes::Bytes {
+fn serialize_error(err: &CommandError) -> async_nats::bytes::Bytes {
     serde_json::to_vec(err)
-        .map(bytes::Bytes::from)
+        .map(async_nats::bytes::Bytes::from)
         .unwrap_or_else(|_| {
-            bytes::Bytes::from_static(
+            async_nats::bytes::Bytes::from_static(
                 b"{\"kind\":\"internal\",\"message\":\"serialization error\"}",
             )
         })
