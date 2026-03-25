@@ -2,32 +2,21 @@
 ====
 file_content_mode: udiffx
 
-# Knowledge Files
-
-## All resolve files(sent to AI with content, in this order)
-
-- _workbench/service/_plan-rules.md
-
-## Pre (just for info, included in the All resolved files above)
-
-- _workbench/service/_plan-rules.md
-
 # Context Files
 
 ## All resolve files(sent to AI with content, in this order)
 
+- src/event/replay.rs
+- src/event/publish.rs
 - src/project.rs
 - src/aggregate.rs
+- src/error.rs
 - src/event/subscribe.rs
 - src/nats.rs
-- src/nats/event.rs
-- _workbench/service/dev-chat.md
-- .aipack/.prompt/pro@coder/dev/plan/_plan-rules.md
 - _workbench/service/dev-chat.md
 
 ## Post (just for info, included in the All resolved files above)
 
-- .aipack/.prompt/pro@coder/dev/plan/_plan-rules.md
 - _workbench/service/dev-chat.md
 
 # Working Files

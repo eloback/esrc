@@ -19,8 +19,8 @@ context_globs:
   # - derive/**/*.*
   # - compilation_errors.txt
 
-context_globs_post: # Appended after auto-context selection
-  - .aipack/.prompt/pro@coder/dev/plan/*.md
+#context_globs_post: # Appended after auto-context selection
+# - .aipack/.prompt/pro@coder/dev/plan/*.md
 
 ## File paths to give AI a broader view of the project (paths only in prompt, relative only)
 structure_globs:
@@ -46,31 +46,20 @@ model: claude-sonnet-4-6
 ## (see PATH_TO_PRO_CODER_DIR/README.md for full pro@coder documentation)
 ```
 
-do not update any files, just read and update dev chat file.
+now that we have decided a implementation in dev chat, you can create the plan todo following the plan rules.
 
-I want to create a CommandService trait that will serve commands to a aggregate.
-The Nats implementation will use the Nats service api, the NatsStore will expose a method that returns a async_nats::Service.
-The trait implementation will them create a service for that aggregate, and create a listener in a endpoint to receive the commands and invoke the aggregate.
-It will be like the observe and project, but instead of streams and projects, it will be service and aggregate.
-in dev chat, Capture this new requirement, and ask questions if any.
-
-```rs
-# proposed interface
-let _ = store.aggregate_service::<MyAggregate>(SERVICE_NAME,SERVICE_VERSION).await;
-```
+just create the plan todo, do not implement anything for now.
 
 ====
->   Info: Duration: 26s | ~$0.0651 | Prompt Tokens: 16,691 (cached: 0, cache_creation: 0) | Completion Tokens: 1,004 
+>   Info: Duration: 20s | ~$0.0548 | Prompt Tokens: 12,691 (cached: 0, cache_creation: 0) | Completion Tokens: 1,117 
 >  Model: claude-sonnet-4-6 | Adapter: Anthropic
->  Files: Context Files: 8 | Working Files: 0 | Knowledge Files: 1
+>  Files: Context Files: 8 | Working Files: 0 | Knowledge Files: 0
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
-Looking at the code, I can see the pattern clearly: `observe`/`project` uses streams and projectors, and the proposed `aggregate_service` would mirror that but using the NATS Service API to receive commands and drive aggregates.
-
-Let me capture the requirement and raise relevant questions.
+Looking at the dev chat file, I need to answer the open questions and document the design decisions for the `CommandService` trait.
 
 
 
 <suggested_git_command>
-git commit -a -m ". dev-chat - Capture CommandService aggregate requirement and open questions"
+git commit -a -m "^ dev-chat - Document design decisions and implementation plan for CommandService trait"
 </suggested_git_command>
