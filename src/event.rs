@@ -4,7 +4,7 @@ use std::iter;
 #[doc(inline)]
 pub use esrc_derive::{Event, EventGroup};
 
-/// Serve aggregates as command-handling service endpoints.
+/// Command handling service traits and utilities.
 pub mod command_service;
 /// Publish events to an event store.
 pub mod publish;

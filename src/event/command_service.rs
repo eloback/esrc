@@ -7,23 +7,24 @@ use crate::{
     version::{DeserializeVersion, SerializeVersion},
 };
 
-/// Serve an aggregate as a NATS service endpoint, processing commands.
+/// Serve aggregates as command-handling service endpoints.
 ///
-/// Implementations listen for incoming command requests, deserialize the
-/// command, load the aggregate via event replay, process the command,
-/// publish the resulting event, and reply to the caller.
+/// Implementations are responsible for receiving serialized commands,
+/// loading the targeted aggregate from the event store, invoking aggregate
+/// command handling, persisting any produced event, and returning a reply to
+/// the caller that indicates success or failure.
 #[trait_variant::make(Send)]
 pub trait CommandService {
-    /// Block and serve commands for the given aggregate type.
+    /// Start serving commands for the given aggregate type.
     ///
-    /// The service listens on a subject derived from `A::Event::name()` with
-    /// a wildcard for the aggregate UUID (e.g. `<event_name>.*`). On each
-    /// request the aggregate is loaded from sequence 0 via `read`, the
-    /// command is deserialized and processed via `try_write`, and the caller
-    /// receives an empty reply on success or a [`CommandError`] on failure.
+    /// Implementations typically keep running until the underlying transport
+    /// is closed or an unrecoverable error occurs.
     ///
-    /// This method runs until the underlying transport is closed or an
-    /// unrecoverable error occurs.
+    /// The exact transport mapping is implementation specific. For example, a
+    /// backend may derive an endpoint subject from `A::Event::name()`, decode
+    /// incoming command payloads into `A::Command`, reconstruct the aggregate
+    /// through replay, and then call into aggregate command handling before
+    /// replying to the requester.
     fn serve<A>(&self) -> impl Future<Output = error::Result<()>> + Send
     where
         A: crate::aggregate::Aggregate + Send + Sync + 'static,
@@ -33,13 +34,22 @@ pub trait CommandService {
 }
 
 #[trait_variant::make(Send)]
+/// Send commands to aggregate command-handling service endpoints.
+///
+/// Implementations are responsible for serializing aggregate commands,
+/// routing them to the appropriate transport endpoint for aggregate `A`,
+/// awaiting the service reply, and mapping transport or service failures
+/// back into [`error::Error`].
 pub trait CommandClient {
-    /// Send a command to the service and await the response.
+    /// Send a command for an aggregate instance and await the response.
     ///
-    /// The command is serialized and sent to the subject derived from
-    /// `A::Event::name()` with the aggregate UUID (e.g. `<event_name>.<id>`).
-    /// The caller awaits a reply, which is empty on success or contains a
-    /// [`CommandError`] on failure.
+    /// Implementations serialize `command`, route it to the service endpoint
+    /// associated with aggregate `A` and aggregate identifier `id`, then wait
+    /// for the service reply.
+    ///
+    /// On success this returns `Ok(())`. Transport failures, serialization
+    /// issues, optimistic concurrency conflicts, and aggregate-defined command
+    /// errors are returned as [`error::Error`].
     async fn send_command<A>(&self, id: uuid::Uuid, command: A::Command) -> error::Result<()>
     where
         A: crate::aggregate::Aggregate + Send + Sync + 'static,

@@ -15,17 +15,31 @@ use crate::version::{DeserializeVersion, SerializeVersion};
 
 use super::NatsStore;
 
+/// Serializable error payload returned by the NATS command service.
+///
+/// This type captures transport or service-internal failures, optimistic
+/// concurrency conflicts, and aggregate-defined command errors so they can be
+/// sent back to request/reply clients over NATS.
 #[derive(Debug, Serialize, Deserialize)]
 pub enum ReplyError<Err> {
     /// An error occurred while sending the reply, e.g. a transport error.
     Internal(String),
+    /// The command could not be persisted because the expected stream state
+    /// no longer matched the actual state.
     /// An error occurred while serializing the error reply.
     Conflict,
+    /// The aggregate rejected the command with a domain-specific error.
     External(Err),
 }
 
+/// Serializable reply payload returned by the NATS command service.
+///
+/// A successful command is represented by `error: None`. Failures are
+/// represented by `error: Some(...)` containing a [`ReplyError`].
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CommandReply<E> {
+    /// `None` indicates success. `Some(...)` contains the failure returned by
+    /// the command service.
     pub error: Option<ReplyError<E>>,
 }
 
@@ -98,8 +112,9 @@ impl NatsStore {
     ///
     /// This wraps [`CommandService::serve`] in a tracked, cancellable task
     /// using the `GracefulShutdown` / `TaskTracker` already present on
-    /// `NatsStore`. The task will be cancelled when
-    /// [`NatsStore::wait_graceful_shutdown`] is called.
+    /// `NatsStore`. The spawned task registers a shutdown trigger, serves
+    /// commands for aggregate `A`, and exits either when serving fails or
+    /// when [`NatsStore::wait_graceful_shutdown`] requests cancellation.
     pub fn spawn_service<A>(&self)
     where
         A: Aggregate + Send + Sync + 'static,
@@ -133,6 +148,13 @@ impl NatsStore {
         });
     }
 
+    /// Process a single incoming NATS service request as an aggregate command.
+    ///
+    /// The request subject is expected to end with the aggregate UUID. The
+    /// payload must contain a JSON-encoded `A::Command`. The aggregate is
+    /// reconstructed through replay, the command is executed via
+    /// [`crate::event::publish::PublishExt::try_write`], and the result is
+    /// converted into a serializable [`CommandReply`].
     #[instrument(skip_all, level = "debug")]
     pub async fn handle_request<A>(&self, request: &Request) -> CommandReply<A::Error>
     where
@@ -218,6 +240,15 @@ impl NatsStore {
 }
 
 impl CommandClient for NatsStore {
+    /// Send a command over NATS request/reply to the command service for `A`.
+    ///
+    /// The request subject is formed as `<event_name>.<aggregate_id>`, where
+    /// `<event_name>` is `A::Event::name()`. The command is JSON serialized,
+    /// sent as a request, and the JSON reply is decoded into
+    /// [`CommandReply`].
+    ///
+    /// Reply errors are mapped back into the crate's [`crate::error::Error`]
+    /// variants.
     async fn send_command<A>(&self, id: uuid::Uuid, command: A::Command) -> error::Result<()>
     where
         A: crate::aggregate::Aggregate + Send + Sync + 'static,

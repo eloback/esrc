@@ -12,86 +12,10 @@
     - Types: Truncate
     - Functions: truncate
 
-- src/nats/convert.rs
-    - Summary: Implements conversion from async_nats JetStream error types into the crate's unified Error type, including a special mapping for wrong last sequence publish errors to Conflict.
-    - When To Use: Include this file when working on NATS/JetStream error handling, especially error conversion, mapping external NATS errors into the crate's Error type, or diagnosing publish/stream/consumer-related failures.
-
-- src/kurrent/convert.rs
-    - Summary: Implements conversion from kurrentdb errors into the crate's Error type, mapping optimistic concurrency conflicts to Conflict and all other errors to Internal.
-    - When To Use: Include this file when working on error translation between kurrentdb and this crate, especially for handling expected-version conflicts.
-    - Types: Error
-
-- src/kurrent/subject.rs
-    - Summary: Defines the KurrentSubject enum for representing event subjects (wildcard, event name, or aggregate name with UUID) and provides parsing/string conversion helpers.
-    - When To Use: Include this file when working with subject parsing, subject string formatting, or logic that distinguishes wildcard, event, and aggregate subjects in the Kurrent domain.
-    - Types: KurrentSubject
-    - Functions: try_from_str, into_string
-
-- src/kurrent.rs
-    - Summary: Defines the KurrentStore wrapper around a kurrentdb Client for use as an event store implementation, and exposes related modules for event conversion and envelopes.
-    - When To Use: Include this file when you need the KurrentStore type, its construction, or to understand the KurrentDB-backed event store module structure.
-    - Types: KurrentStore
-    - Functions: KurrentStore::try_new
-
-- src/kurrent/header.rs
-    - Summary: Defines constant header keys used for Kurrent/Esrc metadata, including version and event type headers.
-    - When To Use: Include this file when working with code that reads, writes, or matches the custom Esrc/Kurrent HTTP or event metadata headers.
-
-- src/version.rs
-    - Summary: Defines version-aware serde extension traits for serializing and deserializing types with an associated version, and re-exports derive helpers when the derive feature is enabled.
-    - When To Use: Include this file when working with versioned serialization/deserialization logic, serde integration, or when needing the `SerializeVersion`/`DeserializeVersion` traits (or their derive macros under the derive feature).
-    - Types: DeserializeVersion, SerializeVersion
-
-- src/event/replay.rs
-    - Summary: Defines replay and replay extension traits for event streams, including helpers to rebuild projections and materialize aggregates from replayed events.
-    - When To Use: Use this file when you need to replay events from an event store, rebuild a projector, or load/update an aggregate root from historical events.
-    - Types: Replay, ReplayOne, ReplayExt, ReplayOneExt
-
-- src/nats/subject.rs
-    - Summary: Defines NATS subject variants and helpers for parsing and formatting subjects with a required prefix, event name, and optional aggregate UUID.
-    - When To Use: Use when working with NATS subject routing in this crate, especially to parse incoming subject strings or build outgoing subject strings from domain values.
-    - Types: NatsSubject
-    - Functions: try_from_str, into_string
-
-- src/event/publish.rs
-    - Summary: Defines the event publishing traits for writing events to an event stream, including extension helpers that publish aggregate events and commands with optimistic concurrency support.
-    - When To Use: Use this file when you need the API for publishing events, writing aggregate events back to the event store, or converting commands into events via aggregate helper methods.
-    - Types: Publish, PublishExt
-    - Functions: write, try_write
-
-- src/kurrent/event.rs
-    - Summary: Implements KurrentStore event publishing, replaying a single aggregate stream, and subscribing to event groups via KurrentDB persistent subscriptions, including durable subscribe/observe helpers.
-    - When To Use: Use this file when working with KurrentDB-backed event store operations such as publishing events, reading aggregate history, creating persistent subscriptions, or running durable projector loops.
-    - Functions: publish, publish_without_occ, replay_one, subscribe, durable_subscribe, durable_observe
-
-- src/envelope.rs
-    - Summary: Defines the core Envelope abstraction for event-store records and a helper trait for converting envelopes into event types.
-    - When To Use: Include this file when you need the event envelope interface, envelope metadata access, or automatic/manual deserialization from stored event data into domain events.
-    - Types: Envelope, TryFromEnvelope
-
-- src/kurrent/envelope.rs
-    - Summary: Defines KurrentEnvelope, an adapter that converts a kurrentdb ResolvedEvent into the crate’s Envelope trait implementation by extracting aggregate identity, sequence, timestamp, and version metadata, and providing version-aware event deserialization.
-    - When To Use: Include this file when working with KurrentDB event ingestion, envelope conversion, or deserializing events from resolved KurrentDB records using the stream subject and version metadata.
-    - Types: KurrentEnvelope
-    - Functions: KurrentEnvelope::try_from_message
-
-- src/nats/header.rs
-    - Summary: Defines NATS header key constants and a helper for reading header values from an async_nats message.
-    - When To Use: Use this file when working with NATS message headers, especially to access standardized event/version metadata or to extract header strings from messages.
-    - Types: VERSION_KEY, EVENT_TYPE, METADATA_PREFIX
-    - Functions: get
-
-- src/project.rs
-    - Summary: Defines the projection API for event-sourced processing, including a Context wrapper around deserialized envelope contents and the Project trait used to handle events and build read models or trigger side effects.
-    - When To Use: Include this file when you need to understand or implement projection logic, access event envelope metadata within a projection, or work with the Project trait and Context wrapper.
-    - Types: Context, Project
-    - Functions: Context::try_with_envelope, Context::id, Context::sequence, Context::timestamp, Context::get_metadata, Context::into_inner
-
-- src/nats/envelope.rs
-    - Summary: Defines `NatsEnvelope`, an envelope wrapper for NATS JetStream messages that extracts aggregate metadata from the subject and headers, supports event deserialization by version, propagates tracing context, and acks messages on drop/use.
-    - When To Use: Include this file when working with NATS JetStream event ingestion, message-to-envelope conversion, extracting event metadata from NATS headers/subjects, or deserializing versioned events from NATS payloads.
-    - Types: NatsEnvelope
-    - Functions: NatsEnvelope::try_from_message, NatsEnvelope::attach_span_context, NatsEnvelope::ack
+- src/error.rs
+    - Summary: Defines the crate’s common event-sourcing error type and a Result alias for operations that can fail with these errors.
+    - When To Use: Include this file when handling, matching, or propagating the library’s standardized errors, or when using the event-sourcing Result alias.
+    - Types: Error, Result
 
 - src/aggregate.rs
     - Summary: Defines the core Aggregate trait for event-sourced domain objects and the Root wrapper that materializes an aggregate with stream identity and sequence tracking.
@@ -99,15 +23,21 @@
     - Types: Aggregate, Root
     - Functions: Root::with_aggregate, Root::id, Root::last_sequence, Root::into_inner, Root::new, Root::try_apply
 
-- src/view.rs
-    - Summary: Defines the `View` trait, a lightweight reactive read model built from an event stream for query/projection purposes.
-    - When To Use: Include this file when working with event-sourced read models, projections, or any code that implements or uses the `View` trait to replay/apply events.
-    - Types: View
+- src/envelope.rs
+    - Summary: Defines the core Envelope abstraction for event-store records and a helper trait for converting envelopes into event types.
+    - When To Use: Include this file when you need the event envelope interface, envelope metadata access, or automatic/manual deserialization from stored event data into domain events.
+    - Types: Envelope, TryFromEnvelope
 
-- src/error.rs
-    - Summary: Defines the crate’s common event-sourcing error type and a Result alias for operations that can fail with these errors.
-    - When To Use: Include this file when handling, matching, or propagating the library’s standardized errors, or when using the event-sourcing Result alias.
-    - Types: Error, Result
+- src/event/publish.rs
+    - Summary: Defines the event publishing traits for writing events to an event stream, including extension helpers that publish aggregate events and commands with optimistic concurrency support.
+    - When To Use: Use this file when you need the API for publishing events, writing aggregate events back to the event store, or converting commands into events via aggregate helper methods.
+    - Types: Publish, PublishExt
+    - Functions: write, try_write
+
+- src/event/replay.rs
+    - Summary: Defines replay and replay extension traits for event streams, including helpers to rebuild projections and materialize aggregates from replayed events.
+    - When To Use: Use this file when you need to replay events from an event store, rebuild a projector, or load/update an aggregate root from historical events.
+    - Types: Replay, ReplayOne, ReplayExt, ReplayOneExt
 
 - src/event/subscribe.rs
     - Summary: Defines async subscription traits for event streams and a helper extension to observe subscribed events by projecting them with a Project implementation.
@@ -115,27 +45,101 @@
     - Types: Subscribe, SubscribeExt
     - Functions: subscribe, observe
 
+- src/kurrent.rs
+    - Summary: Defines the KurrentStore wrapper around a kurrentdb Client for use as an event store implementation, and exposes related modules for event conversion and envelopes.
+    - When To Use: Include this file when you need the KurrentStore type, its construction, or to understand the KurrentDB-backed event store module structure.
+    - Types: KurrentStore
+    - Functions: KurrentStore::try_new
+
+- src/kurrent/convert.rs
+    - Summary: Implements conversion from kurrentdb errors into the crate's Error type, mapping optimistic concurrency conflicts to Conflict and all other errors to Internal.
+    - When To Use: Include this file when working on error translation between kurrentdb and this crate, especially for handling expected-version conflicts.
+    - Types: Error
+
+- src/kurrent/envelope.rs
+    - Summary: Defines KurrentEnvelope, an adapter that converts a kurrentdb ResolvedEvent into the crate’s Envelope trait implementation by extracting aggregate identity, sequence, timestamp, and version metadata, and providing version-aware event deserialization.
+    - When To Use: Include this file when working with KurrentDB event ingestion, envelope conversion, or deserializing events from resolved KurrentDB records using the stream subject and version metadata.
+    - Types: KurrentEnvelope
+    - Functions: KurrentEnvelope::try_from_message
+
+- src/kurrent/event.rs
+    - Summary: Implements KurrentStore event publishing, replaying a single aggregate stream, and subscribing to event groups via KurrentDB persistent subscriptions, including durable subscribe/observe helpers.
+    - When To Use: Use this file when working with KurrentDB-backed event store operations such as publishing events, reading aggregate history, creating persistent subscriptions, or running durable projector loops.
+    - Functions: publish, publish_without_occ, replay_one, subscribe, durable_subscribe, durable_observe
+
+- src/kurrent/header.rs
+    - Summary: Defines constant header keys used for Kurrent/Esrc metadata, including version and event type headers.
+    - When To Use: Include this file when working with code that reads, writes, or matches the custom Esrc/Kurrent HTTP or event metadata headers.
+
+- src/kurrent/subject.rs
+    - Summary: Defines the KurrentSubject enum for representing event subjects (wildcard, event name, or aggregate name with UUID) and provides parsing/string conversion helpers.
+    - When To Use: Include this file when working with subject parsing, subject string formatting, or logic that distinguishes wildcard, event, and aggregate subjects in the Kurrent domain.
+    - Types: KurrentSubject
+    - Functions: try_from_str, into_string
+
+- src/nats/convert.rs
+    - Summary: Implements conversion from async_nats JetStream error types into the crate's unified Error type, including a special mapping for wrong last sequence publish errors to Conflict.
+    - When To Use: Include this file when working on NATS/JetStream error handling, especially error conversion, mapping external NATS errors into the crate's Error type, or diagnosing publish/stream/consumer-related failures.
+
+- src/nats/envelope.rs
+    - Summary: Defines `NatsEnvelope`, an envelope wrapper for NATS JetStream messages that extracts aggregate metadata from the subject and headers, supports event deserialization by version, propagates tracing context, and acks messages on drop/use.
+    - When To Use: Include this file when working with NATS JetStream event ingestion, message-to-envelope conversion, extracting event metadata from NATS headers/subjects, or deserializing versioned events from NATS payloads.
+    - Types: NatsEnvelope
+    - Functions: NatsEnvelope::try_from_message, NatsEnvelope::attach_span_context, NatsEnvelope::ack
+
 - src/nats/event.rs
     - Summary: Implements NATS-backed event store operations for publishing, replaying, subscribing, durable observation, and truncation of events, including header metadata handling and envelope conversion.
     - When To Use: Use when you need the NATS event store behavior, especially for publishing events with headers, replaying or subscribing to event streams, durable projection consumption, or truncating aggregate streams.
     - Types: NatsStore, NatsEnvelope
     - Functions: NatsStore::durable_observe, Replay::replay, ReplayOne::replay_one, Subscribe::subscribe, Truncate::truncate
 
-- src/event.rs
-    - Summary: Defines the core event abstractions for the crate, including the Event and EventGroup traits, the Sequence struct for stream ordering, and re-exports for publish, replay, subscribe, truncate, and command service operations.
-    - When To Use: Use this file to define domain events, handle stream sequences, or access the primary traits for interacting with an event store.
-    - Types: CommandError, CommandErrorKind, CommandService, Event, EventGroup, Publish, PublishExt, Replay, ReplayExt, ReplayOne, ReplayOneExt, Sequence, Subscribe, SubscribeExt, Truncate
-    - Functions: Sequence::new
+- src/nats/header.rs
+    - Summary: Defines NATS header key constants and a helper for reading header values from an async_nats message.
+    - When To Use: Use this file when working with NATS message headers, especially to access standardized event/version metadata or to extract header strings from messages.
+    - Types: VERSION_KEY, EVENT_TYPE, METADATA_PREFIX
+    - Functions: get
 
-- src/event/command_service.rs
-    - Summary: Defines the CommandService trait and associated error structures (CommandError, CommandErrorKind) for processing commands against event-sourced aggregates, including NATS-compatible error mapping.
-    - When To Use: Include this file when implementing command processing logic, defining aggregate-based service endpoints, or handling error responses from command execution.
-    - Types: CommandError, CommandErrorKind, CommandService
+- src/nats/subject.rs
+    - Summary: Defines NATS subject variants and helpers for parsing and formatting subjects with a required prefix, event name, and optional aggregate UUID.
+    - When To Use: Use when working with NATS subject routing in this crate, especially to parse incoming subject strings or build outgoing subject strings from domain values.
+    - Types: NatsSubject
+    - Functions: try_from_str, into_string
+
+- src/project.rs
+    - Summary: Defines the projection API for event-sourced processing, including a Context wrapper around deserialized envelope contents and the Project trait used to handle events and build read models or trigger side effects.
+    - When To Use: Include this file when you need to understand or implement projection logic, access event envelope metadata within a projection, or work with the Project trait and Context wrapper.
+    - Types: Context, Project
+    - Functions: Context::try_with_envelope, Context::id, Context::sequence, Context::timestamp, Context::get_metadata, Context::into_inner
+
+- src/version.rs
+    - Summary: Defines version-aware serde extension traits for serializing and deserializing types with an associated version, and re-exports derive helpers when the derive feature is enabled.
+    - When To Use: Include this file when working with versioned serialization/deserialization logic, serde integration, or when needing the `SerializeVersion`/`DeserializeVersion` traits (or their derive macros under the derive feature).
+    - Types: DeserializeVersion, SerializeVersion
+
+- src/view.rs
+    - Summary: Defines the `View` trait, a lightweight reactive read model built from an event stream for query/projection purposes.
+    - When To Use: Include this file when working with event-sourced read models, projections, or any code that implements or uses the `View` trait to replay/apply events.
+    - Types: View
+
+- Cargo.toml
+    - Summary: Workspace and root package manifest for the esrc project, defining shared dependencies, workspace members (derive, opentelemetry-nats), and feature flags for NATS and KurrentDB integrations.
+    - When To Use: Use this file to understand the project's dependency tree, available feature configurations, and workspace structure for event-sourcing implementations.
 
 - src/lib.rs
     - Summary: The crate root for the event-sourcing library, defining core modules and re-exporting primary types like Aggregate, Envelope, Event, and View.
     - When To Use: Use this file to understand the library's module structure, re-exported types, and feature-gated backend implementations for NATS and Kurrentdb.
     - Types: Aggregate, Envelope, Error, Event, EventGroup, View
+
+- src/event.rs
+    - Summary: Defines the core abstractions for an event-sourced system, including the Event and EventGroup traits, the Sequence struct for stream ordering, and re-exports for command handling, publishing, replaying, subscribing, and truncating events.
+    - When To Use: Use this file to define domain events, handle event stream sequencing, or access the primary traits for interacting with an event store.
+    - Types: CommandClient, CommandService, Event, EventGroup, Publish, PublishExt, Replay, ReplayExt, ReplayOne, ReplayOneExt, Sequence, Subscribe, SubscribeExt, Truncate
+    - Functions: Sequence::new
+
+- src/event/command_service.rs
+    - Summary: Defines traits for serving and interacting with command-handling services for event-sourced aggregates.
+    - When To Use: Use this file when implementing a service to process aggregate commands or a client to send commands to such a service.
+    - Types: CommandService, CommandClient
 
 - src/nats.rs
     - Summary: Defines the NatsStore, a JetStream-backed event store implementation. It manages stream and mirror configuration, durable/ordered consumer setup, and provides a GracefulShutdown mechanism for managing asynchronous tasks.
@@ -143,22 +147,9 @@
     - Types: NatsStore, GracefulShutdown, NatsEnvelope
     - Functions: NatsStore::try_new, NatsStore::enable_mirror, NatsStore::get_task_tracker, NatsStore::wait_graceful_shutdown, NatsStore::update_durable_consumer_option, NatsStore::client
 
-- Cargo.toml
-    - Summary: Workspace and root package manifest for the esrc project, defining shared dependencies, workspace members (derive, opentelemetry-nats), and feature flags for NATS and KurrentDB integrations.
-    - When To Use: Use this file to understand the project's dependency tree, available feature configurations, and workspace structure for event-sourcing implementations.
-
-- examples/cafe/domain.rs
-    - Summary: Defines the cafe order domain model including the Order aggregate, its commands, events, and errors.
-    - When To Use: Include this file when working with the cafe example domain logic, including command processing and event application.
-    - Types: OrderStatus, Order, OrderCommand, OrderEvent, OrderError
-
 - src/nats/command_service.rs
-    - Summary: Implements the CommandService trait for NatsStore, providing a NATS-based microservice architecture for command handling. It includes logic for listening to commands, replaying aggregate state, processing domain logic, and spawning these services as graceful background tasks.
-    - When To Use: Use this file when implementing or debugging NATS-based command services, aggregate state reconstruction during command processing, or the lifecycle of background command consumers.
-    - Functions: serve, spawn_service
-
-- examples/cafe/main.rs
-    - Summary: Main entry point for the cafe example demonstrating `esrc` command service usage with NATS. It initializes a `NatsStore`, spawns an aggregate service for 'Order', and simulates client interactions by sending commands over NATS and querying aggregate state.
-    - When To Use: Use this file as a reference for setting up a NATS-backed event sourcing system with `esrc`, focusing on the command service pattern and aggregate state retrieval.
-    - Functions: main
+    - Summary: Implements NATS-based command handling for aggregates, including a service listener that replays aggregate state to process commands and a client for sending commands via request/reply.
+    - When To Use: Use this file when configuring NATS command services, spawning background command listeners for aggregates, or dispatching commands to NATS-based event stores.
+    - Types: ReplyError, CommandReply
+    - Functions: serve, spawn_service, handle_request, send_command
 

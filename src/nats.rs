@@ -13,7 +13,7 @@ use tracing::instrument;
 
 use crate::error;
 
-/// Command service implementation for NatsStore.
+/// NATS-backed command service support for `NatsStore`.
 pub mod command_service;
 #[doc(hidden)]
 pub mod convert;

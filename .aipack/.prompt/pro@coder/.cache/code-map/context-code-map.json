@@ -3,7 +3,7 @@
     "Cargo.toml": {
       "file_path": "Cargo.toml",
       "hash": "36d155ba126595d48a927cf78fe01c77122f261cf5996cb97c1a8bb1475f2bc5",
-      "mtime": 1774475336209826,
+      "mtime": 1774510697678154,
       "public_functions": [],
       "public_types": [],
       "summary": "Workspace and root package manifest for the esrc project, defining shared dependencies, workspace members (derive, opentelemetry-nats), and feature flags for NATS and KurrentDB integrations.",
@@ -898,7 +898,7 @@
     "src/aggregate.rs": {
       "file_path": "src/aggregate.rs",
       "hash": "00a6f75b3dc8449f7be55893aacbd993ff922f3680e0e7dd3c61eb376814579a",
-      "mtime": 1774050497112047,
+      "mtime": 1774510695076078,
       "public_functions": [
         "Root::with_aggregate",
         "Root::id",
@@ -917,7 +917,7 @@
     "src/envelope.rs": {
       "file_path": "src/envelope.rs",
       "hash": "b65766c53da2a85ba004b1a92811816518e81a331205c881801e56f370fb75fa",
-      "mtime": 1759845760074217,
+      "mtime": 1774510695076078,
       "public_functions": [],
       "public_types": [
         "Envelope",
@@ -940,14 +940,13 @@
     },
     "src/event.rs": {
       "file_path": "src/event.rs",
-      "hash": "a43df12d1f8e7718b5afb474a62cf4be4e8af30394984a6bab44d13db55b4446",
-      "mtime": 1774473120209374,
+      "hash": "19067b37cad285630c0830e679ed70b698cde03aeb4bb413f71be7e49bf48165",
+      "mtime": 1774511393441022,
       "public_functions": [
         "Sequence::new"
       ],
       "public_types": [
-        "CommandError",
-        "CommandErrorKind",
+        "CommandClient",
         "CommandService",
         "Event",
         "EventGroup",
@@ -962,21 +961,20 @@
         "SubscribeExt",
         "Truncate"
       ],
-      "summary": "Defines the core event abstractions for the crate, including the Event and EventGroup traits, the Sequence struct for stream ordering, and re-exports for publish, replay, subscribe, truncate, and command service operations.",
-      "when_to_use": "Use this file to define domain events, handle stream sequences, or access the primary traits for interacting with an event store."
+      "summary": "Defines the core abstractions for an event-sourced system, including the Event and EventGroup traits, the Sequence struct for stream ordering, and re-exports for command handling, publishing, replaying, subscribing, and truncating events.",
+      "when_to_use": "Use this file to define domain events, handle event stream sequencing, or access the primary traits for interacting with an event store."
     },
     "src/event/command_service.rs": {
       "file_path": "src/event/command_service.rs",
-      "hash": "39617f35978cc93b43496da24cea7ae97bbf5cb7bcce318606bb447f4110f866",
-      "mtime": 1774473120209374,
+      "hash": "73f439c60c0686701743cae0a07803734d316e7c2243eb3acd3e0a80728624de",
+      "mtime": 1774511393441022,
       "public_functions": [],
       "public_types": [
-        "CommandError",
-        "CommandErrorKind",
-        "CommandService"
+        "CommandService",
+        "CommandClient"
       ],
-      "summary": "Defines the CommandService trait and associated error structures (CommandError, CommandErrorKind) for processing commands against event-sourced aggregates, including NATS-compatible error mapping.",
-      "when_to_use": "Include this file when implementing command processing logic, defining aggregate-based service endpoints, or handling error responses from command execution."
+      "summary": "Defines traits for serving and interacting with command-handling services for event-sourced aggregates.",
+      "when_to_use": "Use this file when implementing a service to process aggregate commands or a client to send commands to such a service."
     },
     "src/event/future.rs": {
       "file_path": "src/event/future.rs",
@@ -994,7 +992,7 @@
     "src/event/publish.rs": {
       "file_path": "src/event/publish.rs",
       "hash": "d1f17027d1260c030d8c899a60e6a2898e680fb4797fbb728a51afa7cbbf95b0",
-      "mtime": 1759786559028035,
+      "mtime": 1774510695076078,
       "public_functions": [
         "write",
         "try_write"
@@ -1009,7 +1007,7 @@
     "src/event/replay.rs": {
       "file_path": "src/event/replay.rs",
       "hash": "4049a063b6b98e04fea852540c5dd2c100f5fa08da184b3f3bee5de61d7a4dd6",
-      "mtime": 1758857978336674,
+      "mtime": 1774510695076078,
       "public_functions": [],
       "public_types": [
         "Replay",
@@ -1023,7 +1021,7 @@
     "src/event/subscribe.rs": {
       "file_path": "src/event/subscribe.rs",
       "hash": "f3d1a3d5b293db96ab1cc6155ecc456487c45dada9a84dec6f4906a37d4711d5",
-      "mtime": 1774448954566272,
+      "mtime": 1774510695076078,
       "public_functions": [
         "subscribe",
         "observe"
@@ -1051,7 +1049,7 @@
     "src/kurrent.rs": {
       "file_path": "src/kurrent.rs",
       "hash": "2b5ed9cc18515529b1bef228b0dd53c391e63f449dfd286d8fbeb43eb172aebb",
-      "mtime": 1756498689282474,
+      "mtime": 1774510695076078,
       "public_functions": [
         "KurrentStore::try_new"
       ],
@@ -1064,7 +1062,7 @@
     "src/kurrent/convert.rs": {
       "file_path": "src/kurrent/convert.rs",
       "hash": "79c5913bb3c999d9fafc81db50ce670cec9dea04df347255e7912339b2affa12",
-      "mtime": 1756488672941649,
+      "mtime": 1774510695076078,
       "public_functions": [],
       "public_types": [
         "Error"
@@ -1075,7 +1073,7 @@
     "src/kurrent/envelope.rs": {
       "file_path": "src/kurrent/envelope.rs",
       "hash": "8dbbfe93e98a32168fae731f4ca8b8f5c640e967516898200efb7363bb0a54b3",
-      "mtime": 1759845790703236,
+      "mtime": 1774510695078079,
       "public_functions": [
         "KurrentEnvelope::try_from_message"
       ],
@@ -1088,7 +1086,7 @@
     "src/kurrent/event.rs": {
       "file_path": "src/kurrent/event.rs",
       "hash": "5975afbdde1e10e794db38a7326495d86fe63364a054741985164fe2e1fbb9e9",
-      "mtime": 1759844545601868,
+      "mtime": 1774510695078079,
       "public_functions": [
         "publish",
         "publish_without_occ",
@@ -1104,7 +1102,7 @@
     "src/kurrent/header.rs": {
       "file_path": "src/kurrent/header.rs",
       "hash": "55c7451ba515e601fdb44890fbbbee585bcfb4a51a9278b4b2e23c4674a13ca0",
-      "mtime": 1756498689282518,
+      "mtime": 1774510695078079,
       "public_functions": [],
       "public_types": [],
       "summary": "Defines constant header keys used for Kurrent/Esrc metadata, including version and event type headers.",
@@ -1113,7 +1111,7 @@
     "src/kurrent/subject.rs": {
       "file_path": "src/kurrent/subject.rs",
       "hash": "919af84287b3001039aed4ccc876a276bb63443f0996a7361d3caa2aa124a535",
-      "mtime": 1756497507862898,
+      "mtime": 1774510695078079,
       "public_functions": [
         "try_from_str",
         "into_string"
@@ -1127,7 +1125,7 @@
     "src/lib.rs": {
       "file_path": "src/lib.rs",
       "hash": "c9750ba1c8bf7935358856c2e26d1e16de0d701a52ad05013a5c8f901f5e686f",
-      "mtime": 1774473120209374,
+      "mtime": 1774510697679154,
       "public_functions": [],
       "public_types": [
         "Aggregate",
@@ -1142,8 +1140,8 @@
     },
     "src/nats.rs": {
       "file_path": "src/nats.rs",
-      "hash": "aac19a6c2527800cca50a25bfa60b79c4ba1bb53055a5878b8ee27d599305d72",
-      "mtime": 1774473120209374,
+      "hash": "a3dc39a94bbd155298f57e0006d9a0de75a9d7b9769b70370ed7ef710b01b8a5",
+      "mtime": 1774511393441022,
       "public_functions": [
         "NatsStore::try_new",
         "NatsStore::enable_mirror",
@@ -1162,20 +1160,25 @@
     },
     "src/nats/command_service.rs": {
       "file_path": "src/nats/command_service.rs",
-      "hash": "115485a8771c29ff619ba4bd3e0955cc07594103325783287130ec988840c746",
-      "mtime": 1774476424236699,
+      "hash": "2613246be51ad823343e194c211ff762437dc48d4335c5473021ffb7aa2fa612",
+      "mtime": 1774511393441022,
       "public_functions": [
         "serve",
-        "spawn_service"
+        "spawn_service",
+        "handle_request",
+        "send_command"
       ],
-      "public_types": [],
-      "summary": "Implements the CommandService trait for NatsStore, providing a NATS-based microservice architecture for command handling. It includes logic for listening to commands, replaying aggregate state, processing domain logic, and spawning these services as graceful background tasks.",
-      "when_to_use": "Use this file when implementing or debugging NATS-based command services, aggregate state reconstruction during command processing, or the lifecycle of background command consumers."
+      "public_types": [
+        "ReplyError",
+        "CommandReply"
+      ],
+      "summary": "Implements NATS-based command handling for aggregates, including a service listener that replays aggregate state to process commands and a client for sending commands via request/reply.",
+      "when_to_use": "Use this file when configuring NATS command services, spawning background command listeners for aggregates, or dispatching commands to NATS-based event stores."
     },
     "src/nats/convert.rs": {
       "file_path": "src/nats/convert.rs",
       "hash": "18da2db90a14f7e3b434da23f8a9be5d400126e74bf8523358620c22274f1e88",
-      "mtime": 1752175303258465,
+      "mtime": 1774510695078079,
       "public_functions": [],
       "public_types": [],
       "summary": "Implements conversion from async_nats JetStream error types into the crate's unified Error type, including a special mapping for wrong last sequence publish errors to Conflict.",
@@ -1184,7 +1187,7 @@
     "src/nats/envelope.rs": {
       "file_path": "src/nats/envelope.rs",
       "hash": "e2d4b139becd274aae6edc47e09afdaefea5b35fa7263572f2edbd933f4c9ec8",
-      "mtime": 1774044552993027,
+      "mtime": 1774510695078079,
       "public_functions": [
         "NatsEnvelope::try_from_message",
         "NatsEnvelope::attach_span_context",
@@ -1199,7 +1202,7 @@
     "src/nats/event.rs": {
       "file_path": "src/nats/event.rs",
       "hash": "2fb4e07d92e0504febb6e394d0f363554d2e1ed09bd1d6a0679e0a883240640e",
-      "mtime": 1774450241092984,
+      "mtime": 1774510695078079,
       "public_functions": [
         "NatsStore::durable_observe",
         "Replay::replay",
@@ -1217,7 +1220,7 @@
     "src/nats/header.rs": {
       "file_path": "src/nats/header.rs",
       "hash": "91bb6c5dd1a56c922d8bd6877daafa39cb4786383df5077fda68e4e1406d9063",
-      "mtime": 1759859565999587,
+      "mtime": 1774510695078079,
       "public_functions": [
         "get"
       ],
@@ -1232,7 +1235,7 @@
     "src/nats/subject.rs": {
       "file_path": "src/nats/subject.rs",
       "hash": "22cd70262e8f3333a9784760eb23b6b314af195a5bfcc3e60ecb0082adc3c3d3",
-      "mtime": 1759235677347584,
+      "mtime": 1774510695078079,
       "public_functions": [
         "try_from_str",
         "into_string"
@@ -1246,7 +1249,7 @@
     "src/project.rs": {
       "file_path": "src/project.rs",
       "hash": "776fa3e266714f3ceb4ff5851869ecd2ce9b928eeedf2e0c654337dfd0f0e8de",
-      "mtime": 1773239772190067,
+      "mtime": 1774510695078079,
       "public_functions": [
         "Context::try_with_envelope",
         "Context::id",
@@ -1265,7 +1268,7 @@
     "src/version.rs": {
       "file_path": "src/version.rs",
       "hash": "f73525aa6f8f661ce12e90e7ccaded28ab44aa8d047a76281f84486f6efa69de",
-      "mtime": 1757060552291792,
+      "mtime": 1774510695078079,
       "public_functions": [],
       "public_types": [
         "DeserializeVersion",
@@ -1277,7 +1280,7 @@
     "src/view.rs": {
       "file_path": "src/view.rs",
       "hash": "888de2065fcd3d926b5a726762f2be750b7d3bdc7cc17367fe82da312b247b4b",
-      "mtime": 1774080498980677,
+      "mtime": 1774510695078079,
       "public_functions": [],
       "public_types": [
         "View"
