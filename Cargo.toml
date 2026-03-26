@@ -26,7 +26,6 @@ tokio = { version = "1.41", features = ["rt"] }
 tracing = "0.1"
 trait-variant = "0.1"
 uuid = "1.8"
-kurrentdb = "1.0.0"
 tracing-futures = { version = "0.2.5", features = ["futures-03"] }
 stream-cancel = "0.8"
 tokio-util = { version = "0.7", features = ["rt"] }
@@ -51,7 +50,6 @@ edition.workspace = true
 default = ["derive", "nats", "opentelemetry"]
 derive = ["dep:esrc-derive"]
 nats = ["dep:async-nats", "dep:serde_json"]
-kurrent = ["dep:kurrentdb", "dep:serde_json"]
 opentelemetry = ["opentelemetry-nats"]
 
 [dependencies]
@@ -67,7 +65,6 @@ thiserror.workspace = true
 tracing.workspace = true
 trait-variant.workspace = true
 uuid.workspace = true
-kurrentdb = { workspace = true, optional = true }
 tokio.workspace = true
 stream-cancel.workspace = true
 tokio-util.workspace = true

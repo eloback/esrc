@@ -25,10 +25,6 @@ pub mod view;
 #[cfg(feature = "nats")]
 pub mod nats;
 
-/// An event store implementation on top of Kurrentdb.
-#[cfg(feature = "kurrent")]
-pub mod kurrent;
-
 pub use aggregate::Aggregate;
 pub use envelope::Envelope;
 pub use error::Error;

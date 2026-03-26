@@ -16,7 +16,7 @@ use tracing::instrument;
 use crate::error;
 use crate::event_modeling::{Automation, ConsumerSpec, ExecutionPolicy, ReadModel};
 use crate::project::Project;
-use crate::query::{Query, QueryHandler, QueryService};
+use crate::query::{Query, QueryHandler};
 
 /// NATS-backed command service support for `NatsStore`.
 pub mod command_service;
