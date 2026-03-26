@@ -17,10 +17,9 @@ file_content_mode: udiffx
 ## All resolve files(sent to AI with content, in this order)
 
 - src/view.rs
+- src/error.rs
 - src/event/command_service.rs
-- src/lib.rs
 - src/project.rs
-- src/nats.rs
 - src/event_modeling.rs
 - _workbench/queries/dev-chat.md
 

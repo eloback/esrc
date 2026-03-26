@@ -176,6 +176,31 @@ Based on your round 2 answers, a few more clarifications before the final summar
 6. **get_by_id on the trait vs. on the query enum**: You confirmed `get_by_id` should be a built-in trait method. Should this method live on the `QueryStore` trait (storage-level concern, always available), on the `QueryHandler` (query-level concern), or on a `ReadModelId` trait that both can leverage? This determines where the "default query" lives architecturally.
 - ANSWER: not sure but i think in the QueryStore is more intuitive?
 
+### Follow-up Questions (Round 4)
+
+Based on all your previous answers, here are the remaining clarifications before the final summary:
+
+1. **QueryStore flexibility and get_by_id**: You said `QueryStore` should be "super flexible" since not all read models need `get_all`, and that `get_by_id` should live on `QueryStore`. Should `get_by_id` be the only required method on `QueryStore`, with everything else (get_all, list, save, delete) being optional extension traits or separate traits? Or should `QueryStore` be a minimal trait with just `get_by_id` and `save`, and users add their own methods as needed?
+- ANSWER: what's the utility of a QueryStore? couldn't the same things be acomplished with just the Project and a QueryHandler and a helper to declare both at the same time when necessary?
+
+2. **QueryStore write methods**: Should `QueryStore` include write methods like `save(id, read_model)` and `delete(id)`, or should it be read-only (query-side only), leaving writes to the user's `Project` implementation? If it includes writes, it becomes a full storage abstraction; if read-only, the user must manage the write path themselves but the trait stays simpler.
+- ANSWER: again, don't se the utility of query store here, if you decide for it, you pick the choice.
+
+3. **Query enum response type**: You said the minimum requirement is `Vec<ReadModel>`. For the `Query` trait, should we use a single associated `type Response` per enum (meaning all variants return the same type), or should we try to support per-variant return types? A single response type is simpler (e.g., `Vec<ReadModel>`) and the user wraps/filters as needed. Per-variant types are more expressive but significantly more complex. Given your preference for simplicity, I'm leaning toward a single `type Response = Vec<ReadModel>` default, with the user free to override. Does that feel right?
+- ANSWER: yes, that seem fine.
+
+4. **QueryStore ID type**: The `get_by_id` method needs an ID type. Should this be an associated type on `QueryStore` (e.g., `type Id`), or should it come from a separate `ReadModelId` trait that `QueryStore` references? If from `ReadModelId`, then both `View`-based and `Project`-based read models declare their ID type in one place, and `QueryStore` implementations are generic over it.
+- ANSWER: i don't see the utility of the QueryStore, if you have the separate trait for the Id, or maybe put the Id in the View trait, wouldn't the QueryStore be useless?
+
+5. **Error handling for queries**: You have `esrc::error::Error` with variants like `Internal`, `External`, `Format`, `Invalid`, `Conflict`, `Configuration`. For queries, common errors would be "not found" (handled by `Option`), storage failures, and potentially invalid query parameters. Should `QueryHandler` use `esrc::error::Error` directly (keeping things uniform), or have its own `type Error` (like `Project` does) for domain-specific query errors? Given that `get_by_id` returns `Result<Option<RM>>`, "not found" is already handled by `None`, so `esrc::error::Error` might be sufficient for the remaining failure cases.
+- ANSWER: same model as command handlers, External errors would contain the persistance errors or other domain errors from the developer
+
+6. **Module scope**: You confirmed `src/query.rs` for the query traits. Should the NATS KV and in-memory `QueryStore` implementations live in `src/nats/query_store.rs` and `src/query/in_memory.rs` respectively, or do you have a preferred layout? This is just for planning; no implementation yet.
+- ANSWER: if none of the traits are hard linked with the query handler this layout is acceptable.
+
+7. **Caching**: You said "pick the best one." My inclination is to skip caching as a first-class framework concept for now. Instead, a `QueryStore` wrapper (decorator pattern) could be provided later as an optional caching layer (e.g., `CachedQueryStore<S: QueryStore>` that wraps another store with a TTL cache). This keeps the core traits clean. Does that approach work for you?
+- ANSWER: yes
+
 ### Relationship to Existing Types
 
 - `View` could optionally implement `ReadModelId` to participate in the query layer.
