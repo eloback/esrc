@@ -1,5 +1,66 @@
 {
   "file_map": {
+    "docs/skill/esrc-command-service-execute-commands.md": {
+      "file_path": "docs/skill/esrc-command-service-execute-commands.md",
+      "hash": "422590cee00539db1d68c5086c82cef6cb797d2659c6902dbfba57c8f8f51f2c",
+      "mtime": 1774535997702190,
+      "public_functions": [
+        "send_command"
+      ],
+      "public_types": [
+        "CommandClient",
+        "Aggregate"
+      ],
+      "summary": "Explains how to use the `esrc::event::command_service::CommandClient` to trigger aggregate state changes from a slice, detailing command execution logic, error mapping, and best practices for isolation and idempotency.",
+      "when_to_use": "When building vertical slices that need to send commands to aggregates, handle command results (like conflicts or domain errors), or implement event-driven automations."
+    },
+    "docs/skill/esrc-event-modeling-create-consumers-automations-and-read-models.md": {
+      "file_path": "docs/skill/esrc-event-modeling-create-consumers-automations-and-read-models.md",
+      "hash": "e687f4a02c287d22bbdf4adfb128824b301efaa948d869738141d0d148c7a1ed",
+      "mtime": 1774535997702172,
+      "public_functions": [
+        "ConsumerName::new",
+        "Automation::new",
+        "ReadModel::new",
+        "max_concurrency",
+        "with_execution_policy",
+        "into_spec",
+        "project"
+      ],
+      "public_types": [
+        "ConsumerName",
+        "ConsumerRole",
+        "ExecutionPolicy",
+        "ConsumerSpec",
+        "Automation",
+        "ReadModel",
+        "Project",
+        "Context"
+      ],
+      "summary": "This document provides guidance on declaring event-driven consumers (automations and read models) using the esrc::event_modeling library, focusing on naming standards, execution policies, and the Project trait implementation.",
+      "when_to_use": "Use this guide when implementing reactive side effects (automations) or materializing queryable state (read models) within a vertical slice, ensuring correct consumer naming and concurrency configurations."
+    },
+    "docs/skill/esrc-read-model-public-interface-and-queries.md": {
+      "file_path": "docs/skill/esrc-read-model-public-interface-and-queries.md",
+      "hash": "a7587bd17ee3f2673308b680669303892c8811df67443590a6c0e6226c9082fc",
+      "mtime": 1774535997702203,
+      "public_types": [
+        "Queries (enum)",
+        "generated.rs (structs)",
+        "RedeQuery (example pattern)"
+      ],
+      "summary": "Defines the standard pattern for structuring read model public interfaces and queries within a slice, using a generated.rs for data structures and a mod.rs for custom query extensions.",
+      "when_to_use": "Include this when designing slice read models, defining public query APIs, or setting up the interaction boundary between different slices and their consumers."
+    },
+    "docs/skill/esrc-slice-constants-and-module-layout.md": {
+      "file_path": "docs/skill/esrc-slice-constants-and-module-layout.md",
+      "hash": "a809986bec6dd3477a245f3b21973bd641f9ee5ad561c7138984d165561e4be7",
+      "mtime": 1774535997701283,
+      "public_functions": [],
+      "public_types": [],
+      "summary": "Defines the standards for vertical slice structures, folder layouts, and required constants (BOUNDED_CONTEXT_NAME, DOMAIN_NAME, FEATURE_NAME) within an esrc-based project to ensure isolation and consistent instrumentation.",
+      "when_to_use": "Use this guide when creating new feature slices, organizing domain modules, or setting up the module hierarchy in a Rust project following esrc architecture patterns."
+    },
     "nats_service.md": {
       "file_path": "nats_service.md",
       "hash": "2eb1f97a16695405f7ff022052d6febde1b2e5410c0a7dfe8395e901cd8e7486",

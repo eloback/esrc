@@ -11,11 +11,13 @@ knowledge_globs:
   # - core@doc/for-llm/**/*.md         # For help building .aip AIPack agents
   # - pro@rust10x/guide/base/**/*.md   # Rust best practices (require `aip install pro@rust10x`)
   # - nats_service.md
+  - docs/skill/**/*
 
 ## Files the AI will work on (paths & content included in prompt, relative only)
 context_globs:
   - Cargo.toml # for Rust
   - src/**/*
+  - examples/**/*
   # - examples/multi-slice-command-service/**/*
   # - examples/basic-query-service/**/*
   # - crates/esrc-cqrs/**/*
@@ -42,7 +44,7 @@ auto_context:
 
 dev:
   # chat: _workbench/queries # default path: PATH_TO_PRO_CODER_DIR/dev/chat/dev-chat.md
-  plan: _workbench/queries # default  dir: PATH_TO_PRO_CODER_DIR/dev/plan/
+  # plan: _workbench/queries # default  dir: PATH_TO_PRO_CODER_DIR/dev/plan/
 
 ## Full model names or aliases (see aliases ~/.aipack-base/config-default.toml)
 ## -high, -medium, or -low suffixes for custom reasoning (e.g., "flash-low", "opus-max", "gpt-high")
@@ -50,33 +52,42 @@ model: opus
 ## (see PATH_TO_PRO_CODER_DIR/README.md for full pro@coder documentation)
 ```
 
-following the plan rules implement the next step in the plan.
+aggregate all examples in one big modular example, it should test:
+
+- a Command Service
+- one Automation
+- One of each type of default Read Model
+- The Command Client
+- The Query Client
+
+some notes on the implementationd.
+
+- use the other examples as reference.
+- create a domain folder where you will define the events commands and aggregates in different files
+- separate the code components in slices ex: ("create_operation", "send_email", "memory_operation_list")
+- The Automation should emit a event that will update the read models (projected ones at least)
+- The Read model will be queried to validate the flow working properly
+- do not clear the storage on start, put some assertions on the end to validate that the read models are being properly updated.
 
 ====
->   Info: Duration: 43s | ~$0.1909 | Prompt Tokens: 20,225 (cached: 0, cache_creation: 0) | Completion Tokens: 3,592 
+>   Info: Duration: 1m 22s | ~$0.3535 | Prompt Tokens: 34,658 (cached: 0, cache_creation: 0) | Completion Tokens: 7,207 
 >  Model: claude-opus-4-6 | Adapter: Anthropic
->  Files: Context Files: 9 | Working Files: 0 | Knowledge Files: 1
+>  Files: Context Files: 15 | Working Files: 0 | Knowledge Files: 4
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
-Looking at the plan, the active step is "NATS KV-backed QueryHandler implementation" which is already implemented (see `src/nats/query_kv.rs`). So I need to move it to done and implement the next todo step: "Vertical slice helper composing ConsumerSpec and QuerySpec".
-
-Let me analyze what's needed:
-- A convenience builder that combines a `ReadModel` consumer (`ConsumerSpec`) and a `QueryHandler` (`QuerySpec`) into a single vertical slice declaration.
-- A `spawn_read_model_slice` method on `NatsStore` to spawn both the consumer and query service in one call.
+Looking at the existing examples and the codebase, I'll create a comprehensive modular example that tests all the required components.
 
 
 
-The implementation adds:
+Here is a summary of the structure:
 
-1. **`ReadModelSlice<P, H>`** in `src/event_modeling.rs`: A builder struct that composes a `ConsumerSpec` (read model consumer) and a `QuerySpec` (query handler) using a shared `ComponentName`. It provides:
-   - `new(name, projector, handler)` constructor with sensible defaults (sequential execution, NATS request-reply transport).
-   - Override methods for execution policy and query transport.
-   - Accessors for both specs, projector, handler, and a destructuring `into_specs()`.
-
-2. **`spawn_read_model_slice`** on `NatsStore` in `src/nats.rs`: A single method that takes a `ReadModelSlice`, destructures it into its two specs, and spawns both the event consumer and the query service as tracked background tasks.
-
-3. **Re-export** of `ReadModelSlice` from `src/lib.rs` alongside the existing `Automation` re-export.
+- **`domain/`** - Contains aggregates, events, and commands split into `operation.rs` and `email.rs`, with `mod.rs` exposing `BOUNDED_CONTEXT_NAME`.
+- **`create_operation/`** - Automation slice that reacts to `OperationCreated` events and sends a `SendNotification` command to the `EmailAggregate`.
+- **`memory_operation_list/`** - In-memory read model slice using `InMemoryViewStore` + `ReadModelSlice` to materialize and query operations.
+- **`kv_operation_view/`** - NATS KV read model slice using `NatsKvStore` + `ReadModelSlice` to persist operation views in a JetStream KV bucket.
+- **`send_email/`** - In-memory read model slice that materializes `EmailEvent` records, proving the automation triggered the email command successfully.
+- **`main.rs`** - Orchestrates everything: spawns command services, automation, both read model types, sends commands via `CommandClient`, then queries via `QueryClient` with assertions to validate the entire flow.
 
 <suggested_git_command>
-git add -A . && git commit -a -m "+ event_modeling - Add ReadModelSlice vertical slice helper composing ConsumerSpec and QuerySpec"
+git add -A . && git commit -m "+ full-slice-example - Add comprehensive example testing command service, automation, in-memory and KV read models, command client, and query client"
 </suggested_git_command>

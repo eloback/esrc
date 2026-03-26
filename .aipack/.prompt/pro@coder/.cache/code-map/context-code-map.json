@@ -224,6 +224,30 @@
       "summary": "Defines the read-side components for an order service, including the OrderReadModel, an in-memory store, a projector to update state from events, and a query handler.",
       "when_to_use": "Refer to this file when implementing CQRS read models, projections, or query handlers using the esrc framework."
     },
+    "examples/cafe/domain.rs": {
+      "file_path": "examples/cafe/domain.rs",
+      "hash": "b5bc55f08c4927b828d1f65d2e030b64dcb9b04d391182e4710bfebebdb3b0c2",
+      "mtime": 1774475570720603,
+      "public_types": [
+        "OrderStatus",
+        "Order",
+        "OrderCommand",
+        "OrderEvent",
+        "OrderError"
+      ],
+      "summary": "Defines the core domain logic for a cafe order aggregate, including its state, commands, events, and error types, while implementing the esrc::Aggregate trait.",
+      "when_to_use": "Use this file when you need to reference the business logic, state transitions, or command/event schemas for the Order aggregate in the cafe example."
+    },
+    "examples/cafe/main.rs": {
+      "file_path": "examples/cafe/main.rs",
+      "hash": "266a80920693faaa7866b39503a1dfc1c1e171044e051e2781cdeffe16dce076",
+      "mtime": 1774498943700120,
+      "public_functions": [
+        "main"
+      ],
+      "summary": "A practical example demonstrating the use of the esrc library with NATS JetStream. It shows how to initialize a NatsStore, spawn an aggregate command service, send commands through NATS, and retrieve aggregate state.",
+      "when_to_use": "Use this file as a reference for setting up a command service and interacting with an event-sourced aggregate using NATS as the transport and storage layer."
+    },
     "examples/multi-slice-command-service/domain.rs": {
       "file_path": "examples/multi-slice-command-service/domain.rs",
       "hash": "cbe3b1680c6d9fe985e22568eff2c70d254df4c5a0c033781461174415ce83d3",
@@ -282,6 +306,21 @@
       ],
       "summary": "Implements the SendWelcomeEmailAutomation, which acts as a process manager that listens for WelcomeEmailRequested events and responds by sending a MarkWelcomeEmailSent command.",
       "when_to_use": "Include this file when looking for an example of how to implement event-driven automations or side effects within the esrc framework, particularly those that involve command-loopback patterns."
+    },
+    "examples/zero_copy/main.rs": {
+      "file_path": "examples/zero_copy/main.rs",
+      "hash": "8670e9986c2a1d284e0dc65ad5c8feb3534ab74fc5d69e3a295046aa2d840e12",
+      "mtime": 1757060552290792,
+      "public_functions": [
+        "main"
+      ],
+      "public_types": [
+        "ZeroCopyEvent",
+        "NamePrinter",
+        "NamePrinterError"
+      ],
+      "summary": "An example demonstrating how events can use zero-copy deserialization by tying event lifetimes to the source Envelope within the esrc framework.",
+      "when_to_use": "Use this file as a reference for implementing memory-efficient event projection or when working with HRTB (Higher-Rank Trait Bounds) for event lifetimes."
     },
     "src/aggregate.rs": {
       "file_path": "src/aggregate.rs",
@@ -440,8 +479,8 @@
     },
     "src/event_modeling.rs": {
       "file_path": "src/event_modeling.rs",
-      "hash": "f8a9c970739249136f78f6536a6def1524e3de4e5fdda33724d78cca783f17d3",
-      "mtime": 1774554850484913,
+      "hash": "59153ab91e93b37afb3874089f8a9ee93c87780f8660c672d2c042f67f442757",
+      "mtime": 1774554937248097,
       "public_functions": [
         "ConsumerRole::default_execution_policy",
         "ComponentName::new",
@@ -468,7 +507,18 @@
         "ReadModel::new",
         "ReadModel::with_execution_policy",
         "ReadModel::as_spec",
-        "ReadModel::into_spec"
+        "ReadModel::into_spec",
+        "ReadModelSlice::new",
+        "ReadModelSlice::with_execution_policy",
+        "ReadModelSlice::with_query_transport",
+        "ReadModelSlice::consumer_spec",
+        "ReadModelSlice::query_spec",
+        "ReadModelSlice::into_specs",
+        "ReadModelSlice::name",
+        "ReadModelSlice::projector",
+        "ReadModelSlice::projector_mut",
+        "ReadModelSlice::handler",
+        "ReadModelSlice::handler_mut"
       ],
       "public_types": [
         "ConsumerRole",
@@ -476,10 +526,11 @@
         "ComponentName",
         "ConsumerSpec",
         "Automation",
-        "ReadModel"
+        "ReadModel",
+        "ReadModelSlice"
       ],
-      "summary": "Defines core primitives and builders for event-driven consumers, including semantic roles, execution policies, and structured component naming conventions.",
-      "when_to_use": "Use this file when defining new event consumers (Automations or Read Models), configuring message execution behaviors, or generating standardized infrastructure names for consumers and query subjects."
+      "summary": "Defines core primitives and builders for event-driven consumers, including semantic roles, execution policies, structured component naming, and composite read-model slices.",
+      "when_to_use": "Use this file when defining or configuring event consumers (Automations, Read Models), defining vertical slices that combine event projection with query handling, or using the structured component naming convention for infrastructure resources."
     },
     "src/kurrent.rs": {
       "file_path": "src/kurrent.rs",
@@ -572,8 +623,8 @@
     },
     "src/nats.rs": {
       "file_path": "src/nats.rs",
-      "hash": "a76fe76a5c8d3b7014c2ae45af976d72a0e38ab795842b783d9c493451066789",
-      "mtime": 1774554850486913,
+      "hash": "b6ac56a83a2fadeacee02497e145a0c8ea24d386e18e65785eaaaadeeb63f040",
+      "mtime": 1774554937248097,
       "public_functions": [
         "try_new",
         "enable_mirror",
@@ -584,15 +635,16 @@
         "run_consumer",
         "spawn_consumer",
         "spawn_automation",
-        "spawn_read_model"
+        "spawn_read_model",
+        "spawn_read_model_slice"
       ],
       "public_types": [
         "NatsStore",
         "GracefulShutdown",
         "NatsEnvelope"
       ],
-      "summary": "Provides a NATS JetStream-backed implementation of an event store, handling stream configuration, consumer management, and graceful task shutdown.",
-      "when_to_use": "Include this file when you need to initialize a NATS event store, manage JetStream streams, or spawn background consumers, automations, and read models that react to NATS events."
+      "summary": "Provides a NATS JetStream-backed event store implementation, handling stream configuration, consumer management, and graceful task lifecycle tracking.",
+      "when_to_use": "Use this file to initialize a NATS event store or to spawn background tasks for consumers, automations, and read model projections."
     },
     "src/nats/command_service.rs": {
       "file_path": "src/nats/command_service.rs",
