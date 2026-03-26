@@ -61,6 +61,23 @@ time-created: 2026-03-26 14:58:37
 - Both traits use `#[trait_variant::make(Send)]`.
 - Subject derivation convention: `query.<bounded_context>.<domain>.<feature>.<component>` (documented via `ComponentName::query_subject()` helper method on `ComponentName`).
 
+## Step - In-memory QueryHandler helper for View-based live projections
+      status: done
+time-created: 2026-03-26 15:39:52
+   time-done: 2026-03-26 16:28:37
+
+- Created `src/query/in_memory.rs` with `InMemoryViewStore<RM, Q>`, a thread-safe, in-memory store for read model instances keyed by `Uuid`.
+
+- `InMemoryViewStore` provides:
+  - `new(query_fn)`: constructor with closure for custom query logic.
+  - `upsert`, `remove`, `get`, `all`, `len`, `is_empty` methods.
+
+- Implements `QueryHandler` with `type Id = Uuid`, delegating to the store and closure.
+
+- Converted `src/query.rs` to `src/query/mod.rs` module directory.
+
+- Store is cheaply cloneable (`Arc`-wrapped), shareable between `Project` (write) and `QuerySpec` (read).
+
 ## Step - Implement NATS QueryService and QueryClient
       status: done
 time-created: 2026-03-26 14:58:37

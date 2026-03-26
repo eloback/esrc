@@ -27,6 +27,8 @@ pub mod envelope;
 pub mod event;
 /// NATS-backed query service support for `NatsStore`.
 pub mod query_service;
+/// NATS JetStream Key-Value backed QueryHandler implementation.
+pub mod query_kv;
 
 pub use envelope::NatsEnvelope;
 
@@ -153,6 +155,14 @@ impl NatsStore {
     /// return a clone of the underlying Nats Client
     pub fn client(&self) -> async_nats::Client {
         self.context.client()
+    }
+
+    /// Returns the underlying JetStream context.
+    ///
+    /// This can be used to create Key-Value stores or perform other
+    /// JetStream operations outside the event store abstraction.
+    pub fn jetstream_context(&self) -> &Context {
+        &self.context
     }
 
     /// Select the stream used for creating read-side consumers.

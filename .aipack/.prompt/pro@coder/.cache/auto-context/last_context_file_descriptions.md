@@ -95,12 +95,6 @@
     - Summary: Implements trait conversions (From) to map various NATS JetStream error types into the application's internal Error type.
     - When To Use: Refer to this file to understand how NATS errors (like PublishError or StreamError) are categorized and handled internally, specifically regarding the mapping to 'Conflict' or 'Internal' error variants.
 
-- src/aggregate.rs
-    - Summary: Defines the core `Aggregate` trait and the `Root` struct, which are central to representing and managing domain objects that are constructed from event streams.
-    - When To Use: Use this file when implementing domain logic that processes commands into events or when you need to manage an aggregate's state and metadata (like ID and sequence) in an event-sourced system.
-    - Types: Aggregate, Root
-    - Functions: process, apply, with_aggregate, id, last_sequence, into_inner, new, try_apply
-
 - src/error.rs
     - Summary: Defines the central Error enum and Result type alias used throughout the event-sourcing library to handle internal, external, formatting, and concurrency issues.
     - When To Use: Include this file when defining or calling functions that may fail during event-sourcing operations, such as command processing, event projection, or stream interactions.
@@ -155,11 +149,6 @@
     - Types: SendWelcomeEmailAutomation
     - Functions: setup
 
-- src/lib.rs
-    - Summary: The crate root for the esrc library, defining the core module structure and re-exporting primary traits and types for event sourcing, including aggregates, envelopes, and views.
-    - When To Use: Include this file to understand the overall architecture of the library, identify available sub-modules (like NATS or Kurrent integrations), or see the main public API entry points.
-    - Types: Aggregate, Envelope, Error, Event, EventGroup, View
-
 - src/event_modeling.rs
     - Summary: Defines core primitives and builders for event-driven consumers, including semantic roles, execution policies, and structured component naming conventions.
     - When To Use: Use this file when defining new event consumers (Automations or Read Models), configuring message execution behaviors, or generating standardized infrastructure names for consumers and query subjects.
@@ -182,9 +171,43 @@
     - Summary: Workspace manifest and package configuration for esrc, a library providing primitives for event sourcing and CQRS systems.
     - When To Use: When needing to check dependency versions, feature flag definitions, or the structure of the workspace including its sub-crates (derive, opentelemetry-nats).
 
-- src/query.rs
-    - Summary: Defines the core traits and types for the query side of a CQRS system, including query definitions, handlers, and the infrastructure for serving or consuming queries over remote transports.
-    - When To Use: Use this file when you need to define read model queries, implement logic to handle those queries, or set up service endpoints and clients for remote query execution (e.g., via NATS).
+- examples/basic-query-service/domain.rs
+    - Summary: Defines the core domain model for an Order system, including its state (Aggregate), the actions that can be taken (Commands), the resulting state changes (Events), and potential business logic errors.
+    - When To Use: Use this file to understand or modify the business logic, state transitions, and event/command definitions for the order processing domain.
+    - Types: OrderEvent, OrderCommand, OrderError, OrderAggregate
+
+- examples/basic-query-service/main.rs
+    - Summary: The main entry point for an example service demonstrating the full CQRS/ES lifecycle using NATS. It sets up an event store, spawns a command service for an order aggregate, establishes a read model projector, and runs a query service.
+    - When To Use: Refer to this file when you need an end-to-end example of how to configure and run command services, read models, and query handlers using the esrc library.
+    - Types: BOUNDED_CONTEXT, ORDER_DOMAIN
+    - Functions: main
+
+- examples/basic-query-service/read_model.rs
+    - Summary: Defines the read-side components for an order service, including the OrderReadModel, an in-memory store, a projector to update state from events, and a query handler.
+    - When To Use: Refer to this file when implementing CQRS read models, projections, or query handlers using the esrc framework.
+    - Types: OrderReadModel, OrderQuery, OrderStore, OrderProjector, OrderQueryHandler
+    - Functions: OrderStore::new, OrderStore::get, OrderStore::upsert, OrderStore::all, OrderProjector::new, OrderQueryHandler::new
+
+- src/aggregate.rs
+    - Summary: Defines the core `Aggregate` trait and the `Root` struct, which are central to representing and managing domain objects that are constructed from event streams.
+    - When To Use: Use this file when implementing domain logic that processes commands into events or when you need to manage an aggregate's state and metadata (like ID and sequence) in an event-sourced system.
+    - Types: Aggregate, Root
+    - Functions: process, apply, with_aggregate, id, last_sequence, into_inner, new, try_apply
+
+- src/query/mod.rs
+    - Summary: Defines core traits and types for declaring, handling, serving, and consuming queries against read models in an event-sourced architecture.
+    - When To Use: Use this file when implementing read model query logic, defining query handlers, or configuring query transport and service/client infrastructure.
     - Types: Query, QueryHandler, QueryTransport, QuerySpec, QueryService, QueryClient
-    - Functions: QuerySpec::new, QuerySpec::name, QuerySpec::transport, QuerySpec::handler, QuerySpec::handler_mut, QuerySpec::into_handler, QuerySpec::with_transport, QueryHandler::get_by_id, QueryHandler::handle, QueryService::serve, QueryClient::get_by_id, QueryClient::query
+    - Functions: QuerySpec::new, QuerySpec::name, QuerySpec::transport, QuerySpec::handler, QuerySpec::handler_mut, QuerySpec::into_handler, QuerySpec::with_transport
+
+- src/query/in_memory.rs
+    - Summary: An in-memory, thread-safe store and query handler for read-model projections, allowing shared access between write-side projectors and read-side query handlers.
+    - When To Use: Use when you need a simple, memory-backed storage for live projections or during testing to facilitate querying and updating read models without external database dependencies.
+    - Types: InMemoryViewStore
+    - Functions: new, upsert, remove, get, all, len, is_empty, get_by_id, handle
+
+- src/lib.rs
+    - Summary: The crate root for the esrc library, defining the core module structure and re-exporting primary traits and types for event sourcing, including aggregates, envelopes, and views.
+    - When To Use: Include this file to understand the overall architecture of the library, identify available sub-modules (like NATS or Kurrent integrations), or see the main public API entry points.
+    - Types: Aggregate, Envelope, Error, Event, EventGroup, View
 

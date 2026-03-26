@@ -1,250 +1,193 @@
 ====
->   Info: Duration: 1m 49s | ~$0.5285 | Prompt Tokens: 58,057 (cached: 0, cache_creation: 0) | Completion Tokens: 9,527 
+>   Info: Duration: 1m 4s | ~$0.2952 | Prompt Tokens: 31,608 (cached: 0, cache_creation: 0) | Completion Tokens: 5,488 
 >  Model: claude-opus-4-6 | Adapter: Anthropic
->  Files: Context Files: 42 | Working Files: 0 | Knowledge Files: 1
+>  Files: Context Files: 13 | Working Files: 0 | Knowledge Files: 1
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
 
 
-Looking at the plan files, the current active step is empty and there's no step currently being implemented. The next step in `plan-1-todo-steps.md` is "In-memory QueryHandler helper for View-based live projections".
+Looking at the plan files, the active step is "In-memory QueryHandler helper for View-based live projections" which is already implemented. The next step in `plan-1-todo-steps.md` is "NATS KV-backed QueryHandler implementation".
 
-Let me review what's needed and implement it.
+Since the active step is already done, I need to:
+1. Move the active step to done
+2. Activate the next todo step and implement it
 
-The step requires creating a simple utility that materializes a `View` from an event stream and serves queries against live in-memory state. However, looking more carefully at the step description and the existing code, I need to think about what a practical in-memory QueryHandler helper looks like.
+However, looking at the NATS KV step, I need to check if I have the necessary files. Let me review what I have:
 
-The `View` trait is `Default + Send` with an `apply` method, but it has no notion of identity or storage. The helper needs to:
-1. Hold view state internally (behind synchronization)
-2. Implement `QueryHandler` (get_by_id + handle)
-3. Be a "simpler utility with good UX" per the user's direction
+- `src/nats.rs` ✓
+- `src/nats/query_service.rs` ✓
+- `src/query/mod.rs` ✓
+- `src/query/in_memory.rs` ✓
+- `src/event_modeling.rs` ✓
 
-Since `View` operates on a single event stream per aggregate ID, and the `QueryHandler` needs `get_by_id` by some ID, a natural approach is a `HashMap<Id, V>` where `Id` is the aggregate UUID. The user needs to provide logic for how events map to view state updates.
-
-Looking at the existing patterns and the `Project` trait, I think the best approach is:
-- An `InMemoryViewStore<V>` that holds `Arc<RwLock<HashMap<Uuid, V>>>` and implements `QueryHandler`
-- The user uses this store inside their `Project` implementation to write view state
-- The same store serves as the `QueryHandler` for reads
-
-This matches the pattern already demonstrated in the `basic-query-service` example with `OrderStore`, but generalized.
+I have sufficient context to implement the NATS KV-backed QueryHandler. Let me proceed.
 
 <FILE_CHANGES>
 
-<FILE_NEW file_path="src/query/mod.rs">
-//! Traits and types for declaring and handling queries against read models.
+<FILE_PATCH file_path="_workbench/queries/plan-3-done-steps.md">
+@@
+-## Step - Implement NATS QueryService and QueryClient
++## Step - In-memory QueryHandler helper for View-based live projections
+       status: done
+-time-created: 2026-03-26 14:58:37
+-   time-done: 2026-03-26 15:36:55
++time-created: 2026-03-26 15:39:52
++   time-done: 2026-03-26 16:28:37
+ 
+-- Created `src/nats/query_service.rs` with full NATS-backed implementations.
++- Created `src/query/in_memory.rs` with `InMemoryViewStore<RM, Q>`, a thread-safe, in-memory store for read model instances keyed by `Uuid`.
+ 
+-- Implemented `QueryService` for `NatsStore`:
+-  - Derives NATS request-reply subject from `ComponentName::query_subject()`: `query.<bounded_context>.<domain>.<feature>.<component>`.
+-  - Uses the async-nats service builder to create a service group and endpoint, following the same pattern as `CommandService` in `src/nats/command_service.rs`.
+-  - Deserializes incoming `QueryRequest` (either `GetById` or `Query` variant), dispatches to the `QueryHandler`, serializes and sends back results.
+-  - Includes serializable reply/error types: `QueryRequest`, `QueryReplyError`, `GetByIdReply`, `QueryReply`.
+-  - Error handling follows the same pattern as `CommandReply`/`ReplyError`, with fallback error replies if serialization fails.
++- `InMemoryViewStore` provides:
++  - `new(query_fn)`: constructor with closure for custom query logic.
++  - `upsert`, `remove`, `get`, `all`, `len`, `is_empty` methods.
+ 
+-- Implemented `QueryClient` for `NatsStore`:
+-  - `get_by_id`: serializes a `QueryRequest::GetById`, sends as NATS request to `<query_subject>.query`, deserializes `GetByIdReply`.
+-  - `query`: serializes a `QueryRequest::Query`, sends as NATS request, deserializes `QueryReply`.
+-  - Maps transport/service errors back to `esrc::error::Error::Internal`.
++- Implements `QueryHandler` with `type Id = Uuid`, delegating to the store and closure.
+ 
+-- Added `spawn_query_service` method to `NatsStore`:
+-  - Follows the `spawn_service` pattern with `Tripwire`-based graceful shutdown.
+-  - Registers a shutdown trigger, wraps `serve` in a tracked cancellable task.
++- Converted `src/query.rs` to `src/query/mod.rs` module directory.
+ 
+-- Registered `pub mod query_service` in `src/nats.rs`.
++- Store is cheaply cloneable (`Arc`-wrapped), shareable between `Project` (write) and `QuerySpec` (read).
++
++## Step - Implement NATS QueryService and QueryClient
++      status: done
++time-created: 2026-03-26 14:58:37
++   time-done: 2026-03-26 15:36:55
++
++- Created `src/nats/query_service.rs` with full NATS-backed implementations.
++
++- Implemented `QueryService` for `NatsStore`:
++  - Derives NATS request-reply subject from `ComponentName::query_subject()`: `query.<bounded_context>.<domain>.<feature>.<component>`.
++  - Uses the async-nats service builder to create a service group and endpoint, following the same pattern as `CommandService` in `src/nats/command_service.rs`.
++  - Deserializes incoming `QueryRequest` (either `GetById` or `Query` variant), dispatches to the `QueryHandler`, serializes and sends back results.
++  - Includes serializable reply/error types: `QueryRequest`, `QueryReplyError`, `GetByIdReply`, `QueryReply`.
++  - Error handling follows the same pattern as `CommandReply`/`ReplyError`, with fallback error replies if serialization fails.
++
++- Implemented `QueryClient` for `NatsStore`:
++  - `get_by_id`: serializes a `QueryRequest::GetById`, sends as NATS request to `<query_subject>.query`, deserializes `GetByIdReply`.
++  - `query`: serializes a `QueryRequest::Query`, sends as NATS request, deserializes `QueryReply`.
++  - Maps transport/service errors back to `esrc::error::Error::Internal`.
++
++- Added `spawn_query_service` method to `NatsStore`:
++  - Follows the `spawn_service` pattern with `Tripwire`-based graceful shutdown.
++  - Registers a shutdown trigger, wraps `serve` in a tracked cancellable task.
++
++- Registered `pub mod query_service` in `src/nats.rs`.
+</FILE_PATCH>
 
-use std::future::Future;
+<FILE_NEW file_path="_workbench/queries/plan-2-active-step.md">
+# Plan 2 - Active Step
 
-use serde::{de::DeserializeOwned, Serialize};
+## Step - NATS KV-backed QueryHandler implementation
+      status: active
+time-created: 2026-03-26 15:39:52
+time-current: 2026-03-26 16:28:37
 
-use crate::{error, event_modeling::ComponentName};
+- Create a concrete `QueryHandler` implementation backed by NATS JetStream Key-Value store.
+- This provides a persistence layer for read models without requiring the developer to set up external storage.
+- Design considerations:
+  - The KV bucket name should be derived from the `ComponentName` (convention over configuration), with an option to override.
+  - `get_by_id` reads from the KV bucket by key.
+  - The `Project` implementation writes to the same KV bucket (the developer calls a save/put method inside their `project()` implementation).
+  - Provide a helper or wrapper that the developer can hold inside their `Project` impl to write to the KV store, and that also implements `QueryHandler` for reads.
+  - Serialization format: JSON (consistent with other NATS message payloads in the crate).
+- Module placement: `src/nats/query_kv.rs` or similar, registered in `src/nats.rs`.
+- References: see `src/query.rs` for `QueryHandler`, `src/nats.rs` for `NatsStore`.
 
-/// In-memory query handler helper for View-based live projections.
-pub mod in_memory;
-
-/// A query that can be executed against a read model.
-///
-/// Defines the association between a query enum, its target read model,
-/// and the response type. Kept minimal with no serde bounds; serialization
-/// requirements are pushed to transport-specific traits.
-pub trait Query: Send {
-    /// The read model this query targets.
-    type ReadModel: Send;
-    /// The response type returned by executing this query.
-    type Response: Send;
-}
-
-/// Handles queries for a specific read model.
-///
-/// Includes a built-in `get_by_id` method that every handler must implement,
-/// plus a `handle` method for custom query enum variants. Uses `esrc::error::Error`
-/// with `External` for domain/persistence errors (matching the command handler model).
-///
-/// Does not require `Clone`; sharing via `Arc` is expected.
-#[trait_variant::make(Send)]
-pub trait QueryHandler: Send + Sync {
-    /// The query enum this handler responds to.
-    type Query: Query;
-    /// The identifier type used to look up individual read model instances.
-    type Id: Send + Sync;
-
-    /// Get a single read model instance by its identifier.
-    ///
-    /// Returns `Ok(None)` when the read model is not found.
-    async fn get_by_id(
-        &self,
-        id: Self::Id,
-    ) -> crate::error::Result<Option<<Self::Query as Query>::ReadModel>>;
-
-    /// Execute a custom query.
-    async fn handle(
-        &self,
-        query: Self::Query,
-    ) -> crate::error::Result<<Self::Query as Query>::Response>;
-}
-
-/// Transport mechanism for exposing queries remotely.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum QueryTransport {
-    /// Expose queries via NATS request-reply.
-    NatsRequestReply,
-}
-
-/// A normalized query declaration that can later be executed by infrastructure.
-///
-/// Analogous to `ConsumerSpec`, declares metadata about how queries are exposed.
-#[derive(Clone, Debug)]
-pub struct QuerySpec<H> {
-    name: ComponentName,
-    transport: QueryTransport,
-    handler: H,
-}
-
-impl<H> QuerySpec<H> {
-    /// Create a new query specification.
-    pub fn new(name: ComponentName, transport: QueryTransport, handler: H) -> Self {
-        Self {
-            name,
-            transport,
-            handler,
-        }
-    }
-
-    /// Returns the structured component name for this query.
-    pub fn name(&self) -> &ComponentName {
-        &self.name
-    }
-
-    /// Returns the configured transport for this query.
-    pub fn transport(&self) -> QueryTransport {
-        self.transport
-    }
-
-    /// Returns a reference to the configured query handler.
-    pub fn handler(&self) -> &H {
-        &self.handler
-    }
-
-    /// Returns a mutable reference to the configured query handler.
-    pub fn handler_mut(&mut self) -> &mut H {
-        &mut self.handler
-    }
-
-    /// Consumes the specification and returns the configured query handler.
-    pub fn into_handler(self) -> H {
-        self.handler
-    }
-
-    /// Override the transport for this query.
-    pub fn with_transport(mut self, transport: QueryTransport) -> Self {
-        self.transport = transport;
-        self
-    }
-}
-
-/// Serve queries for read models as service endpoints.
-///
-/// Implementations are responsible for receiving serialized queries,
-/// dispatching them to the appropriate `QueryHandler`, and returning
-/// serialized results to the caller.
-///
-/// The exact transport mapping is implementation-specific. For example, a
-/// NATS backend derives a request-reply subject from the `ComponentName`
-/// segments: `query.<bounded_context>.<domain>.<feature>.<component>`.
-#[trait_variant::make(Send)]
-pub trait QueryService {
-    /// Start serving queries for the given query specification.
-    ///
-    /// Implementations typically keep running until the underlying transport
-    /// is closed or an unrecoverable error occurs.
-    fn serve<H>(&self, spec: &QuerySpec<H>) -> impl Future<Output = error::Result<()>> + Send
-    where
-        H: QueryHandler + Send + Sync + 'static,
-        H::Query: DeserializeOwned + Sync,
-        H::Id: DeserializeOwned,
-        <H::Query as Query>::ReadModel: Serialize + Sync,
-        <H::Query as Query>::Response: Serialize + Sync;
-}
-
-/// Send queries to read model service endpoints.
-///
-/// Implementations are responsible for serializing queries, routing them
-/// to the appropriate transport endpoint derived from the `ComponentName`,
-/// awaiting the service reply, and mapping transport or service failures
-/// back into [`error::Error`].
-///
-/// The subject derivation convention for NATS request-reply is:
-/// `query.<bounded_context>.<domain>.<feature>.<component>`.
-#[trait_variant::make(Send)]
-pub trait QueryClient {
-    /// Fetch a single read model instance by its identifier.
-    ///
-    /// Serializes the `id`, routes it to the service endpoint associated
-    /// with the given `ComponentName`, then waits for the reply.
-    ///
-    /// Returns `Ok(None)` when the read model is not found.
-    async fn get_by_id<Q, Id>(
-        &self,
-        name: &ComponentName,
-        id: Id,
-    ) -> error::Result<Option<Q::ReadModel>>
-    where
-        Q: Query,
-        Q::ReadModel: DeserializeOwned,
-        Id: Serialize + Send;
-
-    /// Send a custom query and await the response.
-    ///
-    /// Serializes the `query`, routes it to the service endpoint associated
-    /// with the given `ComponentName`, then waits for the reply.
-    async fn query<Q>(&self, name: &ComponentName, query: Q) -> error::Result<Q::Response>
-    where
-        Q: Query + Serialize,
-        Q::Response: DeserializeOwned;
-}
 </FILE_NEW>
 
-<FILE_NEW file_path="src/query/in_memory.rs">
-//! In-memory query handler helper for `View`-based live projections.
+<FILE_PATCH file_path="_workbench/queries/plan-1-todo-steps.md">
+@@
+ # Plan 1 - Todo Steps
+ 
+-## Step - NATS KV-backed QueryHandler implementation
+-      status: not_started
+-time-created: 2026-03-26 15:39:52
+-
+-- Create a concrete `QueryHandler` implementation backed by NATS JetStream Key-Value store.
+-- This provides a persistence layer for read models without requiring the developer to set up external storage.
+-- Design considerations:
+-  - The KV bucket name should be derived from the `ComponentName` (convention over configuration), with an option to override.
+-  - `get_by_id` reads from the KV bucket by key.
+-  - The `Project` implementation writes to the same KV bucket (the developer calls a save/put method inside their `project()` implementation).
+-  - Provide a helper or wrapper that the developer can hold inside their `Project` impl to write to the KV store, and that also implements `QueryHandler` for reads.
+-  - Serialization format: JSON (consistent with other NATS message payloads in the crate).
+-- Module placement: `src/nats/query_kv.rs` or similar, registered in `src/nats.rs`.
+-- References: see `src/query.rs` for `QueryHandler`, `src/nats.rs` for `NatsStore`.
+-
+ ## Step - Vertical slice helper composing ConsumerSpec and QuerySpec
+</FILE_PATCH>
+
+<FILE_NEW file_path="src/nats/query_kv.rs">
+//! NATS JetStream Key-Value backed [`QueryHandler`] implementation.
 //!
-//! Provides [`InMemoryViewStore`], a shared, thread-safe store that can be
-//! used both as the write target inside a [`Project`](crate::project::Project)
-//! implementation and as the read source for a [`QueryHandler`].
+//! Provides [`NatsKvStore`], a shared store that persists read model instances
+//! in a NATS JetStream Key-Value bucket. It can be used both as the write
+//! target inside a [`Project`](crate::project::Project) implementation and as
+//! the read source for a [`QueryHandler`].
 //!
 //! # Usage
 //!
-//! 1. Create an `InMemoryViewStore` with a query handler closure.
+//! 1. Create an `NatsKvStore` from a `NatsStore` (or directly from a JetStream
+//!    context) with a query handler closure.
 //! 2. Clone the store into your `Project` implementation and call
-//!    [`upsert`](InMemoryViewStore::upsert) /
-//!    [`remove`](InMemoryViewStore::remove) inside `project()`.
+//!    [`put`](NatsKvStore::put) / [`delete`](NatsKvStore::delete) inside
+//!    `project()`.
 //! 3. Pass the same store (or a clone) as the `QueryHandler` to a `QuerySpec`.
 //!
 //! # Example
 //!
 //! ```rust,ignore
-//! use esrc::query::in_memory::InMemoryViewStore;
+//! use esrc::nats::query_kv::NatsKvStore;
 //!
-//! let store: InMemoryViewStore<MyReadModel, MyQuery> = InMemoryViewStore::new(|query, snapshot| {
-//!     match query {
-//!         MyQuery::ListAll => Ok(snapshot.values().cloned().collect()),
-//!         MyQuery::ListActive => Ok(snapshot.values().filter(|m| m.active).cloned().collect()),
-//!     }
-//! });
+//! let kv_store: NatsKvStore<MyReadModel, MyQuery> = NatsKvStore::new(
+//!     &nats_store,
+//!     &component_name,
+//!     |query, getter| Box::pin(async move {
+//!         match query {
+//!             MyQuery::ListActive => {
+//!                 // For list queries, the developer must implement their own
+//!                 // iteration strategy or maintain secondary indices.
+//!                 todo!("implement custom query logic")
+//!             }
+//!         }
+//!     }),
+//! ).await?;
 //!
 //! // Inside your Project impl:
-//! // store.upsert(id, read_model);
+//! // kv_store.put("some-id", &read_model).await?;
 //!
 //! // Wire as QueryHandler via QuerySpec:
-//! // QuerySpec::new(name, transport, store.clone())
+//! // QuerySpec::new(name, transport, kv_store.clone())
 //! ```
 
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
-use uuid::Uuid;
+use async_nats::jetstream::kv::{Config as KvConfig, Store as KvBucket};
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 
-use super::{Query, QueryHandler};
-use crate::error;
+use crate::error::{self, Error};
+use crate::event_modeling::ComponentName;
+use crate::query::{Query, QueryHandler};
 
-/// A thread-safe, in-memory store for read model instances keyed by `Uuid`.
+/// A type alias for the boxed future returned by the query function closure.
+pub type QueryFuture<'a, T> = std::pin::Pin<Box<dyn std::future::Future<Output = error::Result<T>> + Send + 'a>>;
+
+/// A read/write store for read model instances backed by a NATS JetStream
+/// Key-Value bucket.
 ///
 /// This type is cheaply cloneable (internally `Arc`-wrapped) and can be shared
 /// between a `Project` implementation (write side) and a `QueryHandler` (read
@@ -252,17 +195,27 @@ use crate::error;
 ///
 /// The generic parameter `Q` is the user's `Query` enum type, which determines
 /// the `ReadModel` and `Response` associated types. Custom query logic is
-/// supplied via a closure at construction time.
-pub struct InMemoryViewStore<RM, Q>
+/// supplied via a closure at construction time. The closure receives the query
+/// enum and a reference to the `NatsKvStore` itself (for key lookups), and
+/// returns a future producing the query response.
+pub struct NatsKvStore<RM, Q>
 where
     RM: Clone + Send + Sync,
     Q: Query<ReadModel = RM>,
 {
-    inner: Arc<RwLock<HashMap<Uuid, RM>>>,
-    query_fn: Arc<dyn Fn(Q, &HashMap<Uuid, RM>) -> error::Result<Q::Response> + Send + Sync>,
+    inner: Arc<Inner<RM, Q>>,
 }
 
-impl<RM, Q> Clone for InMemoryViewStore<RM, Q>
+struct Inner<RM, Q>
+where
+    RM: Clone + Send + Sync,
+    Q: Query<ReadModel = RM>,
+{
+    bucket: KvBucket,
+    query_fn: Box<dyn Fn(Q, NatsKvStore<RM, Q>) -> QueryFuture<'static, Q::Response> + Send + Sync>,
+}
+
+impl<RM, Q> Clone for NatsKvStore<RM, Q>
 where
     RM: Clone + Send + Sync,
     Q: Query<ReadModel = RM>,
@@ -270,619 +223,231 @@ where
     fn clone(&self) -> Self {
         Self {
             inner: Arc::clone(&self.inner),
-            query_fn: Arc::clone(&self.query_fn),
         }
     }
 }
 
-impl<RM, Q> std::fmt::Debug for InMemoryViewStore<RM, Q>
+impl<RM, Q> std::fmt::Debug for NatsKvStore<RM, Q>
 where
     RM: Clone + Send + Sync,
     Q: Query<ReadModel = RM>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("InMemoryViewStore")
-            .field("entries", &self.inner.read().map(|g| g.len()).unwrap_or(0))
+        f.debug_struct("NatsKvStore")
+            .field("bucket", &self.inner.bucket.status().map(|_| "connected"))
             .finish()
     }
 }
 
-impl<RM, Q> InMemoryViewStore<RM, Q>
+impl<RM, Q> NatsKvStore<RM, Q>
 where
-    RM: Clone + Send + Sync + 'static,
-    Q: Query<ReadModel = RM>,
+    RM: Clone + Send + Sync + Serialize + DeserializeOwned + 'static,
+    Q: Query<ReadModel = RM> + Send + 'static,
+    Q::Response: Send + 'static,
 {
-    /// Create a new in-memory view store with a custom query handler closure.
+    /// Create a new NATS KV store with the bucket name derived from the
+    /// `ComponentName`.
     ///
-    /// The `query_fn` receives the user's query enum value and an immutable
-    /// reference to the full snapshot (`HashMap<Uuid, RM>`) of the current
-    /// store contents. It should return the query response or an error.
+    /// The bucket name is derived using `ComponentName::durable_name()`,
+    /// prefixed with `rm_` (read model). The bucket is created if it does not
+    /// already exist.
+    ///
+    /// The `query_fn` closure receives the user's query enum value and a clone
+    /// of this `NatsKvStore` (so the closure can call `get`, `get_by_id`, etc.
+    /// for lookups). It returns a boxed future producing the query response.
     ///
     /// # Example
     ///
     /// ```rust,ignore
-    /// let store = InMemoryViewStore::new(|query, snapshot| {
-    ///     match query {
-    ///         MyQuery::ListAll => Ok(snapshot.values().cloned().collect()),
-    ///     }
-    /// });
+    /// let store = NatsKvStore::new(&nats_store, &name, |query, store| {
+    ///     Box::pin(async move {
+    ///         match query {
+    ///             MyQuery::ListActive => todo!(),
+    ///         }
+    ///     })
+    /// }).await?;
     /// ```
-    pub fn new<F>(query_fn: F) -> Self
-    where
-        F: Fn(Q, &HashMap<Uuid, RM>) -> error::Result<Q::Response> + Send + Sync + 'static,
-    {
-        Self {
-            inner: Arc::new(RwLock::new(HashMap::new())),
-            query_fn: Arc::new(query_fn),
-        }
-    }
-
-    /// Insert or update a read model instance by its identifier.
-    pub fn upsert(&self, id: Uuid, model: RM) {
-        self.inner
-            .write()
-            .expect("lock not poisoned")
-            .insert(id, model);
-    }
-
-    /// Remove a read model instance by its identifier.
-    ///
-    /// Returns the removed instance if it existed.
-    pub fn remove(&self, id: &Uuid) -> Option<RM> {
-        self.inner
-            .write()
-            .expect("lock not poisoned")
-            .remove(id)
-    }
-
-    /// Get a clone of a read model instance by its identifier.
-    pub fn get(&self, id: &Uuid) -> Option<RM> {
-        self.inner
-            .read()
-            .expect("lock not poisoned")
-            .get(id)
-            .cloned()
-    }
-
-    /// Get a snapshot of all entries as a `Vec`.
-    pub fn all(&self) -> Vec<RM> {
-        self.inner
-            .read()
-            .expect("lock not poisoned")
-            .values()
-            .cloned()
-            .collect()
-    }
-
-    /// Returns the number of entries currently in the store.
-    pub fn len(&self) -> usize {
-        self.inner.read().expect("lock not poisoned").len()
-    }
-
-    /// Returns `true` if the store contains no entries.
-    pub fn is_empty(&self) -> bool {
-        self.inner.read().expect("lock not poisoned").is_empty()
-    }
-}
-
-impl<RM, Q> QueryHandler for InMemoryViewStore<RM, Q>
-where
-    RM: Clone + Send + Sync + 'static,
-    Q: Query<ReadModel = RM> + Send + 'static,
-    Q::Response: Send + 'static,
-{
-    type Query = Q;
-    type Id = Uuid;
-
-    async fn get_by_id(
-        &self,
-        id: Self::Id,
-    ) -> error::Result<Option<RM>> {
-        Ok(self.get(&id))
-    }
-
-    async fn handle(
-        &self,
-        query: Q,
-    ) -> error::Result<Q::Response> {
-        let guard = self.inner.read().expect("lock not poisoned");
-        (self.query_fn)(query, &guard)
-    }
-}
-</FILE_NEW>
-
-<FILE_PATCH file_path="src/lib.rs">
-@@
--/// Traits and types for declaring and handling queries against read models.
--pub mod query;
-+/// Traits and types for declaring and handling queries against read models.
-+pub mod query;
-</FILE_PATCH>
-
-<FILE_PATCH file_path="_workbench/queries/plan-1-todo-steps.md">
-@@
- # Plan 1 - Todo Steps
- 
--## Step - In-memory QueryHandler helper for View-based live projections
--      status: not_started
--time-created: 2026-03-26 15:39:52
--
--- Create a simple utility that materializes a `View` from an event stream (replay + subscribe) and serves queries against the live in-memory state.
--- This should be a concrete `QueryHandler` implementation that:
--  - Holds a `View` instance internally (behind appropriate synchronization).
--  - Implements `get_by_id` and `handle` against the in-memory state.
--- Design considerations:
--  - The user mentioned "simpler utility with good UX", not a full managed runtime component.
--  - The `View` trait is `Default + Send` and has an `apply` method. The helper needs to replay events to build initial state and then subscribe for updates.
--  - The helper should be generic over the `View` type and the storage mechanism (e.g., a `HashMap<Id, V>` keyed by some ID extractor).
--  - Consider how the user provides the ID extraction logic (e.g., a closure or trait method that maps an event to an aggregate ID).
--- Module placement: likely `src/query/in_memory.rs` or a new section in `src/query.rs` depending on size. The user said they would split later, so starting in `src/query.rs` or a submodule is fine.
--- References: see `src/view.rs` for the `View` trait, and `src/query.rs` for `QueryHandler`.
--
- ## Step - NATS KV-backed QueryHandler implementation
-</FILE_PATCH>
-
-<FILE_NEW file_path="_workbench/queries/plan-2-active-step.md">
-# Plan 2 - Active Step
-
-## Step - In-memory QueryHandler helper for View-based live projections
-      status: active
-time-created: 2026-03-26 15:39:52
-time-current: 2026-03-26 16:23:08
-
-- Created `src/query/in_memory.rs` with `InMemoryViewStore<RM, Q>`, a thread-safe, in-memory store for read model instances keyed by `Uuid`.
-
-- `InMemoryViewStore` provides:
-  - `new(query_fn)`: constructor that takes a closure for custom query logic. The closure receives the query enum and an immutable `&HashMap<Uuid, RM>` snapshot.
-  - `upsert(id, model)`: insert or update a read model instance.
-  - `remove(id)`: remove a read model instance.
-  - `get(id)`: get a cloned read model by ID.
-  - `all()`: get all entries as a `Vec`.
-  - `len()` / `is_empty()`: size introspection.
-
-- Implements `QueryHandler` for `InMemoryViewStore<RM, Q>`:
-  - `type Query = Q`, `type Id = Uuid`
-  - `get_by_id` delegates to `self.get(&id)`.
-  - `handle` acquires a read lock and calls the user-supplied `query_fn` closure.
-
-- Converted `src/query.rs` to `src/query/mod.rs` (module directory) to accommodate the new `in_memory` submodule. All existing content from `src/query.rs` is preserved verbatim in `src/query/mod.rs`.
-
-- Design decisions:
-  - The store is cheaply cloneable (`Arc`-wrapped internals), so it can be shared between a `Project` impl (write side) and a `QuerySpec` (read side).
-  - No coupling to `View` trait directly; the store is a generic read model container. The user materializes their `View` (or any read model) and calls `upsert` in their `Project::project` method.
-  - Custom query logic is injected via a closure rather than requiring the user to implement a separate trait, keeping the UX simple.
-  - The `query_fn` closure pattern avoids the need for the user to create a separate handler struct for simple cases, while still allowing full flexibility.
-</FILE_NEW>
-
-</FILE_CHANGES>
-
-Wait, I need to verify that converting `src/query.rs` to `src/query/mod.rs` works correctly. The `src/lib.rs` already has `pub mod query;` which will resolve to either `src/query.rs` or `src/query/mod.rs`. Since I'm creating `src/query/mod.rs` as a new file and the old `src/query.rs` needs to be removed, let me adjust.
-
-<FILE_CHANGES>
-
-<FILE_DELETE file_path="src/query.rs" />
-
-<FILE_NEW file_path="src/query/mod.rs">
-//! Traits and types for declaring and handling queries against read models.
-
-use std::future::Future;
-
-use serde::{de::DeserializeOwned, Serialize};
-
-use crate::{error, event_modeling::ComponentName};
-
-/// In-memory query handler helper for View-based live projections.
-pub mod in_memory;
-
-/// A query that can be executed against a read model.
-///
-/// Defines the association between a query enum, its target read model,
-/// and the response type. Kept minimal with no serde bounds; serialization
-/// requirements are pushed to transport-specific traits.
-pub trait Query: Send {
-    /// The read model this query targets.
-    type ReadModel: Send;
-    /// The response type returned by executing this query.
-    type Response: Send;
-}
-
-/// Handles queries for a specific read model.
-///
-/// Includes a built-in `get_by_id` method that every handler must implement,
-/// plus a `handle` method for custom query enum variants. Uses `esrc::error::Error`
-/// with `External` for domain/persistence errors (matching the command handler model).
-///
-/// Does not require `Clone`; sharing via `Arc` is expected.
-#[trait_variant::make(Send)]
-pub trait QueryHandler: Send + Sync {
-    /// The query enum this handler responds to.
-    type Query: Query;
-    /// The identifier type used to look up individual read model instances.
-    type Id: Send + Sync;
-
-    /// Get a single read model instance by its identifier.
-    ///
-    /// Returns `Ok(None)` when the read model is not found.
-    async fn get_by_id(
-        &self,
-        id: Self::Id,
-    ) -> crate::error::Result<Option<<Self::Query as Query>::ReadModel>>;
-
-    /// Execute a custom query.
-    async fn handle(
-        &self,
-        query: Self::Query,
-    ) -> crate::error::Result<<Self::Query as Query>::Response>;
-}
-
-/// Transport mechanism for exposing queries remotely.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum QueryTransport {
-    /// Expose queries via NATS request-reply.
-    NatsRequestReply,
-}
-
-/// A normalized query declaration that can later be executed by infrastructure.
-///
-/// Analogous to `ConsumerSpec`, declares metadata about how queries are exposed.
-#[derive(Clone, Debug)]
-pub struct QuerySpec<H> {
-    name: ComponentName,
-    transport: QueryTransport,
-    handler: H,
-}
-
-impl<H> QuerySpec<H> {
-    /// Create a new query specification.
-    pub fn new(name: ComponentName, transport: QueryTransport, handler: H) -> Self {
-        Self {
-            name,
-            transport,
-            handler,
-        }
-    }
-
-    /// Returns the structured component name for this query.
-    pub fn name(&self) -> &ComponentName {
-        &self.name
-    }
-
-    /// Returns the configured transport for this query.
-    pub fn transport(&self) -> QueryTransport {
-        self.transport
-    }
-
-    /// Returns a reference to the configured query handler.
-    pub fn handler(&self) -> &H {
-        &self.handler
-    }
-
-    /// Returns a mutable reference to the configured query handler.
-    pub fn handler_mut(&mut self) -> &mut H {
-        &mut self.handler
-    }
-
-    /// Consumes the specification and returns the configured query handler.
-    pub fn into_handler(self) -> H {
-        self.handler
-    }
-
-    /// Override the transport for this query.
-    pub fn with_transport(mut self, transport: QueryTransport) -> Self {
-        self.transport = transport;
-        self
-    }
-}
-
-/// Serve queries for read models as service endpoints.
-///
-/// Implementations are responsible for receiving serialized queries,
-/// dispatching them to the appropriate `QueryHandler`, and returning
-/// serialized results to the caller.
-///
-/// The exact transport mapping is implementation-specific. For example, a
-/// NATS backend derives a request-reply subject from the `ComponentName`
-/// segments: `query.<bounded_context>.<domain>.<feature>.<component>`.
-#[trait_variant::make(Send)]
-pub trait QueryService {
-    /// Start serving queries for the given query specification.
-    ///
-    /// Implementations typically keep running until the underlying transport
-    /// is closed or an unrecoverable error occurs.
-    fn serve<H>(&self, spec: &QuerySpec<H>) -> impl Future<Output = error::Result<()>> + Send
-    where
-        H: QueryHandler + Send + Sync + 'static,
-        H::Query: DeserializeOwned + Sync,
-        H::Id: DeserializeOwned,
-        <H::Query as Query>::ReadModel: Serialize + Sync,
-        <H::Query as Query>::Response: Serialize + Sync;
-}
-
-/// Send queries to read model service endpoints.
-///
-/// Implementations are responsible for serializing queries, routing them
-/// to the appropriate transport endpoint derived from the `ComponentName`,
-/// awaiting the service reply, and mapping transport or service failures
-/// back into [`error::Error`].
-///
-/// The subject derivation convention for NATS request-reply is:
-/// `query.<bounded_context>.<domain>.<feature>.<component>`.
-#[trait_variant::make(Send)]
-pub trait QueryClient {
-    /// Fetch a single read model instance by its identifier.
-    ///
-    /// Serializes the `id`, routes it to the service endpoint associated
-    /// with the given `ComponentName`, then waits for the reply.
-    ///
-    /// Returns `Ok(None)` when the read model is not found.
-    async fn get_by_id<Q, Id>(
-        &self,
+    pub async fn new<F>(
+        nats_store: &super::NatsStore,
         name: &ComponentName,
-        id: Id,
-    ) -> error::Result<Option<Q::ReadModel>>
+        query_fn: F,
+    ) -> error::Result<Self>
     where
-        Q: Query,
-        Q::ReadModel: DeserializeOwned,
-        Id: Serialize + Send;
-
-    /// Send a custom query and await the response.
-    ///
-    /// Serializes the `query`, routes it to the service endpoint associated
-    /// with the given `ComponentName`, then waits for the reply.
-    async fn query<Q>(&self, name: &ComponentName, query: Q) -> error::Result<Q::Response>
-    where
-        Q: Query + Serialize,
-        Q::Response: DeserializeOwned;
-}
-</FILE_NEW>
-
-<FILE_NEW file_path="src/query/in_memory.rs">
-//! In-memory query handler helper for `View`-based live projections.
-//!
-//! Provides [`InMemoryViewStore`], a shared, thread-safe store that can be
-//! used both as the write target inside a [`Project`](crate::project::Project)
-//! implementation and as the read source for a [`QueryHandler`].
-//!
-//! # Usage
-//!
-//! 1. Create an `InMemoryViewStore` with a query handler closure.
-//! 2. Clone the store into your `Project` implementation and call
-//!    [`upsert`](InMemoryViewStore::upsert) /
-//!    [`remove`](InMemoryViewStore::remove) inside `project()`.
-//! 3. Pass the same store (or a clone) as the `QueryHandler` to a `QuerySpec`.
-//!
-//! # Example
-//!
-//! ```rust,ignore
-//! use esrc::query::in_memory::InMemoryViewStore;
-//!
-//! let store: InMemoryViewStore<MyReadModel, MyQuery> = InMemoryViewStore::new(|query, snapshot| {
-//!     match query {
-//!         MyQuery::ListAll => Ok(snapshot.values().cloned().collect()),
-//!         MyQuery::ListActive => Ok(snapshot.values().filter(|m| m.active).cloned().collect()),
-//!     }
-//! });
-//!
-//! // Inside your Project impl:
-//! // store.upsert(id, read_model);
-//!
-//! // Wire as QueryHandler via QuerySpec:
-//! // QuerySpec::new(name, transport, store.clone())
-//! ```
-
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-
-use uuid::Uuid;
-
-use super::{Query, QueryHandler};
-use crate::error;
-
-/// A thread-safe, in-memory store for read model instances keyed by `Uuid`.
-///
-/// This type is cheaply cloneable (internally `Arc`-wrapped) and can be shared
-/// between a `Project` implementation (write side) and a `QueryHandler` (read
-/// side).
-///
-/// The generic parameter `Q` is the user's `Query` enum type, which determines
-/// the `ReadModel` and `Response` associated types. Custom query logic is
-/// supplied via a closure at construction time.
-pub struct InMemoryViewStore<RM, Q>
-where
-    RM: Clone + Send + Sync,
-    Q: Query<ReadModel = RM>,
-{
-    inner: Arc<RwLock<HashMap<Uuid, RM>>>,
-    query_fn: Arc<dyn Fn(Q, &HashMap<Uuid, RM>) -> error::Result<Q::Response> + Send + Sync>,
-}
-
-impl<RM, Q> Clone for InMemoryViewStore<RM, Q>
-where
-    RM: Clone + Send + Sync,
-    Q: Query<ReadModel = RM>,
-{
-    fn clone(&self) -> Self {
-        Self {
-            inner: Arc::clone(&self.inner),
-            query_fn: Arc::clone(&self.query_fn),
-        }
-    }
-}
-
-impl<RM, Q> std::fmt::Debug for InMemoryViewStore<RM, Q>
-where
-    RM: Clone + Send + Sync,
-    Q: Query<ReadModel = RM>,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("InMemoryViewStore")
-            .field("entries", &self.inner.read().map(|g| g.len()).unwrap_or(0))
-            .finish()
-    }
-}
-
-impl<RM, Q> InMemoryViewStore<RM, Q>
-where
-    RM: Clone + Send + Sync + 'static,
-    Q: Query<ReadModel = RM>,
-{
-    /// Create a new in-memory view store with a custom query handler closure.
-    ///
-    /// The `query_fn` receives the user's query enum value and an immutable
-    /// reference to the full snapshot (`HashMap<Uuid, RM>`) of the current
-    /// store contents. It should return the query response or an error.
-    ///
-    /// # Example
-    ///
-    /// ```rust,ignore
-    /// let store = InMemoryViewStore::new(|query, snapshot| {
-    ///     match query {
-    ///         MyQuery::ListAll => Ok(snapshot.values().cloned().collect()),
-    ///     }
-    /// });
-    /// ```
-    pub fn new<F>(query_fn: F) -> Self
-    where
-        F: Fn(Q, &HashMap<Uuid, RM>) -> error::Result<Q::Response> + Send + Sync + 'static,
+        F: Fn(Q, NatsKvStore<RM, Q>) -> QueryFuture<'static, Q::Response> + Send + Sync + 'static,
     {
-        Self {
-            inner: Arc::new(RwLock::new(HashMap::new())),
-            query_fn: Arc::new(query_fn),
+        let bucket_name = format!("rm_{}", name.durable_name());
+        Self::with_bucket_name(nats_store, &bucket_name, query_fn).await
+    }
+
+    /// Create a new NATS KV store with an explicit bucket name.
+    ///
+    /// Use this when the default derived bucket name is not suitable.
+    pub async fn with_bucket_name<F>(
+        nats_store: &super::NatsStore,
+        bucket_name: &str,
+        query_fn: F,
+    ) -> error::Result<Self>
+    where
+        F: Fn(Q, NatsKvStore<RM, Q>) -> QueryFuture<'static, Q::Response> + Send + Sync + 'static,
+    {
+        let context = nats_store.jetstream_context();
+
+        let bucket = context
+            .create_key_value(KvConfig {
+                bucket: bucket_name.to_owned(),
+                ..Default::default()
+            })
+            .await
+            .map_err(|e| Error::Internal(e.into()))?;
+
+        Ok(Self {
+            inner: Arc::new(Inner {
+                bucket,
+                query_fn: Box::new(query_fn),
+            }),
+        })
+    }
+
+    /// Create a new NATS KV store directly from a JetStream context and
+    /// bucket name.
+    ///
+    /// This is useful when a `NatsStore` instance is not available.
+    pub async fn from_context<F>(
+        context: &async_nats::jetstream::Context,
+        bucket_name: &str,
+        query_fn: F,
+    ) -> error::Result<Self>
+    where
+        F: Fn(Q, NatsKvStore<RM, Q>) -> QueryFuture<'static, Q::Response> + Send + Sync + 'static,
+    {
+        let bucket = context
+            .create_key_value(KvConfig {
+                bucket: bucket_name.to_owned(),
+                ..Default::default()
+            })
+            .await
+            .map_err(|e| Error::Internal(e.into()))?;
+
+        Ok(Self {
+            inner: Arc::new(Inner {
+                bucket,
+                query_fn: Box::new(query_fn),
+            }),
+        })
+    }
+
+    /// Put (insert or update) a read model instance by its string key.
+    ///
+    /// The read model is serialized to JSON before storage.
+    pub async fn put(&self, key: &str, model: &RM) -> error::Result<()> {
+        let bytes = serde_json::to_vec(model)
+            .map_err(|e| Error::Format(e.into()))?;
+
+        self.inner
+            .bucket
+            .put(key, bytes.into())
+            .await
+            .map_err(|e| Error::Internal(e.into()))?;
+
+        Ok(())
+    }
+
+    /// Delete a read model instance by its string key.
+    ///
+    /// This is a soft delete in NATS KV (places a delete marker).
+    pub async fn delete(&self, key: &str) -> error::Result<()> {
+        self.inner
+            .bucket
+            .delete(key)
+            .await
+            .map_err(|e| Error::Internal(e.into()))?;
+
+        Ok(())
+    }
+
+    /// Get a read model instance by its string key.
+    ///
+    /// Returns `None` if the key does not exist or has been deleted.
+    pub async fn get(&self, key: &str) -> error::Result<Option<RM>> {
+        match self.inner.bucket.get(key).await {
+            Ok(Some(entry)) => {
+                let model: RM = serde_json::from_slice(&entry)
+                    .map_err(|e| Error::Format(e.into()))?;
+                Ok(Some(model))
+            },
+            Ok(None) => Ok(None),
+            Err(e) => Err(Error::Internal(e.into())),
         }
     }
 
-    /// Insert or update a read model instance by its identifier.
-    pub fn upsert(&self, id: Uuid, model: RM) {
-        self.inner
-            .write()
-            .expect("lock not poisoned")
-            .insert(id, model);
-    }
-
-    /// Remove a read model instance by its identifier.
+    /// Returns a reference to the underlying NATS KV bucket.
     ///
-    /// Returns the removed instance if it existed.
-    pub fn remove(&self, id: &Uuid) -> Option<RM> {
-        self.inner
-            .write()
-            .expect("lock not poisoned")
-            .remove(id)
-    }
-
-    /// Get a clone of a read model instance by its identifier.
-    pub fn get(&self, id: &Uuid) -> Option<RM> {
-        self.inner
-            .read()
-            .expect("lock not poisoned")
-            .get(id)
-            .cloned()
-    }
-
-    /// Get a snapshot of all entries as a `Vec`.
-    pub fn all(&self) -> Vec<RM> {
-        self.inner
-            .read()
-            .expect("lock not poisoned")
-            .values()
-            .cloned()
-            .collect()
-    }
-
-    /// Returns the number of entries currently in the store.
-    pub fn len(&self) -> usize {
-        self.inner.read().expect("lock not poisoned").len()
-    }
-
-    /// Returns `true` if the store contains no entries.
-    pub fn is_empty(&self) -> bool {
-        self.inner.read().expect("lock not poisoned").is_empty()
+    /// This can be used for advanced operations not covered by the
+    /// convenience methods (e.g., watching for changes, listing keys).
+    pub fn bucket(&self) -> &KvBucket {
+        &self.inner.bucket
     }
 }
 
-impl<RM, Q> QueryHandler for InMemoryViewStore<RM, Q>
+impl<RM, Q> QueryHandler for NatsKvStore<RM, Q>
 where
-    RM: Clone + Send + Sync + 'static,
+    RM: Clone + Send + Sync + Serialize + DeserializeOwned + 'static,
     Q: Query<ReadModel = RM> + Send + 'static,
     Q::Response: Send + 'static,
 {
     type Query = Q;
-    type Id = Uuid;
+    type Id = String;
 
     async fn get_by_id(
         &self,
         id: Self::Id,
     ) -> error::Result<Option<RM>> {
-        Ok(self.get(&id))
+        self.get(&id).await
     }
 
     async fn handle(
         &self,
         query: Q,
     ) -> error::Result<Q::Response> {
-        let guard = self.inner.read().expect("lock not poisoned");
-        (self.query_fn)(query, &guard)
+        let store_clone = self.clone();
+        (self.inner.query_fn)(query, store_clone).await
     }
 }
 </FILE_NEW>
 
-<FILE_PATCH file_path="_workbench/queries/plan-1-todo-steps.md">
+<FILE_PATCH file_path="src/nats.rs">
 @@
- # Plan 1 - Todo Steps
+ /// NATS-backed command service support for `NatsStore`.
+ pub mod command_service;
+ #[doc(hidden)]
+ pub mod convert;
+ /// Use a Jetstream message as an esrc Envelope.
+ pub mod envelope;
+ #[doc(hidden)]
+ pub mod event;
+ /// NATS-backed query service support for `NatsStore`.
+ pub mod query_service;
++/// NATS JetStream Key-Value backed QueryHandler implementation.
++pub mod query_kv;
+@@
+     pub fn client(&self) -> async_nats::Client {
+         self.context.client()
+     }
  
--## Step - In-memory QueryHandler helper for View-based live projections
--      status: not_started
--time-created: 2026-03-26 15:39:52
--
--- Create a simple utility that materializes a `View` from an event stream (replay + subscribe) and serves queries against the live in-memory state.
--- This should be a concrete `QueryHandler` implementation that:
--  - Holds a `View` instance internally (behind appropriate synchronization).
--  - Implements `get_by_id` and `handle` against the in-memory state.
--- Design considerations:
--  - The user mentioned "simpler utility with good UX", not a full managed runtime component.
--  - The `View` trait is `Default + Send` and has an `apply` method. The helper needs to replay events to build initial state and then subscribe for updates.
--  - The helper should be generic over the `View` type and the storage mechanism (e.g., a `HashMap<Id, V>` keyed by some ID extractor).
--  - Consider how the user provides the ID extraction logic (e.g., a closure or trait method that maps an event to an aggregate ID).
--- Module placement: likely `src/query/in_memory.rs` or a new section in `src/query.rs` depending on size. The user said they would split later, so starting in `src/query.rs` or a submodule is fine.
--- References: see `src/view.rs` for the `View` trait, and `src/query.rs` for `QueryHandler`.
--
- ## Step - NATS KV-backed QueryHandler implementation
++    /// Returns the underlying JetStream context.
++    ///
++    /// This can be used to create Key-Value stores or perform other
++    /// JetStream operations outside the event store abstraction.
++    pub fn jetstream_context(&self) -> &Context {
++        &self.context
++    }
++
+     /// Select the stream used for creating read-side consumers.
 </FILE_PATCH>
-
-<FILE_NEW file_path="_workbench/queries/plan-2-active-step.md">
-# Plan 2 - Active Step
-
-## Step - In-memory QueryHandler helper for View-based live projections
-      status: active
-time-created: 2026-03-26 15:39:52
-time-current: 2026-03-26 16:23:08
-
-- Created `src/query/in_memory.rs` with `InMemoryViewStore<RM, Q>`, a thread-safe, in-memory store for read model instances keyed by `Uuid`.
-
-- Converted `src/query.rs` into a module directory `src/query/mod.rs` to accommodate the new submodule. All existing content preserved verbatim.
-
-- `InMemoryViewStore` provides:
-  - `new(query_fn)`: constructor that takes a closure for custom query logic. The closure receives the query enum and an immutable `&HashMap<Uuid, RM>` snapshot.
-  - `upsert(id, model)`: insert or update a read model instance.
-  - `remove(id)`: remove a read model instance, returning it if it existed.
-  - `get(id)`: get a cloned read model by ID.
-  - `all()`: get all entries as a `Vec`.
-  - `len()` / `is_empty()`: size introspection.
-
-- Implements `QueryHandler` for `InMemoryViewStore<RM, Q>`:
-  - `type Query = Q`, `type Id = Uuid`
-  - `get_by_id` delegates to `self.get(&id)`.
-  - `handle` acquires a read lock and calls the user-supplied `query_fn` closure.
-
-- Design decisions:
-  - The store is cheaply cloneable (`Arc`-wrapped internals), so it can be shared between a `Project` impl (write side) and a `QuerySpec` (read side).
-  - No coupling to `View` trait directly; the store is a generic read model container. The user materializes their `View` (or any read model) and calls `upsert` in their `Project::project` method.
-  - Custom query logic is injected via a closure rather than requiring the user to implement a separate trait, keeping the UX simple.
-  - The `query_fn` closure pattern avoids the need for the user to create a separate handler struct for simple cases, while still allowing full flexibility.
-</FILE_NEW>
 
 </FILE_CHANGES>
 
 <suggested_git_command>
-git add -A . && git commit -m "+ query/in_memory - Add InMemoryViewStore as generic in-memory QueryHandler helper"
+git add -A . && git commit -a -m "+ nats/query_kv - Add NATS KV-backed QueryHandler implementation"
 </suggested_git_command>
 

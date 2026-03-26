@@ -286,7 +286,7 @@
     "src/aggregate.rs": {
       "file_path": "src/aggregate.rs",
       "hash": "00a6f75b3dc8449f7be55893aacbd993ff922f3680e0e7dd3c61eb376814579a",
-      "mtime": 1774500560655608,
+      "mtime": 1774552968153144,
       "public_functions": [
         "process",
         "apply",
@@ -557,7 +557,7 @@
     "src/lib.rs": {
       "file_path": "src/lib.rs",
       "hash": "614217d47a11766efe9f82cbd0094a7d2ba54d05ed29a5a1eba10b4916be856e",
-      "mtime": 1774548544687818,
+      "mtime": 1774553168469517,
       "public_functions": [],
       "public_types": [
         "Aggregate",
@@ -735,6 +735,51 @@
       ],
       "summary": "Defines the core traits and types for the query side of a CQRS system, including query definitions, handlers, and the infrastructure for serving or consuming queries over remote transports.",
       "when_to_use": "Use this file when you need to define read model queries, implement logic to handle those queries, or set up service endpoints and clients for remote query execution (e.g., via NATS)."
+    },
+    "src/query/in_memory.rs": {
+      "file_path": "src/query/in_memory.rs",
+      "hash": "e7cf9181ae5bf502e15c9739fe812cffb3a29e0dda281109b14ca35f5a843686",
+      "mtime": 1774553098654186,
+      "public_functions": [
+        "new",
+        "upsert",
+        "remove",
+        "get",
+        "all",
+        "len",
+        "is_empty",
+        "get_by_id",
+        "handle"
+      ],
+      "public_types": [
+        "InMemoryViewStore"
+      ],
+      "summary": "An in-memory, thread-safe store and query handler for read-model projections, allowing shared access between write-side projectors and read-side query handlers.",
+      "when_to_use": "Use when you need a simple, memory-backed storage for live projections or during testing to facilitate querying and updating read models without external database dependencies."
+    },
+    "src/query/mod.rs": {
+      "file_path": "src/query/mod.rs",
+      "hash": "511c27cf7e422cccfadb6124a70671870503e0b5b3527adad18abd7b6808136c",
+      "mtime": 1774553098652895,
+      "public_functions": [
+        "QuerySpec::new",
+        "QuerySpec::name",
+        "QuerySpec::transport",
+        "QuerySpec::handler",
+        "QuerySpec::handler_mut",
+        "QuerySpec::into_handler",
+        "QuerySpec::with_transport"
+      ],
+      "public_types": [
+        "Query",
+        "QueryHandler",
+        "QueryTransport",
+        "QuerySpec",
+        "QueryService",
+        "QueryClient"
+      ],
+      "summary": "Defines core traits and types for declaring, handling, serving, and consuming queries against read models in an event-sourced architecture.",
+      "when_to_use": "Use this file when implementing read model query logic, defining query handlers, or configuring query transport and service/client infrastructure."
     },
     "src/version.rs": {
       "file_path": "src/version.rs",
