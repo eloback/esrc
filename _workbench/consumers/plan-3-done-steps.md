@@ -83,3 +83,26 @@ References: see the definition in `plan-2-active-step.md` or `plan-3-done-steps.
 - Implemented execution policy support for sequential and bounded concurrent processing.
 - Added runtime validation for invalid concurrent configuration with a dedicated configuration error variant.
 - Introduced erased projector execution support so declared consumer specs can be executed generically by the NATS runtime layer.
+
+## Step - expose ergonomic spawning helpers for automation and read model consumers
+      status: done
+time-created: 2026-03-26 06:00:43
+   time-done: 2026-03-26 06:21:27
+
+Add high-level helpers that make startup code concise while keeping runtime ownership in infrastructure.
+
+- Provide ergonomic methods or patterns for launching declared consumers with `NatsStore`.
+- Ensure the API keeps vertical slice code focused on declaration intent rather than transport details.
+- Align defaults with the semantics discussed in the dev chat:
+  - automations favor concurrent execution
+  - read models favor sequential execution
+
+- Keep the helpers compatible with the structured naming model based on bounded context, domain, and feature.
+
+References: see the definition in `plan-2-active-step.md` or `plan-3-done-steps.md`, step `Step - define the event_modeling module surface and consumer declaration model`.
+
+### Summary
+- Added `NatsStore` spawning helpers that launch declared consumers through the existing task tracker and runtime pipeline.
+- Added helper entrypoints for normalized `ConsumerSpec` values and for slice-facing `Automation` and `ReadModel` declarations.
+- Kept runtime ownership inside infrastructure by delegating execution to `run_consumer` and handling background task error logging within `NatsStore`.
+- Preserved the existing structured naming and execution policy behavior because the spawning helpers reuse the declaration model without redefining transport concerns.

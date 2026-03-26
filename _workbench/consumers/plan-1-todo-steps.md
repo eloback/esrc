@@ -1,19 +1,3 @@
-## Step - expose ergonomic spawning helpers for automation and read model consumers
-      status: not_started
-time-created: 2026-03-26 06:00:43
-
-Add high-level helpers that make startup code concise while keeping runtime ownership in infrastructure.
-
-- Provide ergonomic methods or patterns for launching declared consumers with `NatsStore`.
-- Ensure the API keeps vertical slice code focused on declaration intent rather than transport details.
-- Align defaults with the semantics discussed in the dev chat:
-  - automations favor concurrent execution
-  - read models favor sequential execution
-
-- Keep the helpers compatible with the structured naming model based on bounded context, domain, and feature.
-
-References: see the definition in `plan-2-active-step.md` or `plan-3-done-steps.md`, step `Step - define the event_modeling module surface and consumer declaration model`.
-
 ## Step - add a multi-slice example for command services and automation chaining
       status: not_started
 time-created: 2026-03-26 06:07:23

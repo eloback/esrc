@@ -9,10 +9,11 @@ use async_nats::jetstream::Context;
 use stream_cancel::Trigger;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio_util::task::TaskTracker;
+use tracing::error;
 use tracing::instrument;
 
 use crate::error;
-use crate::event_modeling::{ConsumerSpec, ExecutionPolicy};
+use crate::event_modeling::{Automation, ConsumerSpec, ExecutionPolicy, ReadModel};
 use crate::project::DynProject;
 
 /// NATS-backed command service support for `NatsStore`.
@@ -237,5 +238,38 @@ impl NatsStore {
                     .await
             }
         }
+    }
+
+    /// Spawn a declared consumer onto the store task tracker.
+    ///
+    /// This keeps runtime ownership of task lifecycle and background error
+    /// reporting inside infrastructure while letting startup code stay concise.
+    pub fn spawn_consumer<P>(&self, spec: ConsumerSpec<P>)
+    where
+        P: DynProject + 'static,
+    {
+        let store = self.clone();
+        self.graceful_shutdown.task_tracker.spawn(async move {
+            let durable_name = spec.name().durable_name();
+            if let Err(err) = store.run_consumer(spec).await {
+                error!(consumer = %durable_name, ?err, "consumer stopped");
+            }
+        });
+    }
+
+    /// Spawn an automation declaration onto the store task tracker.
+    pub fn spawn_automation<P>(&self, automation: Automation<P>)
+    where
+        P: DynProject + 'static,
+    {
+        self.spawn_consumer(automation.into_spec());
+    }
+
+    /// Spawn a read model declaration onto the store task tracker.
+    pub fn spawn_read_model<P>(&self, read_model: ReadModel<P>)
+    where
+        P: DynProject + 'static,
+    {
+        self.spawn_consumer(read_model.into_spec());
     }
 }

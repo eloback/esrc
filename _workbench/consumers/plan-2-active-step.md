@@ -1,28 +1,22 @@
-## Step - integrate event_modeling declarations with NatsStore consumer startup
+## Step - expose ergonomic spawning helpers for automation and read model consumers
       status: active
 time-created: 2026-03-26 06:00:43
-time-current: 2026-03-26 06:15:32
+time-current: 2026-03-26 06:21:27
 
-Implement a runtime entrypoint on `NatsStore` that accepts the new event modeling consumer specification and executes it using the existing `Project` pipeline.
+Add high-level helpers that make startup code concise while keeping runtime ownership in infrastructure.
 
-- Add a shared consumer startup entrypoint that resolves the durable name from the structured declaration.
-- Keep durable subscription creation as an infrastructure detail.
-- Reuse a single message-processing pipeline for envelope conversion, typed context creation, projector execution, error mapping, and ack handling.
+- Provide ergonomic methods or patterns for launching declared consumers with `NatsStore`.
+- Ensure the API keeps vertical slice code focused on declaration intent rather than transport details.
+- Align defaults with the semantics discussed in the dev chat:
+  - automations favor concurrent execution
+  - read models favor sequential execution
 
-- Support execution policies for:
-  - sequential processing
-  - concurrent processing with bounded in-flight work
-
-- Preserve infrastructure ownership of lifecycle concerns such as subscription creation and graceful shutdown wiring.
+- Keep the helpers compatible with the structured naming model based on bounded context, domain, and feature.
 
 References: see the definition in `plan-2-active-step.md` or `plan-3-done-steps.md`, step `Step - define the event_modeling module surface and consumer declaration model`.
 
 ### Implementation Considerations
-- Added `NatsStore::run_consumer` as the shared runtime entrypoint for `event_modeling::ConsumerSpec`.
-- Kept durable consumer creation internal to `NatsStore`, deriving the durable name and subscribed subjects from the structured declaration and projector event group.
-- Added a shared message-processing path that converts the envelope, builds typed projection context dynamically, runs the projector, maps user errors into crate `Error`, and acks successful messages.
-- Implemented execution policy support for:
-  - sequential processing that propagates failures
-  - concurrent processing with bounded in-flight work and per-message error logging
-- Added runtime validation for invalid concurrent configuration such as `max_in_flight == 0`.
-- Introduced erased projector execution support so runtime startup can operate on declared consumer specs without exposing transport details to slices.
+- Added spawning helpers on `NatsStore` that launch declared consumers onto the existing task tracker instead of requiring callers to wire `run_consumer` manually.
+- Added helper variants for `ConsumerSpec`, `Automation`, and `ReadModel` so startup code can stay at the declaration layer without transport-specific conversion boilerplate.
+- Preserved infrastructure ownership of lifecycle and error reporting by keeping task spawning and runtime failure logging inside `NatsStore`.
+- Kept the helpers compatible with the existing structured consumer naming and execution policy defaults because they delegate to `run_consumer`.

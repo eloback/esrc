@@ -928,20 +928,20 @@
     },
     "src/error.rs": {
       "file_path": "src/error.rs",
-      "hash": "5695835127566e0eaa914d30346aa596f5578204b3faa977424cb458271001a7",
-      "mtime": 1774295860796332,
+      "hash": "68f27b85c581d790b92c996e159b535abe908460a02647d2b7866a777515eafe",
+      "mtime": 1774516818669172,
       "public_functions": [],
       "public_types": [
         "Error",
         "Result"
       ],
-      "summary": "Defines the crate’s common event-sourcing error type and a Result alias for operations that can fail with these errors.",
-      "when_to_use": "Include this file when handling, matching, or propagating the library’s standardized errors, or when using the event-sourcing Result alias."
+      "summary": "Defines the central Error enum and Result alias for event-sourcing, including transport, formatting, and optimistic concurrency variants.",
+      "when_to_use": "Include when handling or returning errors from event-sourcing operations, especially command processing and event projection."
     },
     "src/event.rs": {
       "file_path": "src/event.rs",
-      "hash": "19067b37cad285630c0830e679ed70b698cde03aeb4bb413f71be7e49bf48165",
-      "mtime": 1774511393441022,
+      "hash": "232b91e92e290e691b82520b11c0abd6ccfdc6c50f924d6a0d0e01eaefdc3559",
+      "mtime": 1774516818669172,
       "public_functions": [
         "Sequence::new"
       ],
@@ -950,6 +950,7 @@
         "CommandService",
         "Event",
         "EventGroup",
+        "EventGroupType",
         "Publish",
         "PublishExt",
         "Replay",
@@ -961,7 +962,7 @@
         "SubscribeExt",
         "Truncate"
       ],
-      "summary": "Defines the core abstractions for an event-sourced system, including the Event and EventGroup traits, the Sequence struct for stream ordering, and re-exports for command handling, publishing, replaying, subscribing, and truncating events.",
+      "summary": "Defines the core abstractions for an event-sourced system, including the Event, EventGroup, and EventGroupType traits, the Sequence struct for stream ordering, and re-exports for command handling, publishing, replaying, subscribing, and truncating events.",
       "when_to_use": "Use this file to define domain events, handle event stream sequencing, or access the primary traits for interacting with an event store."
     },
     "src/event/command_service.rs": {
@@ -1048,15 +1049,15 @@
     },
     "src/event_modeling.rs": {
       "file_path": "src/event_modeling.rs",
-      "hash": "3e9b93c582c0241e647606d5123312940415a346c9b4ac4a37e92a2d79061ea4",
-      "mtime": 1774516360639669,
+      "hash": "2f4a0c3fa68a84d27666a5c4f0597d0ca96c780d6d8b182715333a12420422db",
+      "mtime": 1774516818669172,
       "public_functions": [],
       "public_types": [
-        "ConsumerRole",
-        "ExecutionPolicy",
-        "ConsumerName",
-        "ConsumerSpec",
         "Automation",
+        "ConsumerName",
+        "ConsumerRole",
+        "ConsumerSpec",
+        "ExecutionPolicy",
         "ReadModel"
       ],
       "summary": "Defines core types and builders for modeling event consumers, including roles (Automation and ReadModel), execution policies (Sequential and Concurrent), and structured naming conventions for consumers.",
@@ -1156,15 +1157,16 @@
     },
     "src/nats.rs": {
       "file_path": "src/nats.rs",
-      "hash": "a3dc39a94bbd155298f57e0006d9a0de75a9d7b9769b70370ed7ef710b01b8a5",
-      "mtime": 1774511393441022,
+      "hash": "28d1267b4d634064bcbf94c428c62842cb0a6ce4f2f884bb5b3151032fb3e31e",
+      "mtime": 1774516818669172,
       "public_functions": [
         "NatsStore::try_new",
         "NatsStore::enable_mirror",
         "NatsStore::get_task_tracker",
         "NatsStore::wait_graceful_shutdown",
         "NatsStore::update_durable_consumer_option",
-        "NatsStore::client"
+        "NatsStore::client",
+        "NatsStore::run_consumer"
       ],
       "public_types": [
         "NatsStore",
@@ -1217,21 +1219,19 @@
     },
     "src/nats/event.rs": {
       "file_path": "src/nats/event.rs",
-      "hash": "2fb4e07d92e0504febb6e394d0f363554d2e1ed09bd1d6a0679e0a883240640e",
-      "mtime": 1774510695078079,
+      "hash": "52803734cf41587b4e60e609e80070f479a41496eb4377efdeed719e94ec9a7f",
+      "mtime": 1774516818669172,
       "public_functions": [
+        "Publish::publish",
+        "Publish::publish_without_occ",
         "NatsStore::durable_observe",
         "Replay::replay",
         "ReplayOne::replay_one",
         "Subscribe::subscribe",
         "Truncate::truncate"
       ],
-      "public_types": [
-        "NatsStore",
-        "NatsEnvelope"
-      ],
-      "summary": "Implements NATS-backed event store operations for publishing, replaying, subscribing, durable observation, and truncation of events, including header metadata handling and envelope conversion.",
-      "when_to_use": "Use when you need the NATS event store behavior, especially for publishing events with headers, replaying or subscribing to event streams, durable projection consumption, or truncating aggregate streams."
+      "summary": "Implements core NATS JetStream operations for NatsStore, including event publishing with OCC, stream replay, subscriptions, and durable consumer management for projections.",
+      "when_to_use": "Include this file when NATS-based event persistence, event publishing logic, or projection synchronization via JetStream is required."
     },
     "src/nats/header.rs": {
       "file_path": "src/nats/header.rs",
@@ -1264,8 +1264,8 @@
     },
     "src/project.rs": {
       "file_path": "src/project.rs",
-      "hash": "776fa3e266714f3ceb4ff5851869ecd2ce9b928eeedf2e0c654337dfd0f0e8de",
-      "mtime": 1774510695078079,
+      "hash": "3fa6adbd74d270a8dd3e0e41a46f8b9274d87f3b21e364f095b9ee742f22b8e1",
+      "mtime": 1774516818669172,
       "public_functions": [
         "Context::try_with_envelope",
         "Context::id",
@@ -1276,10 +1276,11 @@
       ],
       "public_types": [
         "Context",
-        "Project"
+        "Project",
+        "DynProject"
       ],
-      "summary": "Defines the projection API for event-sourced processing, including a Context wrapper around deserialized envelope contents and the Project trait used to handle events and build read models or trigger side effects.",
-      "when_to_use": "Include this file when you need to understand or implement projection logic, access event envelope metadata within a projection, or work with the Project trait and Context wrapper."
+      "summary": "Defines the projection API for event-sourced processing, including the Project trait for handling events, the DynProject trait for dynamic dispatch, and the Context wrapper that provides access to both deserialized event data and envelope metadata.",
+      "when_to_use": "Include this file when implementing event projectors to build read models, handling side effects from events, or when needing to access envelope-level metadata like timestamps and IDs within a projection."
     },
     "src/version.rs": {
       "file_path": "src/version.rs",
