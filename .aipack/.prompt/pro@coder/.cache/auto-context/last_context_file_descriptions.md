@@ -199,11 +199,6 @@
     - When To Use: Use this file when implementing a service to process aggregate commands or a client to send commands to such a service.
     - Types: CommandService, CommandClient
 
-- src/lib.rs
-    - Summary: The crate root for the event-sourcing library, defining core modules and re-exporting primary types like Aggregate, Envelope, Event, and View.
-    - When To Use: Use this file to understand the library's module structure, re-exported types, and feature-gated backend implementations for NATS and Kurrentdb.
-    - Types: Aggregate, Envelope, Error, Event, EventGroup, View
-
 - src/nats/event.rs
     - Summary: Implements NATS JetStream-backed event operations for NatsStore, including event publishing with Optimistic Concurrency Control (OCC), stream replaying, durable subscriptions, and stream truncation.
     - When To Use: Include this file when NATS-based event persistence, stream replaying, or durable projection synchronization via JetStream is required in the system.
@@ -256,4 +251,15 @@
     - Summary: Defines core types and builders for modeling event consumers, including roles (Automation, ReadModel), execution policies (Sequential, Concurrent), and structured component naming (ComponentName).
     - When To Use: Use when defining event consumers and their execution policies, or when establishing structured component identities across bounded contexts.
     - Types: Automation, ComponentName, ConsumerRole, ConsumerSpec, ExecutionPolicy, ReadModel
+
+- src/lib.rs
+    - Summary: Crate root for the esrc event-sourcing library, defining the core module structure and re-exporting primary types such as Aggregate, Envelope, Error, Event, EventGroup, and View.
+    - When To Use: Use this file to understand the library's organization, available modules, and feature-gated backend implementations for NATS and Kurrentdb.
+    - Types: Aggregate, Envelope, Error, Event, EventGroup, View
+
+- src/query.rs
+    - Summary: Defines the core traits and types for declaring, handling, and configuring queries against read models in an event-sourced architecture.
+    - When To Use: Use this file when defining domain-specific queries, implementing handlers for read models, or configuring query transport specifications for infrastructure exposure.
+    - Types: Query, QueryHandler, QueryTransport, QuerySpec
+    - Functions: QuerySpec::new, QuerySpec::name, QuerySpec::transport, QuerySpec::handler, QuerySpec::handler_mut, QuerySpec::into_handler, QuerySpec::with_transport
 

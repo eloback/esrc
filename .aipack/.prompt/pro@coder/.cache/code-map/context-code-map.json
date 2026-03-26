@@ -1194,8 +1194,8 @@
     },
     "src/lib.rs": {
       "file_path": "src/lib.rs",
-      "hash": "ae115b37a8e0ea3067e72a8f7d7c274f8417af541ef48ccf53e6a216c99e961c",
-      "mtime": 1774529607128266,
+      "hash": "614217d47a11766efe9f82cbd0094a7d2ba54d05ed29a5a1eba10b4916be856e",
+      "mtime": 1774548544687818,
       "public_functions": [],
       "public_types": [
         "Aggregate",
@@ -1205,8 +1205,8 @@
         "EventGroup",
         "View"
       ],
-      "summary": "The crate root for the event-sourcing library, defining core modules and re-exporting primary types like Aggregate, Envelope, Event, and View.",
-      "when_to_use": "Use this file to understand the library's module structure, re-exported types, and feature-gated backend implementations for NATS and Kurrentdb."
+      "summary": "Crate root for the esrc event-sourcing library, defining the core module structure and re-exporting primary types such as Aggregate, Envelope, Error, Event, EventGroup, and View.",
+      "when_to_use": "Use this file to understand the library's organization, available modules, and feature-gated backend implementations for NATS and Kurrentdb."
     },
     "src/nats.rs": {
       "file_path": "src/nats.rs",
@@ -1336,6 +1336,28 @@
       ],
       "summary": "Defines the Project trait for event projection and a Context wrapper that encapsulates both the deserialized event and its associated envelope metadata.",
       "when_to_use": "Use this file when implementing event projectors to build read models or handle side effects, particularly when you need access to envelope metadata like timestamps and sequence numbers during processing."
+    },
+    "src/query.rs": {
+      "file_path": "src/query.rs",
+      "hash": "57afaf776d5a53e7b62779516d714880e45d24997726899e03b2b2733c8b9f2e",
+      "mtime": 1774548544687818,
+      "public_functions": [
+        "QuerySpec::new",
+        "QuerySpec::name",
+        "QuerySpec::transport",
+        "QuerySpec::handler",
+        "QuerySpec::handler_mut",
+        "QuerySpec::into_handler",
+        "QuerySpec::with_transport"
+      ],
+      "public_types": [
+        "Query",
+        "QueryHandler",
+        "QueryTransport",
+        "QuerySpec"
+      ],
+      "summary": "Defines the core traits and types for declaring, handling, and configuring queries against read models in an event-sourced architecture.",
+      "when_to_use": "Use this file when defining domain-specific queries, implementing handlers for read models, or configuring query transport specifications for infrastructure exposure."
     },
     "src/version.rs": {
       "file_path": "src/version.rs",

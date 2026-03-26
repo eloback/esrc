@@ -1,6 +1,10 @@
 //! Traits and types for declaring and handling queries against read models.
 
-use crate::event_modeling::ComponentName;
+use std::future::Future;
+
+use serde::{de::DeserializeOwned, Serialize};
+
+use crate::{error, event_modeling::ComponentName};
 
 /// A query that can be executed against a read model.
 ///
@@ -100,4 +104,69 @@ impl<H> QuerySpec<H> {
         self.transport = transport;
         self
     }
+}
+
+/// Serve queries for read models as service endpoints.
+///
+/// Implementations are responsible for receiving serialized queries,
+/// dispatching them to the appropriate `QueryHandler`, and returning
+/// serialized results to the caller.
+///
+/// The exact transport mapping is implementation-specific. For example, a
+/// NATS backend derives a request-reply subject from the `ComponentName`
+/// segments: `query.<bounded_context>.<domain>.<feature>.<component>`.
+#[trait_variant::make(Send)]
+pub trait QueryService {
+    /// Start serving queries for the given query specification.
+    ///
+    /// Implementations typically keep running until the underlying transport
+    /// is closed or an unrecoverable error occurs.
+    fn serve<H>(&self, spec: &QuerySpec<H>) -> impl Future<Output = error::Result<()>> + Send
+    where
+        H: QueryHandler + 'static,
+        H::Query: DeserializeOwned,
+        H::Id: DeserializeOwned,
+        <H::Query as Query>::ReadModel: Serialize,
+        <H::Query as Query>::Response: Serialize;
+}
+
+/// Send queries to read model service endpoints.
+///
+/// Implementations are responsible for serializing queries, routing them
+/// to the appropriate transport endpoint derived from the `ComponentName`,
+/// awaiting the service reply, and mapping transport or service failures
+/// back into [`error::Error`].
+///
+/// The subject derivation convention for NATS request-reply is:
+/// `query.<bounded_context>.<domain>.<feature>.<component>`.
+#[trait_variant::make(Send)]
+pub trait QueryClient {
+    /// Fetch a single read model instance by its identifier.
+    ///
+    /// Serializes the `id`, routes it to the service endpoint associated
+    /// with the given `ComponentName`, then waits for the reply.
+    ///
+    /// Returns `Ok(None)` when the read model is not found.
+    async fn get_by_id<Q, Id>(
+        &self,
+        name: &ComponentName,
+        id: Id,
+    ) -> error::Result<Option<Q::ReadModel>>
+    where
+        Q: Query,
+        Q::ReadModel: DeserializeOwned,
+        Id: Serialize + Send;
+
+    /// Send a custom query and await the response.
+    ///
+    /// Serializes the `query`, routes it to the service endpoint associated
+    /// with the given `ComponentName`, then waits for the reply.
+    async fn query<Q>(
+        &self,
+        name: &ComponentName,
+        query: Q,
+    ) -> error::Result<Q::Response>
+    where
+        Q: Query + Serialize,
+        Q::Response: DeserializeOwned;
 }

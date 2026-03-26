@@ -82,6 +82,16 @@ impl ComponentName {
         )
     }
 
+    /// Returns the query service subject derived from this component name.
+    ///
+    /// The convention is `query.<bounded_context>.<domain>.<feature>.<component>`.
+    pub fn query_subject(&self) -> String {
+        format!(
+            "query.{}.{}.{}.{}",
+            self.bounded_context, self.domain, self.feature, self.component
+        )
+    }
+
     /// Returns the structured slice path without the consumer segment.
     pub fn slice_path(&self) -> String {
         format!("{}_{}_{}", self.bounded_context, self.domain, self.feature)

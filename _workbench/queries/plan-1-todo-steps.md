@@ -1,49 +1,5 @@
 # Plan 1 - Todo Steps
 
-## Step - Create src/query.rs with Query, QueryHandler, QueryTransport, and QuerySpec
-      status: not_started
-time-created: 2026-03-26 14:58:37
-
-- Create `src/query.rs` as a single file containing:
-
-- `Query` trait:
-  - `type ReadModel: Send`
-  - `type Response: Send`
-  - No serde bounds.
-
-- `QueryHandler` trait (using `#[trait_variant::make(Send)]`):
-  - `type Query: Query`
-  - `type Id: Send + Sync`
-  - `async fn get_by_id(&self, id: Self::Id) -> crate::error::Result<Option<<Self::Query as Query>::ReadModel>>`
-  - `async fn handle(&self, query: Self::Query) -> crate::error::Result<<Self::Query as Query>::Response>`
-  - Requires `Send + Sync`, no `Clone`.
-
-- `QueryTransport` enum:
-  - `NatsRequestReply` variant (only one for now, extensible).
-
-- `QuerySpec` struct:
-  - Holds a `ComponentName` (from `event_modeling`), a `QueryTransport`, and the `QueryHandler` instance.
-  - Constructor and accessor methods following the `ConsumerSpec` pattern.
-
-- Register the module in `src/lib.rs` with a doc comment.
-
-## Step - Add QueryService and QueryClient traits to src/query.rs
-      status: not_started
-time-created: 2026-03-26 14:58:37
-
-- Add transport-agnostic trait definitions to `src/query.rs`, following the `CommandService`/`CommandClient` pattern from `src/event/command_service.rs`.
-
-- `QueryService` trait:
-  - Method to serve/handle incoming query requests.
-  - Serde bounds (`Serialize + DeserializeOwned`) added at the method level on the query enum and response types.
-
-- `QueryClient` trait:
-  - Method to send a query remotely and await the response.
-  - Serde bounds at the method level.
-
-- Both traits use `#[trait_variant::make(Send)]`.
-- Subject derivation convention documented: `query.<bounded_context>.<domain>.<feature>.<component>`.
-
 ## Step - Implement NATS QueryService and QueryClient
       status: not_started
 time-created: 2026-03-26 14:58:37
