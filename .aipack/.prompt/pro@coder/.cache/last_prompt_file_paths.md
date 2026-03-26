@@ -6,30 +6,22 @@ file_content_mode: udiffx
 
 ## All resolve files(sent to AI with content, in this order)
 
-- docs/skill/esrc-slice-constants-and-module-layout.md
-- docs/skill/esrc-event-modeling-create-consumers-automations-and-read-models.md
-- docs/skill/esrc-command-service-execute-commands.md
-- docs/skill/esrc-read-model-public-interface-and-queries.md
+- _workbench/integration_between_bounded_contexts/_plan-rules.md
+
+## Pre (just for info, included in the All resolved files above)
+
+- _workbench/integration_between_bounded_contexts/_plan-rules.md
 
 # Context Files
 
 ## All resolve files(sent to AI with content, in this order)
 
-- src/event.rs
 - src/event/command_service.rs
-- examples/multi-slice-command-service/domain.rs
 - src/nats/command_service.rs
-- examples/multi-slice-command-service/main.rs
-- examples/multi-slice-command-service/queue_welcome_email/mod.rs
-- src/nats/query_service.rs
-- examples/basic-query-service/main.rs
-- examples/basic-query-service/read_model.rs
 - src/aggregate.rs
-- src/query/mod.rs
-- src/query/in_memory.rs
-- src/nats/query_kv.rs
 - src/event_modeling.rs
 - src/nats.rs
+- examples/operations/main.rs
 
 # Working Files
 
@@ -39,19 +31,19 @@ None
 
 (Only file paths, not their content)
 
-- examples/basic-query-service/
-  - domain.rs
+- examples/operations/
   - main.rs
-  - read_model.rs
-- examples/cafe/
-  - domain.rs
-  - main.rs
-- examples/multi-slice-command-service/
-  - domain.rs
-  - main.rs
-- examples/multi-slice-command-service/queue_welcome_email/
+- examples/operations/domain/
+  - email.rs
   - mod.rs
-- examples/multi-slice-command-service/send_welcome_email/
+  - operation.rs
+- examples/operations/kv_operation_view/
+  - mod.rs
+- examples/operations/memory_operation_list/
+  - mod.rs
+- examples/operations/send_email/
+  - mod.rs
+- examples/operations/send_notification/
   - mod.rs
 - examples/zero_copy/
   - main.rs

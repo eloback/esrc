@@ -87,11 +87,6 @@
     - Types: Subscribe, SubscribeExt
     - Functions: subscribe, observe
 
-- examples/cafe/domain.rs
-    - Summary: Defines the core domain logic for a cafe order aggregate, including its state, commands, events, and error types, while implementing the esrc::Aggregate trait.
-    - When To Use: Use this file when you need to reference the business logic, state transitions, or command/event schemas for the Order aggregate in the cafe example.
-    - Types: OrderStatus, Order, OrderCommand, OrderEvent, OrderError
-
 - src/event/publish.rs
     - Summary: Defines the core traits for publishing events to an event stream, including support for optimistic concurrency control (OCC) and integration with aggregate roots.
     - When To Use: Include this file when implementing event storage logic or when performing operations that require persisting events and updating aggregate state atomically.
@@ -105,11 +100,6 @@
 - src/nats/convert.rs
     - Summary: Implements trait conversions (From) to map various NATS JetStream error types into the application's internal Error type.
     - When To Use: Refer to this file to understand how NATS errors (like PublishError or StreamError) are categorized and handled internally, specifically regarding the mapping to 'Conflict' or 'Internal' error variants.
-
-- examples/cafe/main.rs
-    - Summary: A practical example demonstrating the use of the esrc library with NATS JetStream. It shows how to initialize a NatsStore, spawn an aggregate command service, send commands through NATS, and retrieve aggregate state.
-    - When To Use: Use this file as a reference for setting up a command service and interacting with an event-sourced aggregate using NATS as the transport and storage layer.
-    - Functions: main
 
 - src/error.rs
     - Summary: Defines the central Error enum and Result type alias used throughout the event-sourcing library to handle internal, external, formatting, and concurrency issues.
@@ -136,34 +126,11 @@
     - When To Use: Include this file when you need to define how events are projected into read models or side effects, or when working with the context of a specific event being projected.
     - Types: Context, Project
 
-- examples/multi-slice-command-service/domain.rs
-    - Summary: Defines the domain model for a multi-slice command service example, including aggregates, commands, events, and errors for Signup and Email contexts.
-    - When To Use: Include this file when you need to reference the business logic, state transitions, or data structures for the Signup and Email aggregates in the multi-slice example.
-    - Types: SignupEvent, EmailEvent, SignupCommand, EmailCommand, SignupError, EmailError, SignupAggregate, EmailAggregate
-
 - src/nats/command_service.rs
     - Summary: Implements NATS-based command processing for aggregates, providing both a service (to listen and execute commands) and a client (to send commands via request/reply).
     - When To Use: Use this file when setting up a NATS microservice to handle domain commands for an aggregate or when you need to send commands to such a service from another part of the system.
     - Types: ReplyError, CommandReply
     - Functions: serve, spawn_service, handle_request, send_command
-
-- examples/multi-slice-command-service/main.rs
-    - Summary: Main entry point for a multi-slice command service example demonstrating aggregate service initialization, background automation (slices) setup, and command dispatching using NATS JetStream.
-    - When To Use: Use this file as a template for bootstrapping an esrc application, specifically for initializing the NatsStore, spawning services, and coordinating multiple domain modules.
-    - Types: BOUNDED_CONTEXT, SIGNUP_DOMAIN, EMAIL_DOMAIN
-    - Functions: main
-
-- examples/multi-slice-command-service/queue_welcome_email/mod.rs
-    - Summary: Implements an automation component that reacts to SignupRequested events by dispatching commands to both the Email and Signup aggregates to coordinate a welcome email workflow.
-    - When To Use: Use this file as a reference for implementing event-driven automations (sagas/process managers) that trigger side effects or commands across multiple aggregates in an esrc-based application.
-    - Types: QueueWelcomeEmailAutomation
-    - Functions: setup
-
-- examples/multi-slice-command-service/send_welcome_email/mod.rs
-    - Summary: Implements the SendWelcomeEmailAutomation, which acts as a process manager that listens for WelcomeEmailRequested events and responds by sending a MarkWelcomeEmailSent command.
-    - When To Use: Include this file when looking for an example of how to implement event-driven automations or side effects within the esrc framework, particularly those that involve command-loopback patterns.
-    - Types: SendWelcomeEmailAutomation
-    - Functions: setup
 
 - src/nats/query_service.rs
     - Summary: Implements NATS-based query services and clients using request-reply patterns. It provides the logic to serve read models and custom queries over NATS, as well as the client implementation to invoke those queries.
@@ -174,23 +141,6 @@
 - Cargo.toml
     - Summary: Workspace manifest and package configuration for esrc, a library providing primitives for event sourcing and CQRS systems.
     - When To Use: When needing to check dependency versions, feature flag definitions, or the structure of the workspace including its sub-crates (derive, opentelemetry-nats).
-
-- examples/basic-query-service/domain.rs
-    - Summary: Defines the core domain model for an Order system, including its state (Aggregate), the actions that can be taken (Commands), the resulting state changes (Events), and potential business logic errors.
-    - When To Use: Use this file to understand or modify the business logic, state transitions, and event/command definitions for the order processing domain.
-    - Types: OrderEvent, OrderCommand, OrderError, OrderAggregate
-
-- examples/basic-query-service/main.rs
-    - Summary: The main entry point for an example service demonstrating the full CQRS/ES lifecycle using NATS. It sets up an event store, spawns a command service for an order aggregate, establishes a read model projector, and runs a query service.
-    - When To Use: Refer to this file when you need an end-to-end example of how to configure and run command services, read models, and query handlers using the esrc library.
-    - Types: BOUNDED_CONTEXT, ORDER_DOMAIN
-    - Functions: main
-
-- examples/basic-query-service/read_model.rs
-    - Summary: Defines the read-side components for an order service, including the OrderReadModel, an in-memory store, a projector to update state from events, and a query handler.
-    - When To Use: Refer to this file when implementing CQRS read models, projections, or query handlers using the esrc framework.
-    - Types: OrderReadModel, OrderQuery, OrderStore, OrderProjector, OrderQueryHandler
-    - Functions: OrderStore::new, OrderStore::get, OrderStore::upsert, OrderStore::all, OrderProjector::new, OrderQueryHandler::new
 
 - src/aggregate.rs
     - Summary: Defines the core `Aggregate` trait and the `Root` struct, which are central to representing and managing domain objects that are constructed from event streams.
@@ -232,4 +182,47 @@
     - When To Use: Use this file to initialize a NATS event store or to spawn background tasks for consumers, automations, and read model projections.
     - Types: NatsStore, GracefulShutdown, NatsEnvelope
     - Functions: try_new, enable_mirror, get_task_tracker, wait_graceful_shutdown, client, jetstream_context, run_consumer, spawn_consumer, spawn_automation, spawn_read_model, spawn_read_model_slice
+
+- examples/operations/domain/operation.rs
+    - Summary: Defines the core domain logic for an 'operation' aggregate, including its commands, events, errors, and state transition logic using the Event Sourcing pattern.
+    - When To Use: Include this file when you need to understand or interact with the business rules, event definitions, or state management of the 'operation' domain entity.
+    - Types: DOMAIN_NAME, OperationEvent, OperationCommand, OperationError, OperationAggregate
+
+- examples/operations/domain/email.rs
+    - Summary: Defines the domain logic for an email aggregate, including commands for sending notifications and tracking if they have already been sent.
+    - When To Use: Use this file when implementing or referencing email domain logic in an event-sourced system, specifically for preventing duplicate notification sends.
+    - Types: DOMAIN_NAME, EmailEvent, EmailCommand, EmailError, EmailAggregate
+
+- examples/operations/kv_operation_view/mod.rs
+    - Summary: Implements a read model slice that materializes operation views into a NATS Key-Value bucket, reacting to domain events like creation and completion.
+    - When To Use: Use this file when you need to understand how to implement a NATS KV-backed read model (projections and queries) using the esrc framework, specifically for managing operation state.
+    - Types: OperationViewReadModel, OperationViewQuery, OperationViewProjector
+    - Functions: query_name, setup
+
+- examples/operations/memory_operation_list/mod.rs
+    - Summary: Implements an in-memory read model slice that materializes a queryable list of operations from domain events.
+    - When To Use: Use when looking for an example of how to implement an in-memory read model, a projector for operation events, or a query service using NATS request-reply within an event-sourced architecture.
+    - Types: OperationListReadModel, OperationListQuery, OperationListProjector
+    - Functions: query_name, setup
+
+- examples/operations/send_email/mod.rs
+    - Summary: An in-memory read model slice for tracking sent email records. It projects `EmailEvent` events into a searchable view store and provides a query interface to list all sent emails.
+    - When To Use: Use this file when implementing or referencing the read model for email operations, specifically for listing sent emails or understanding how to setup an in-memory projector with NATS integration.
+    - Types: SentEmailReadModel, SentEmailQuery, SentEmailProjector
+    - Functions: query_name, setup
+
+- examples/operations/send_notification/mod.rs
+    - Summary: An automation slice that listens for OperationCreated events and triggers a SendNotification command in the Email domain.
+    - When To Use: Use this file as a reference for implementing cross-aggregate automations or to understand the notification flow triggered by operation creation.
+    - Types: SendNotificationAutomation
+    - Functions: setup
+
+- examples/operations/domain/mod.rs
+    - Summary: Root module for the domain layer of the operations bounded context. It exports the operation and email submodules and defines a global constant for the bounded context name.
+    - When To Use: Use this file to understand the domain organization of the operations context or to reference the BOUNDED_CONTEXT_NAME constant.
+
+- examples/operations/main.rs
+    - Summary: Main entry point for a comprehensive example demonstrating Event Sourcing and CQRS using the esrc library and NATS. It sets up aggregates, automations, and multiple read models (in-memory and NATS KV), then executes a workflow and validates it via queries.
+    - When To Use: Use this file as a reference for integrating aggregates, projections, and automations into a single application and for understanding how to perform end-to-end command/query operations.
+    - Functions: main
 

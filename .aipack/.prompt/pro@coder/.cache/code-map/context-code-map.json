@@ -307,6 +307,114 @@
       "summary": "Implements the SendWelcomeEmailAutomation, which acts as a process manager that listens for WelcomeEmailRequested events and responds by sending a MarkWelcomeEmailSent command.",
       "when_to_use": "Include this file when looking for an example of how to implement event-driven automations or side effects within the esrc framework, particularly those that involve command-loopback patterns."
     },
+    "examples/operations/domain/email.rs": {
+      "file_path": "examples/operations/domain/email.rs",
+      "hash": "5fdad3682b477d98185f78799ea3f508768405cf15429cf15e412adf092327aa",
+      "mtime": 1774555668272284,
+      "public_types": [
+        "DOMAIN_NAME",
+        "EmailEvent",
+        "EmailCommand",
+        "EmailError",
+        "EmailAggregate"
+      ],
+      "summary": "Defines the domain logic for an email aggregate, including commands for sending notifications and tracking if they have already been sent.",
+      "when_to_use": "Use this file when implementing or referencing email domain logic in an event-sourced system, specifically for preventing duplicate notification sends."
+    },
+    "examples/operations/domain/mod.rs": {
+      "file_path": "examples/operations/domain/mod.rs",
+      "hash": "200b7cfe12147462f39de2e5d6cbf74eed33574fb0145f10d558a6ca4ef7c61c",
+      "mtime": 1774559554985390,
+      "public_functions": [],
+      "public_types": [],
+      "summary": "Root module for the domain layer of the operations bounded context. It exports the operation and email submodules and defines a global constant for the bounded context name.",
+      "when_to_use": "Use this file to understand the domain organization of the operations context or to reference the BOUNDED_CONTEXT_NAME constant."
+    },
+    "examples/operations/domain/operation.rs": {
+      "file_path": "examples/operations/domain/operation.rs",
+      "hash": "081b519fe57ef4b508a3aee872a6b6d69328f67df438ddc98c4118550182ec59",
+      "mtime": 1774555668272272,
+      "public_types": [
+        "DOMAIN_NAME",
+        "OperationEvent",
+        "OperationCommand",
+        "OperationError",
+        "OperationAggregate"
+      ],
+      "summary": "Defines the core domain logic for an 'operation' aggregate, including its commands, events, errors, and state transition logic using the Event Sourcing pattern.",
+      "when_to_use": "Include this file when you need to understand or interact with the business rules, event definitions, or state management of the 'operation' domain entity."
+    },
+    "examples/operations/kv_operation_view/mod.rs": {
+      "file_path": "examples/operations/kv_operation_view/mod.rs",
+      "hash": "f2da3e2cf355897edd0392922e2559bdc17f780da7e822a6c71b2aa71613ef07",
+      "mtime": 1774555668272284,
+      "public_functions": [
+        "query_name",
+        "setup"
+      ],
+      "public_types": [
+        "OperationViewReadModel",
+        "OperationViewQuery",
+        "OperationViewProjector"
+      ],
+      "summary": "Implements a read model slice that materializes operation views into a NATS Key-Value bucket, reacting to domain events like creation and completion.",
+      "when_to_use": "Use this file when you need to understand how to implement a NATS KV-backed read model (projections and queries) using the esrc framework, specifically for managing operation state."
+    },
+    "examples/operations/main.rs": {
+      "file_path": "examples/operations/main.rs",
+      "hash": "c9fae06b540fbde04c8544dbc8749b6bf943f4f3e711c96e7f26b4e6623fcc90",
+      "mtime": 1774559576159039,
+      "public_functions": [
+        "main"
+      ],
+      "summary": "Main entry point for a comprehensive example demonstrating Event Sourcing and CQRS using the esrc library and NATS. It sets up aggregates, automations, and multiple read models (in-memory and NATS KV), then executes a workflow and validates it via queries.",
+      "when_to_use": "Use this file as a reference for integrating aggregates, projections, and automations into a single application and for understanding how to perform end-to-end command/query operations."
+    },
+    "examples/operations/memory_operation_list/mod.rs": {
+      "file_path": "examples/operations/memory_operation_list/mod.rs",
+      "hash": "929e5af738ab066e9a3edc5fed8f23092c5a920b5ca9ddc3c4941ece55d4f793",
+      "mtime": 1774555668272284,
+      "public_functions": [
+        "query_name",
+        "setup"
+      ],
+      "public_types": [
+        "OperationListReadModel",
+        "OperationListQuery",
+        "OperationListProjector"
+      ],
+      "summary": "Implements an in-memory read model slice that materializes a queryable list of operations from domain events.",
+      "when_to_use": "Use when looking for an example of how to implement an in-memory read model, a projector for operation events, or a query service using NATS request-reply within an event-sourced architecture."
+    },
+    "examples/operations/send_email/mod.rs": {
+      "file_path": "examples/operations/send_email/mod.rs",
+      "hash": "e29a3e6b3321d3afc77fae9e2c01a7e09df80cda60bc3e067bf0a8fe731f2de9",
+      "mtime": 1774555668272284,
+      "public_functions": [
+        "query_name",
+        "setup"
+      ],
+      "public_types": [
+        "SentEmailReadModel",
+        "SentEmailQuery",
+        "SentEmailProjector"
+      ],
+      "summary": "An in-memory read model slice for tracking sent email records. It projects `EmailEvent` events into a searchable view store and provides a query interface to list all sent emails.",
+      "when_to_use": "Use this file when implementing or referencing the read model for email operations, specifically for listing sent emails or understanding how to setup an in-memory projector with NATS integration."
+    },
+    "examples/operations/send_notification/mod.rs": {
+      "file_path": "examples/operations/send_notification/mod.rs",
+      "hash": "8a199964e8d8ea8f56c8498b128e5ed1a524a7ee0d6da492817a4a18a62d4756",
+      "mtime": 1774559228261412,
+      "public_functions": [
+        "setup"
+      ],
+      "public_types": [
+        "SendNotificationAutomation"
+      ],
+      "summary": "An automation slice that listens for OperationCreated events and triggers a SendNotification command in the Email domain.",
+      "when_to_use": "Use this file as a reference for implementing cross-aggregate automations or to understand the notification flow triggered by operation creation."
+    },
     "examples/zero_copy/main.rs": {
       "file_path": "examples/zero_copy/main.rs",
       "hash": "8670e9986c2a1d284e0dc65ad5c8feb3534ab74fc5d69e3a295046aa2d840e12",
