@@ -106,3 +106,30 @@ References: see the definition in `plan-2-active-step.md` or `plan-3-done-steps.
 - Added helper entrypoints for normalized `ConsumerSpec` values and for slice-facing `Automation` and `ReadModel` declarations.
 - Kept runtime ownership inside infrastructure by delegating execution to `run_consumer` and handling background task error logging within `NatsStore`.
 - Preserved the existing structured naming and execution policy behavior because the spawning helpers reuse the declaration model without redefining transport concerns.
+
+## Step - add a multi-slice example for command services and automation chaining
+      status: done
+time-created: 2026-03-26 06:07:23
+   time-done: 2026-03-26 06:25:01
+
+Create an example that declares at least two vertical slices and demonstrates the intended end-to-end workflow for the new consumer declaration model.
+
+- The example should:
+  - declare at least two slices
+  - start the `CommandService`
+  - execute at least one command manually
+  - have automations listen to the published event stream and trigger new commands
+  - keep running until ctrl-c is pressed
+
+- Keep the example aligned with the declaration layer and runtime layer split established by the earlier `event_modeling` steps, so the example validates the intended slice-facing ergonomics rather than exposing transport wiring directly.
+
+- Ensure the example is sequenced after the runtime and spawning helper work, since it depends on those pieces being available and should serve as a realistic usage reference.
+
+References: see the definition in `plan-2-active-step.md` or `plan-3-done-steps.md`, step `Step - define the event_modeling module surface and consumer declaration model`.
+
+### Summary
+- Added `examples/multi-slice-command-service.rs` as an end-to-end reference for the event modeling workflow.
+- Declared two slices, signup and email delivery, each with its own aggregate, commands, and events.
+- Started both NATS-backed command services and sent an initial signup command manually through the command client API.
+- Added automation consumers that react to published events and trigger follow-up commands across slices, demonstrating command chaining through the shared event stream.
+- Kept the example running until ctrl-c so it matches the intended startup and background execution model for real applications.

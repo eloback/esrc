@@ -140,12 +140,6 @@
     - When To Use: Use this file when defining new event consumers, configuring how messages should be processed (concurrency vs sequential), or establishing identity structures for consumers within bounded contexts.
     - Types: Automation, ConsumerName, ConsumerRole, ConsumerSpec, ExecutionPolicy, ReadModel
 
-- src/nats.rs
-    - Summary: Defines the NatsStore, a JetStream-backed event store implementation. It manages stream and mirror configuration, durable/ordered consumer setup, and provides a GracefulShutdown mechanism for managing asynchronous tasks.
-    - When To Use: Include when using NATS JetStream as an event store backend, requiring management of streams, consumers, or coordinated task shutdown.
-    - Types: NatsStore, GracefulShutdown, NatsEnvelope
-    - Functions: NatsStore::try_new, NatsStore::enable_mirror, NatsStore::get_task_tracker, NatsStore::wait_graceful_shutdown, NatsStore::update_durable_consumer_option, NatsStore::client, NatsStore::run_consumer
-
 - src/nats/event.rs
     - Summary: Implements core NATS JetStream operations for NatsStore, including event publishing with OCC, stream replay, subscriptions, and durable consumer management for projections.
     - When To Use: Include this file when NATS-based event persistence, event publishing logic, or projection synchronization via JetStream is required.
@@ -156,4 +150,10 @@
     - When To Use: Include this file when implementing event projectors to build read models, handling side effects from events, or when needing to access envelope-level metadata like timestamps and IDs within a projection.
     - Types: Context, Project, DynProject
     - Functions: Context::try_with_envelope, Context::id, Context::sequence, Context::timestamp, Context::get_metadata, Context::into_inner
+
+- src/nats.rs
+    - Summary: Implementation of a NATS JetStream-backed event store, including stream configuration, durable/ordered consumer management, and graceful shutdown tracking for event-sourced tasks.
+    - When To Use: Use when interacting with NATS as an event store backend, specifically for managing streams, mirrors, and spawning background consumers for automations or read models.
+    - Types: NatsStore, GracefulShutdown, NatsEnvelope
+    - Functions: NatsStore::try_new, NatsStore::enable_mirror, NatsStore::get_task_tracker, NatsStore::wait_graceful_shutdown, NatsStore::update_durable_consumer_option, NatsStore::client, NatsStore::run_consumer, NatsStore::spawn_consumer, NatsStore::spawn_automation, NatsStore::spawn_read_model
 

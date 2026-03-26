@@ -1157,8 +1157,8 @@
     },
     "src/nats.rs": {
       "file_path": "src/nats.rs",
-      "hash": "28d1267b4d634064bcbf94c428c62842cb0a6ce4f2f884bb5b3151032fb3e31e",
-      "mtime": 1774516818669172,
+      "hash": "9b98b2791542a1e7b9712950e9aeab08cc6a0fe646cae9f5a31e0b731fda8b33",
+      "mtime": 1774516915817850,
       "public_functions": [
         "NatsStore::try_new",
         "NatsStore::enable_mirror",
@@ -1166,15 +1166,18 @@
         "NatsStore::wait_graceful_shutdown",
         "NatsStore::update_durable_consumer_option",
         "NatsStore::client",
-        "NatsStore::run_consumer"
+        "NatsStore::run_consumer",
+        "NatsStore::spawn_consumer",
+        "NatsStore::spawn_automation",
+        "NatsStore::spawn_read_model"
       ],
       "public_types": [
         "NatsStore",
         "GracefulShutdown",
         "NatsEnvelope"
       ],
-      "summary": "Defines the NatsStore, a JetStream-backed event store implementation. It manages stream and mirror configuration, durable/ordered consumer setup, and provides a GracefulShutdown mechanism for managing asynchronous tasks.",
-      "when_to_use": "Include when using NATS JetStream as an event store backend, requiring management of streams, consumers, or coordinated task shutdown."
+      "summary": "Implementation of a NATS JetStream-backed event store, including stream configuration, durable/ordered consumer management, and graceful shutdown tracking for event-sourced tasks.",
+      "when_to_use": "Use when interacting with NATS as an event store backend, specifically for managing streams, mirrors, and spawning background consumers for automations or read models."
     },
     "src/nats/command_service.rs": {
       "file_path": "src/nats/command_service.rs",

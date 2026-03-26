@@ -1,22 +1,25 @@
-## Step - expose ergonomic spawning helpers for automation and read model consumers
+## Step - add a multi-slice example for command services and automation chaining
       status: active
-time-created: 2026-03-26 06:00:43
-time-current: 2026-03-26 06:21:27
+time-created: 2026-03-26 06:07:23
+time-current: 2026-03-26 06:25:01
 
-Add high-level helpers that make startup code concise while keeping runtime ownership in infrastructure.
+Create an example that declares at least two vertical slices and demonstrates the intended end-to-end workflow for the new consumer declaration model.
 
-- Provide ergonomic methods or patterns for launching declared consumers with `NatsStore`.
-- Ensure the API keeps vertical slice code focused on declaration intent rather than transport details.
-- Align defaults with the semantics discussed in the dev chat:
-  - automations favor concurrent execution
-  - read models favor sequential execution
+- The example should:
+  - declare at least two slices
+  - start the `CommandService`
+  - execute at least one command manually
+  - have automations listen to the published event stream and trigger new commands
+  - keep running until ctrl-c is pressed
 
-- Keep the helpers compatible with the structured naming model based on bounded context, domain, and feature.
+- Keep the example aligned with the declaration layer and runtime layer split established by the earlier `event_modeling` steps, so the example validates the intended slice-facing ergonomics rather than exposing transport wiring directly.
+
+- Ensure the example is sequenced after the runtime and spawning helper work, since it depends on those pieces being available and should serve as a realistic usage reference.
 
 References: see the definition in `plan-2-active-step.md` or `plan-3-done-steps.md`, step `Step - define the event_modeling module surface and consumer declaration model`.
 
 ### Implementation Considerations
-- Added spawning helpers on `NatsStore` that launch declared consumers onto the existing task tracker instead of requiring callers to wire `run_consumer` manually.
-- Added helper variants for `ConsumerSpec`, `Automation`, and `ReadModel` so startup code can stay at the declaration layer without transport-specific conversion boilerplate.
-- Preserved infrastructure ownership of lifecycle and error reporting by keeping task spawning and runtime failure logging inside `NatsStore`.
-- Kept the helpers compatible with the existing structured consumer naming and execution policy defaults because they delegate to `run_consumer`.
+- Added a new `examples/multi-slice-command-service.rs` example that keeps the slice-facing startup flow at the declaration layer by using `Automation` declarations and `NatsStore` spawning helpers.
+- Modeled two slices, signup and email delivery, with separate aggregate, command, and event types so the example shows cross-slice command chaining through published events.
+- Started both command services, sent one manual signup command, and wired automations that react to the event stream by sending follow-up commands through the command client API.
+- Kept the example process alive until ctrl-c so it serves as a realistic end-to-end reference for command services and background consumers running together.
