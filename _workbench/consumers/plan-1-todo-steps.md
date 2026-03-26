@@ -1,15 +1,3 @@
-====
->   Info: Duration: 16s | ~$0.0844 | Prompt Tokens: 27,477 (cached: 0) | Completion Tokens: 1,050 
->  Model: gpt-5.4 (gpt-5.4-2026-03-05) | Adapter: OpenAIResp
->  Files: Context Files: 9 | Working Files: 0 | Knowledge Files: 1
->   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
-
-<suggested_git_command>
-git add -A . && git commit -m ". event_modeling - add todo plan for consumer declaration feature"
-</suggested_git_command>
-
-<FILE_CHANGES>
-<FILE_NEW file_path="_workbench/consumers/plan-1-todo-steps.md">
 ## Step - define the event_modeling module surface and consumer declaration model
       status: not_started
 time-created: 2026-03-26 06:00:43
@@ -93,6 +81,3 @@ Document how vertical slices should declare consumers with the new `event_modeli
 - Summarize the intentional implementation choices taken from `_workbench/consumers/dev-chat.md`, including favoring step 5 of `My recommended practical path` and skipping step 4 for the initial implementation.
 
 References: see the definition in `plan-2-active-step.md` or `plan-3-done-steps.md`, step `Step - define the event_modeling module surface and consumer declaration model`.
-</FILE_NEW>
-</FILE_CHANGES>
-

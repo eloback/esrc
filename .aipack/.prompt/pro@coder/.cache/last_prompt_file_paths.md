@@ -2,6 +2,16 @@
 ====
 file_content_mode: udiffx
 
+# Knowledge Files
+
+## All resolve files(sent to AI with content, in this order)
+
+- _workbench/consumers/_plan-rules.md
+
+## Pre (just for info, included in the All resolved files above)
+
+- _workbench/consumers/_plan-rules.md
+
 # Context Files
 
 ## All resolve files(sent to AI with content, in this order)
@@ -10,8 +20,10 @@ file_content_mode: udiffx
 - src/envelope.rs
 - src/nats/event.rs
 - src/project.rs
+- src/lib.rs
 - src/event.rs
 - src/nats.rs
+- _workbench/consumers/dev-chat.md
 - _workbench/consumers/dev-chat.md
 
 ## Post (just for info, included in the All resolved files above)
