@@ -25,13 +25,15 @@ file_content_mode: udiffx
 - src/event.rs
 - _workbench/consumers/dev-chat.md
 - _workbench/consumers/plan-1-todo-steps.md
-- _workbench/consumers/dev-chat.md
-- _workbench/consumers/plan-1-todo-steps.md
+- _workbench/consumers/plan-2-active-step.md
+- _workbench/consumers/plan-3-done-steps.md
 
 ## Post (just for info, included in the All resolved files above)
 
 - _workbench/consumers/dev-chat.md
 - _workbench/consumers/plan-1-todo-steps.md
+- _workbench/consumers/plan-2-active-step.md
+- _workbench/consumers/plan-3-done-steps.md
 
 # Working Files
 
