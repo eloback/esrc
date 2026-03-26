@@ -123,11 +123,11 @@ pub trait QueryService {
     /// is closed or an unrecoverable error occurs.
     fn serve<H>(&self, spec: &QuerySpec<H>) -> impl Future<Output = error::Result<()>> + Send
     where
-        H: QueryHandler + 'static,
-        H::Query: DeserializeOwned,
+        H: QueryHandler + Send + Sync + 'static,
+        H::Query: DeserializeOwned + Sync,
         H::Id: DeserializeOwned,
-        <H::Query as Query>::ReadModel: Serialize,
-        <H::Query as Query>::Response: Serialize;
+        <H::Query as Query>::ReadModel: Serialize + Sync,
+        <H::Query as Query>::Response: Serialize + Sync;
 }
 
 /// Send queries to read model service endpoints.
@@ -161,11 +161,7 @@ pub trait QueryClient {
     ///
     /// Serializes the `query`, routes it to the service endpoint associated
     /// with the given `ComponentName`, then waits for the reply.
-    async fn query<Q>(
-        &self,
-        name: &ComponentName,
-        query: Q,
-    ) -> error::Result<Q::Response>
+    async fn query<Q>(&self, name: &ComponentName, query: Q) -> error::Result<Q::Response>
     where
         Q: Query + Serialize,
         Q::Response: DeserializeOwned;

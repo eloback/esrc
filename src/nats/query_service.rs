@@ -47,11 +47,11 @@ impl QueryService for super::NatsStore {
     #[instrument(skip_all, level = "debug")]
     async fn serve<H>(&self, spec: &QuerySpec<H>) -> error::Result<()>
     where
-        H: QueryHandler + 'static,
-        H::Query: DeserializeOwned,
+        H: QueryHandler + Send + Sync + 'static,
+        H::Query: DeserializeOwned + Sync,
         H::Id: DeserializeOwned,
-        <H::Query as Query>::ReadModel: Serialize,
-        <H::Query as Query>::Response: Serialize,
+        <H::Query as Query>::ReadModel: Serialize + Sync,
+        <H::Query as Query>::Response: Serialize + Sync,
     {
         let subject = spec.name().query_subject();
         let service_name = spec.name().durable_name();
@@ -158,11 +158,7 @@ impl QueryClient for super::NatsStore {
         }
     }
 
-    async fn query<Q>(
-        &self,
-        name: &ComponentName,
-        query: Q,
-    ) -> error::Result<Q::Response>
+    async fn query<Q>(&self, name: &ComponentName, query: Q) -> error::Result<Q::Response>
     where
         Q: Query + Serialize,
         Q::Response: DeserializeOwned,
@@ -237,10 +233,10 @@ impl super::NatsStore {
     pub fn spawn_query_service<H>(&self, spec: QuerySpec<H>)
     where
         H: QueryHandler + 'static,
-        H::Query: DeserializeOwned,
+        H::Query: DeserializeOwned + Sync,
         H::Id: DeserializeOwned,
-        <H::Query as Query>::ReadModel: Serialize,
-        <H::Query as Query>::Response: Serialize,
+        <H::Query as Query>::ReadModel: Serialize + Sync,
+        <H::Query as Query>::Response: Serialize + Sync,
     {
         let store = self.clone();
         let service_name = spec.name().durable_name();
