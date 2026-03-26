@@ -176,16 +176,20 @@
     },
     "docs/skill/esrc-command-service-execute-commands.md": {
       "file_path": "docs/skill/esrc-command-service-execute-commands.md",
-      "hash": "422590cee00539db1d68c5086c82cef6cb797d2659c6902dbfba57c8f8f51f2c",
-      "mtime": 1774535997702190,
+      "hash": "9a388a31d2f1fa52dc7f5aadb8fcd6fff9ae87d2565a9e9135c71105bbc9719e",
+      "mtime": 1774562521550697,
       "public_functions": [
-        "send_command"
+        "send_command",
+        "serve",
+        "process",
+        "apply"
       ],
       "public_types": [
         "CommandClient",
+        "CommandService",
         "Aggregate"
       ],
-      "summary": "A guide on using esrc::event::command_service::CommandClient to send commands to aggregates. It explains the command execution model, error mapping, architectural best practices for slices, and testing strategies.",
+      "summary": "A guide on using esrc's CommandClient and CommandService to execute commands against aggregates. It details the command execution model, error handling strategies (Conflict, External, Internal), and architectural patterns for slice-based command triggering.",
       "when_to_use": "Use this file when a slice needs to trigger state changes via aggregates, coordinate workflows, or implement automation that reacts to events by sending commands."
     },
     "docs/skill/esrc-event-modeling-create-consumers-automations-and-read-models.md": {
@@ -214,11 +218,17 @@
     },
     "docs/skill/esrc-read-model-public-interface-and-queries.md": {
       "file_path": "docs/skill/esrc-read-model-public-interface-and-queries.md",
-      "hash": "a7587bd17ee3f2673308b680669303892c8811df67443590a6c0e6226c9082fc",
-      "mtime": 1774535997702203,
+      "hash": "b0f28d5efd70ac569d98f69345a9fb0e76588c4ffd6dc422e494ebf08990ad6a",
+      "mtime": 1774562521550697,
       "public_functions": [],
-      "public_types": [],
-      "summary": "Documentation of the standard pattern for defining slice read models and queries, focusing on the use of generated.rs for data structures and mod.rs for custom query extensions.",
+      "public_types": [
+        "Query",
+        "QueryHandler",
+        "QuerySpec",
+        "QueryService",
+        "QueryClient"
+      ],
+      "summary": "Documentation of the standard pattern for defining slice read models and queries using the esrc::query module, focusing on generated.rs for data structures and mod.rs for custom queries.",
       "when_to_use": "Use this guide when implementing or modifying a slice's read model interface, defining public query structures, or establishing the boundary between internal storage and public API types."
     },
     "docs/skill/esrc-slice-constants-and-module-layout.md": {

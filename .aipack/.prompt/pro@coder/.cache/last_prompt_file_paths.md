@@ -7,9 +7,8 @@ file_content_mode: udiffx
 ## All resolve files(sent to AI with content, in this order)
 
 - src/event/command_service.rs
+- docs/skill/esrc-slice-constants-and-module-layout.md
 - docs/skill/esrc-command-service-execute-commands.md
-- docs/skill/esrc-read-model-public-interface-and-queries.md
-- src/query/mod.rs
 
 # Working Files
 

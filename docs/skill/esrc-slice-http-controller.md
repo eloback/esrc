@@ -1,14 +1,3 @@
-====
->   Info: Duration: 42s | ~$0.0982 | Prompt Tokens: 7,061 (cached: 0, cache_creation: 0) | Completion Tokens: 2,517 
->  Model: claude-opus-4-6 | Adapter: Anthropic
->  Files: Context Files: 3 | Working Files: 0 | Knowledge Files: 0
->   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
-
-
-
-<FILE_CHANGES>
-
-<FILE_NEW file_path="docs/skill/esrc-slice-http-controller.md">
 # Skill, Create an HTTP controller inside an esrc slice
 
 ## Goal
@@ -29,7 +18,6 @@ Standardize how an HTTP controller is created inside a vertical slice, ensuring:
 - The slice already declares `FEATURE_NAME` as a `const` at its root module (see `esrc-slice-constants-and-module-layout` skill).
 - The slice defines an `ENDPOINT` constant that holds the HTTP path for this feature.
 - The application state type (`AppState`) is defined in a shared `common::state` module and is accessible from the slice.
-- The slice may have a `command` submodule or similar that exposes domain command types and errors.
 
 ## Slice file layout with HTTP controller
 
@@ -42,7 +30,6 @@ Extending the standard slice layout:
   - `generated.rs`
   - `read_model.rs` (optional)
   - `automation.rs` (optional)
-  - `commands.rs` (optional)
 
 Notes:
 
@@ -131,9 +118,12 @@ pub enum ErrorResponses {
 Implement `From` conversions from domain errors to `ErrorResponses`:
 
 ```rust
-impl From<command::FeatureError> for ErrorResponses {
-    fn from(_err: command::FeatureError) -> Self {
-        ErrorResponses::InternalServerError
+impl From<esrc::Error> for ErrorResponses {
+    fn from(_err: esrc::Error) -> Self {
+        match _err {
+            esrc::Error::External(err) => ErrorResponses::ValidationError { detail: err.to_string() },
+            ...
+        }
     }
 }
 ```
@@ -185,11 +175,8 @@ pub async fn controller(
     State(state): State<AppState>,
     Json(body): Json<CreateOperationRequest>,
 ) -> Result<Json<CreateOperationResponse>, ErrorResponses> {
-    let cmd = command::CreateOperation {
-        aggregate_id: body.aggregate_id,
-    };
 
-    state.command_bus.dispatch(cmd).await?;
+    /// command or query dispatch normally
 
     Ok(Json(CreateOperationResponse {
         aggregate_id: body.aggregate_id,
@@ -273,11 +260,3 @@ Guidelines:
   - Asserting the response status code and body.
   - Asserting error responses for validation failures, conflicts, and internal errors.
 - Verify OpenAPI schema generation includes the endpoint, request body, and all response variants.
-</FILE_NEW>
-
-</FILE_CHANGES>
-
-<suggested_git_command>
-git add -A . && git commit -m "+ docs/skill - Add esrc slice HTTP controller skill file"
-</suggested_git_command>
-

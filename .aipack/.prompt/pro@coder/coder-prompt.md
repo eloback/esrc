@@ -17,7 +17,7 @@ knowledge_globs:
 context_globs:
   - Cargo.toml # for Rust
   - src/**/*
-  - examples/**/*
+  # - examples/**/*
   - docs/skill/**/*
   # - examples/multi-slice-command-service/**/*
   # - examples/basic-query-service/**/*
@@ -53,39 +53,103 @@ model: opus
 ## (see PATH_TO_PRO_CODER_DIR/README.md for full pro@coder documentation)
 ```
 
-Update the skills with the changes in the command_handler and query_handler, also update the Query definition in the queries skill
+Generate a skill file for http controller creation inside a slice.
+here is how to setup a basic http controller inside a slice with our custom http server.
+
+- the custom http_server crate is defined in the workspace.
+- the custom error_responses_macro is defined in the workspace also.
+- the http_server prelude export utoipa and other utils that composes all our http controllers
+
+```rust
+// http.rs
+use super::*;
+use crate::common::state::AppState;
+use error_responses_macro::ErrorResponses;
+use http_server::prelude::*;
+use serde::{Deserialize, Serialize};
+use tracing::instrument;
+use uuid::Uuid;
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct <FeatureName>Request {
+    pub aggregate_id: Uuid,
+    // other fields
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct <FeatureName>Response {
+    pub aggregate_id: Uuid,
+    // other fields
+}
+
+#[derive(Debug, Clone, Serialize, utoipa::ToSchema, ErrorResponses)]
+#[error_responses(endpoint = ENDPOINT)]
+pub enum ErrorResponses {
+    #[error(status = 400, title = "Validation Error")]
+    ValidationError { detail: String },
+
+    #[error(status = 409, title = "Conflict")]
+    Conflict,
+
+    #[error(status = 500, title = "Internal Server Error")]
+    InternalServerError,
+}
+
+impl From<command::FeatureError> for ErrorResponses {
+    fn from(_err: command::FeatureError) -> Self {
+        ErrorResponses::InternalServerError
+    }
+}
+
+const SPAN_NAME: &str = const_format::concatcp!(FEATURE_NAME, "::http");
+
+#[instrument(name = SPAN_NAME, skip_all)]
+#[utoipa::path(
+    post,
+    path = ENDPOINT,
+    request_body = <FeatureName>Request,
+    responses(
+        (status = CREATED, body = <FeatureName>Response),
+        ErrorResponses
+    )
+)]
+pub async fn controller(
+    State(state): State<AppState>,
+    Json(body): Json<<FeatureName>Request>,
+) -> Result<Json<<FeatureName>Response>, ErrorResponses> {
+    let cmd = command::FeatureCommand {
+        aggregate_id: body.aggregate_id,
+        // ...
+    };
+
+    state.command_bus.dispatch(cmd).await?;
+
+    Ok(Json(<FeatureName>Response {
+        aggregate_id: body.aggregate_id,
+        // ...
+    }))
+}
+// setup.rs
+use super::*;
+use http_server::prelude::*;
+use common::state::AppState;
+
+pub fn setup(
+    store: NatsStore,
+    router: &mut OpenApiRouter<AppState>,
+) {
+    //...
+    let new_router = std::mem::take(router).routes(routes!(http::controller));
+    *router = new_router;
+}
+```
 
 ====
->   Info: Duration: 47s | ~$0.1177 | Prompt Tokens: 7,501 (cached: 0, cache_creation: 0) | Completion Tokens: 3,207 
+>   Info: Duration: 42s | ~$0.0982 | Prompt Tokens: 7,061 (cached: 0, cache_creation: 0) | Completion Tokens: 2,517 
 >  Model: claude-opus-4-6 | Adapter: Anthropic
->  Files: Context Files: 4 | Working Files: 0 | Knowledge Files: 0
+>  Files: Context Files: 3 | Working Files: 0 | Knowledge Files: 0
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
-Looking at the source files, I need to identify what changed compared to what the skill docs describe:
-
-1. **Command Service skill** (`esrc-command-service-execute-commands.md`):
-   - The trait is `CommandClient` with method `send_command` - this matches the source. Let me check more carefully.
-   - The source shows `CommandService` trait with `serve` method and `CommandClient` trait with `send_command` method. The skill doc seems aligned but let me check for any naming discrepancies or parameter changes.
-
-2. **Query skill** (`esrc-read-model-public-interface-and-queries.md`):
-   - The source shows `Query` trait now has `ReadModel` and `Response` associated types (not just a simple query struct).
-   - `QueryHandler` has `get_by_id` and `handle` methods.
-   - `QueryClient` has `get_by_id` and `query` methods.
-   - `QueryService` has `serve` taking a `QuerySpec`.
-   - The skill doc doesn't mention any of the `Query` trait, `QueryHandler`, `QueryClient`, `QueryService`, `QuerySpec`, or `QueryTransport` patterns.
-
-The query skill needs significant updates to reflect the actual `Query` trait definition and usage patterns. The command service skill looks mostly aligned but I should verify it matches precisely.
-
-Let me also check: the command service skill mentions `CommandClient` and `send_command` which match. The error variants mentioned (`Conflict`, `External`, `Internal`, `Format`) should be verified against the error module, but since we don't have that file, I'll keep them as-is.
-
-Key updates needed:
-
-**Command service skill**: Looks mostly correct. The `serve` method signature now takes no `QuerySpec`-like arg, just generic `A`. This matches the doc. Seems fine.
-
-**Query skill**: Needs major updates to document the `Query` trait, `QueryHandler`, `QueryClient`, `QueryService`, `QuerySpec`, and how slices should define their query types implementing the `Query` trait.
-
-
-
 <suggested_git_command>
-git commit -a -m "^ docs/skill - Update command service and query skill docs to match current trait signatures"
+git add -A . && git commit -m "+ docs/skill - Add esrc slice HTTP controller skill file"
 </suggested_git_command>

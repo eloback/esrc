@@ -10,12 +10,6 @@
     - When To Use: Include this file when implementing or interacting with event storage logic that requires stream pruning or size management, especially when combined with snapshotting.
     - Types: Truncate
 
-- examples/zero_copy/main.rs
-    - Summary: An example demonstrating how events can use zero-copy deserialization by tying event lifetimes to the source Envelope within the esrc framework.
-    - When To Use: Use this file as a reference for implementing memory-efficient event projection or when working with HRTB (Higher-Rank Trait Bounds) for event lifetimes.
-    - Types: ZeroCopyEvent, NamePrinter, NamePrinterError
-    - Functions: main
-
 - src/version.rs
     - Summary: Defines core traits and re-exports derive macros for versioned serialization and deserialization, allowing types to handle schema evolution by associating a version number with serialized data.
     - When To Use: Use this file when you need to define data structures (like events) that require versioning for backward compatibility and schema migration during deserialization.
@@ -101,16 +95,6 @@
     - Types: ConsumerName, ConsumerRole, ExecutionPolicy, ConsumerSpec, Automation, ReadModel, Project
     - Functions: ConsumerName::new, Automation::new, ReadModel::new, max_concurrency, with_execution_policy, into_spec
 
-- docs/skill/esrc-command-service-execute-commands.md
-    - Summary: A guide on using esrc::event::command_service::CommandClient to send commands to aggregates. It explains the command execution model, error mapping, architectural best practices for slices, and testing strategies.
-    - When To Use: Use this file when a slice needs to trigger state changes via aggregates, coordinate workflows, or implement automation that reacts to events by sending commands.
-    - Types: CommandClient, Aggregate
-    - Functions: send_command
-
-- docs/skill/esrc-read-model-public-interface-and-queries.md
-    - Summary: Documentation of the standard pattern for defining slice read models and queries, focusing on the use of generated.rs for data structures and mod.rs for custom query extensions.
-    - When To Use: Use this guide when implementing or modifying a slice's read model interface, defining public query structures, or establishing the boundary between internal storage and public API types.
-
 - src/nats/query_service.rs
     - Summary: Implements NATS-based query services and clients using request-reply patterns. It provides the logic to serve read models and custom queries over NATS, as well as the client implementation to invoke those queries.
     - When To Use: Use this file when dealing with NATS-backed query handlers, implementing read model retrieval, or managing the lifecycle of background query services within the NATS messaging layer.
@@ -147,49 +131,6 @@
     - Types: ConsumerRole, ExecutionPolicy, ComponentName, ConsumerSpec, Automation, ReadModel, ReadModelSlice
     - Functions: ConsumerRole::default_execution_policy, ComponentName::new, ComponentName::bounded_context, ComponentName::domain, ComponentName::feature, ComponentName::component, ComponentName::durable_name, ComponentName::query_subject, ComponentName::slice_path, ConsumerSpec::new, ConsumerSpec::name, ConsumerSpec::role, ConsumerSpec::execution_policy, ConsumerSpec::projector, ConsumerSpec::projector_mut, ConsumerSpec::into_projector, ConsumerSpec::with_execution_policy, Automation::new, Automation::with_execution_policy, Automation::max_concurrency, Automation::as_spec, Automation::into_spec, ReadModel::new, ReadModel::with_execution_policy, ReadModel::as_spec, ReadModel::into_spec, ReadModelSlice::new, ReadModelSlice::with_execution_policy, ReadModelSlice::with_query_transport, ReadModelSlice::consumer_spec, ReadModelSlice::query_spec, ReadModelSlice::into_specs, ReadModelSlice::name, ReadModelSlice::projector, ReadModelSlice::projector_mut, ReadModelSlice::handler, ReadModelSlice::handler_mut
 
-- examples/operations/domain/operation.rs
-    - Summary: Defines the core domain logic for an 'operation' aggregate, including its commands, events, errors, and state transition logic using the Event Sourcing pattern.
-    - When To Use: Include this file when you need to understand or interact with the business rules, event definitions, or state management of the 'operation' domain entity.
-    - Types: DOMAIN_NAME, OperationEvent, OperationCommand, OperationError, OperationAggregate
-
-- examples/operations/domain/email.rs
-    - Summary: Defines the domain logic for an email aggregate, including commands for sending notifications and tracking if they have already been sent.
-    - When To Use: Use this file when implementing or referencing email domain logic in an event-sourced system, specifically for preventing duplicate notification sends.
-    - Types: DOMAIN_NAME, EmailEvent, EmailCommand, EmailError, EmailAggregate
-
-- examples/operations/kv_operation_view/mod.rs
-    - Summary: Implements a read model slice that materializes operation views into a NATS Key-Value bucket, reacting to domain events like creation and completion.
-    - When To Use: Use this file when you need to understand how to implement a NATS KV-backed read model (projections and queries) using the esrc framework, specifically for managing operation state.
-    - Types: OperationViewReadModel, OperationViewQuery, OperationViewProjector
-    - Functions: query_name, setup
-
-- examples/operations/memory_operation_list/mod.rs
-    - Summary: Implements an in-memory read model slice that materializes a queryable list of operations from domain events.
-    - When To Use: Use when looking for an example of how to implement an in-memory read model, a projector for operation events, or a query service using NATS request-reply within an event-sourced architecture.
-    - Types: OperationListReadModel, OperationListQuery, OperationListProjector
-    - Functions: query_name, setup
-
-- examples/operations/send_email/mod.rs
-    - Summary: An in-memory read model slice for tracking sent email records. It projects `EmailEvent` events into a searchable view store and provides a query interface to list all sent emails.
-    - When To Use: Use this file when implementing or referencing the read model for email operations, specifically for listing sent emails or understanding how to setup an in-memory projector with NATS integration.
-    - Types: SentEmailReadModel, SentEmailQuery, SentEmailProjector
-    - Functions: query_name, setup
-
-- examples/operations/send_notification/mod.rs
-    - Summary: An automation slice that listens for OperationCreated events and triggers a SendNotification command in the Email domain.
-    - When To Use: Use this file as a reference for implementing cross-aggregate automations or to understand the notification flow triggered by operation creation.
-    - Types: SendNotificationAutomation
-    - Functions: setup
-
-- examples/operations/domain/mod.rs
-    - Summary: Root module for the domain layer of the operations bounded context. It exports the operation and email submodules and defines a global constant for the bounded context name.
-    - When To Use: Use this file to understand the domain organization of the operations context or to reference the BOUNDED_CONTEXT_NAME constant.
-
-- examples/operations/main.rs
-    - Summary: Main entry point for a comprehensive example demonstrating Event Sourcing and CQRS using the esrc library and NATS. It sets up aggregates, automations, and multiple read models (in-memory and NATS KV), then executes a workflow and validates it via queries.
-    - When To Use: Use this file as a reference for integrating aggregates, projections, and automations into a single application and for understanding how to perform end-to-end command/query operations.
-    - Functions: main
-
 - src/nats/command_service.rs
     - Summary: Implements NATS-based command handling for event-sourced aggregates, featuring a service that reconstructs state via replay to execute commands and a client for NATS request-reply communication.
     - When To Use: Use this file to set up a command processing listener for an aggregate or to send commands to a remote aggregate service over NATS.
@@ -210,4 +151,15 @@
     - Summary: The crate root for the esrc library, defining the core module structure and re-exporting primary traits and types for event sourcing, including aggregates, envelopes, and event types.
     - When To Use: Include this file to understand the overall architecture of the library, identify available sub-modules (like NATS), or see the main public API entry points.
     - Types: Aggregate, Envelope, Error, Event, EventGroup
+
+- docs/skill/esrc-command-service-execute-commands.md
+    - Summary: A guide on using esrc's CommandClient and CommandService to execute commands against aggregates. It details the command execution model, error handling strategies (Conflict, External, Internal), and architectural patterns for slice-based command triggering.
+    - When To Use: Use this file when a slice needs to trigger state changes via aggregates, coordinate workflows, or implement automation that reacts to events by sending commands.
+    - Types: CommandClient, CommandService, Aggregate
+    - Functions: send_command, serve, process, apply
+
+- docs/skill/esrc-read-model-public-interface-and-queries.md
+    - Summary: Documentation of the standard pattern for defining slice read models and queries using the esrc::query module, focusing on generated.rs for data structures and mod.rs for custom queries.
+    - When To Use: Use this guide when implementing or modifying a slice's read model interface, defining public query structures, or establishing the boundary between internal storage and public API types.
+    - Types: Query, QueryHandler, QuerySpec, QueryService, QueryClient
 
