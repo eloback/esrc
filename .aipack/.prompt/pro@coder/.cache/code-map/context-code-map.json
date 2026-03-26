@@ -966,8 +966,8 @@
     },
     "src/event/command_service.rs": {
       "file_path": "src/event/command_service.rs",
-      "hash": "73f439c60c0686701743cae0a07803734d316e7c2243eb3acd3e0a80728624de",
-      "mtime": 1774511393441022,
+      "hash": "10b156e5ae2ae9d9908768fe5a9dd18823c6692d2a16b5478d746e6cd25dfc1a",
+      "mtime": 1774511728547547,
       "public_functions": [],
       "public_types": [
         "CommandService",
@@ -1160,8 +1160,8 @@
     },
     "src/nats/command_service.rs": {
       "file_path": "src/nats/command_service.rs",
-      "hash": "2613246be51ad823343e194c211ff762437dc48d4335c5473021ffb7aa2fa612",
-      "mtime": 1774511393441022,
+      "hash": "59071afcebcf783e1305f9a6b37ee7f81b9f6dabd6afdfbfe54d14c1dfdb98a6",
+      "mtime": 1774511728547547,
       "public_functions": [
         "serve",
         "spawn_service",
@@ -1172,8 +1172,8 @@
         "ReplyError",
         "CommandReply"
       ],
-      "summary": "Implements NATS-based command handling for aggregates, including a service listener that replays aggregate state to process commands and a client for sending commands via request/reply.",
-      "when_to_use": "Use this file when configuring NATS command services, spawning background command listeners for aggregates, or dispatching commands to NATS-based event stores."
+      "summary": "Implements a NATS-based command service for event-sourced aggregates, providing a listener that replays aggregate state to process commands and a client for sending commands via the NATS request/reply pattern.",
+      "when_to_use": "Use this file when configuring NATS command handlers for aggregates, spawning background command services, or using the NatsStore to dispatch commands."
     },
     "src/nats/convert.rs": {
       "file_path": "src/nats/convert.rs",

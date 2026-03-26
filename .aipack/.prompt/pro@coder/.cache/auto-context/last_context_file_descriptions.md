@@ -136,20 +136,20 @@
     - Types: CommandClient, CommandService, Event, EventGroup, Publish, PublishExt, Replay, ReplayExt, ReplayOne, ReplayOneExt, Sequence, Subscribe, SubscribeExt, Truncate
     - Functions: Sequence::new
 
-- src/event/command_service.rs
-    - Summary: Defines traits for serving and interacting with command-handling services for event-sourced aggregates.
-    - When To Use: Use this file when implementing a service to process aggregate commands or a client to send commands to such a service.
-    - Types: CommandService, CommandClient
-
 - src/nats.rs
     - Summary: Defines the NatsStore, a JetStream-backed event store implementation. It manages stream and mirror configuration, durable/ordered consumer setup, and provides a GracefulShutdown mechanism for managing asynchronous tasks.
     - When To Use: Include when using NATS JetStream as an event store backend, requiring management of streams, consumers, or coordinated task shutdown.
     - Types: NatsStore, GracefulShutdown, NatsEnvelope
     - Functions: NatsStore::try_new, NatsStore::enable_mirror, NatsStore::get_task_tracker, NatsStore::wait_graceful_shutdown, NatsStore::update_durable_consumer_option, NatsStore::client
 
+- src/event/command_service.rs
+    - Summary: Defines traits for serving and interacting with command-handling services for event-sourced aggregates.
+    - When To Use: Use this file when implementing a service to process aggregate commands or a client to send commands to such a service.
+    - Types: CommandService, CommandClient
+
 - src/nats/command_service.rs
-    - Summary: Implements NATS-based command handling for aggregates, including a service listener that replays aggregate state to process commands and a client for sending commands via request/reply.
-    - When To Use: Use this file when configuring NATS command services, spawning background command listeners for aggregates, or dispatching commands to NATS-based event stores.
+    - Summary: Implements a NATS-based command service for event-sourced aggregates, providing a listener that replays aggregate state to process commands and a client for sending commands via the NATS request/reply pattern.
+    - When To Use: Use this file when configuring NATS command handlers for aggregates, spawning background command services, or using the NatsStore to dispatch commands.
     - Types: ReplyError, CommandReply
     - Functions: serve, spawn_service, handle_request, send_command
 

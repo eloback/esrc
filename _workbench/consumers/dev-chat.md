@@ -1,15 +1,517 @@
-====
->   Info: Duration: 1m 6s | ~$0.1001 | Prompt Tokens: 12,230 (cached: 0) | Completion Tokens: 4,637 
->  Model: gpt-5.4 (gpt-5.4-2026-03-05) | Adapter: OpenAIResp
->  Files: Context Files: 7 | Working Files: 0 | Knowledge Files: 0
->   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
+# Dev Chat
 
-<suggested_git_command>
-git commit -a -m ". dev-chat - expand consumer design discussion with code examples"
-</suggested_git_command>
+Add a new `## Request: _user_ask_title_concise_` with the answer below (concise title). Use markdown sub-headings for sub sections. Keep this top instruction in this file.
 
-<FILE_CHANGES>
-<FILE_APPEND file_path="_workbench/consumers/dev-chat.md">
+## Original request
+
+I'm trying to create a way to streamline consumer declaration on my vertical slices.
+Most of the time i have two types of consumers:
+
+- Automations: parallel/concurrent, run a Project with internal events and normally trigger a internal command, can do side effects or call external apis.
+- Read Models: sequential, run a Project with internal events, normally update a persistent store, can call call external apis, normally don't do side effects.
+  currently i have these functions in another branch, but i don't really like them.
+
+give me your thoughts in how could i do this.
+
+```rs
+#[instrument(skip_all, level = "debug")]
+       async fn durable_subscribe<G: EventGroup>(
+           &self,
+           unique_name: &str,
+       ) -> error::Result<impl Stream<Item = error::Result<Self::Envelope>> + Send> {
+           let (_, subjects) = {
+               let mut names = G::names().collect::<Vec<_>>();
+               names.sort();
+
+               let subjects = names
+                   .iter()
+                   .map(|&n| NatsSubject::Event(n.into()).into_string(self.prefix))
+                   .collect();
+               (names.join("-"), subjects)
+           };
+
+           let consumer = self
+               .durable_consumer(unique_name.to_string(), subjects)
+               .await?;
+           Ok(consumer
+               .messages()
+               .await?
+               .map(|m| NatsEnvelope::try_from_message(self.prefix, m?)))
+       }
+
+       #[instrument(skip_all, level = "debug")]
+       async fn start_automation<P>(
+           &self,
+           projector: P,
+           feature_name: &str,
+           max_concurrency: impl Into<Option<usize>> + Send,
+       ) -> error::Result<()>
+       where
+           P: Project + 'static,
+       {
+           let stream = pin!(
+               self.durable_subscribe::<P::EventGroup>(feature_name)
+                   .await?,
+           );
+
+           let (exit, incoming) = Valved::new(stream);
+           self.graceful_shutdown
+               .exit_tx
+               .send(exit)
+               .await
+               .expect("should be able to send graceful trigger");
+
+           // Configure throughput (concurrent workers)
+           incoming
+               .for_each_concurrent(max_concurrency, |message| {
+                   let projector = projector.clone();
+
+                   async move {
+                       if let Err(e) = NatsStore::process_message(&projector, message).await {
+                           tracing::error!("Error processing message: {:?}", e);
+                       }
+                   }
+               })
+               .await;
+           //// for read models the following code is used
+           // while let Some(message) = incoming.next().await {
+           //  let projector = projector.clone();
+           //
+           //  if let Err(e) = NatsStore::process_message(&projector, message).await {
+           //      tracing::error!("Error processing message: {:?}", e);
+           //  }
+
+           Ok(())
+       }
+```
+
+## Request: Streamline consumer declarations for automations and read models
+
+### Summary
+
+Your current direction makes sense, but I would avoid exposing low-level lifecycle details like `durable_subscribe` and `start_automation` as the main public model for vertical slices.
+
+I think the cleanest shape is to make the slice declare intent, and let infrastructure derive the consumer mechanics from that intent.
+
+The two categories you described are real and useful:
+
+- Automations
+- Read models
+
+But I would not model them only as "one uses `for_each_concurrent`, one uses `while let Some(...)`".
+
+I would model them as two consumer roles with different operational semantics.
+
+### What feels off in the current API
+
+#### `durable_subscribe`
+
+This is reasonable as an internal primitive, but not a great abstraction boundary for feature code.
+
+Why:
+
+- The slice probably should not care that the implementation detail is a durable NATS consumer.
+- The interesting thing at slice level is not "subscribe durably", it is "run this consumer with these guarantees".
+- `unique_name: &str` is operationally necessary, but weak as a domain abstraction. It invites ad hoc naming.
+
+So I would keep something like this internally, but not make it the declaration style that features build around.
+
+#### `start_automation`
+
+This is closer to the right level, but still mixes too many concerns:
+
+- subscription creation
+- shutdown wiring
+- concurrency policy
+- error handling strategy
+- message processing
+- feature identity
+
+That usually leads to copy-paste variants later, like:
+
+- start automation
+- start read model
+- start automation with retry
+- start read model from mirror
+- start automation with custom durable name
+- start automation with ordered processing
+- etc.
+
+That is usually a sign the abstraction should move one level up.
+
+### Recommended direction
+
+### 1. Introduce a first-class "consumer declaration" concept
+
+I would define one infrastructure-facing declaration per consumer, probably something conceptually like:
+
+- feature name
+- consumer name
+- consumer kind
+- projector
+- delivery mode / ordering mode
+- concurrency policy
+- ack / retry / error policy
+- source stream selection if needed
+
+Not implementation now, just conceptually.
+
+The important part is that a vertical slice declares:
+
+- what it consumes
+- what role it plays
+- what execution guarantees it needs
+
+Instead of declaring:
+
+- how to create the stream
+- how to iterate it
+- how to wire shutdown
+- how to branch automation vs read model manually
+
+### 2. Treat "automation" and "read model" as roles, not just helpers
+
+I think these should be explicit roles in your model.
+
+For example, conceptually:
+
+- `Automation`
+  - concurrent by default
+  - at-least-once processing
+  - side effects allowed
+  - command triggering expected
+  - ordering usually not guaranteed globally
+- `ReadModel`
+  - sequential by default
+  - deterministic handling preferred
+  - persistence/update oriented
+  - stronger expectation around ordering per consumer
+  - side effects discouraged, or at least treated as exceptional
+
+That gives you a better language for the framework and for the feature author.
+
+### 3. Put concurrency and ordering behind policy, not separate loops
+
+Instead of having "automation code path" and "read model code path", I would prefer a single runner that executes according to a policy.
+
+Conceptually the runner gets:
+
+- a message stream
+- a processor
+- an execution policy
+
+And execution policy defines things like:
+
+- `Sequential`
+- `Concurrent { max_in_flight }`
+
+Later you can extend with:
+
+- `PartitionedByAggregate`
+- `BoundedConcurrent`
+- `SequentialWithBackoff`
+- `ConcurrentWithRetryQueue`
+
+This is useful because some automations may need sequential behavior, and some read models may later tolerate bounded concurrency. If you hard-code role -> loop shape, the model becomes rigid too early.
+
+### 4. Separate declaration from runtime wiring
+
+I would split the mental model into two layers:
+
+#### Declaration layer
+
+Owned by the vertical slice.
+
+This should answer:
+
+- which `Project`
+- which role
+- which stable consumer name
+- which execution policy
+- maybe whether it is optional / enabled
+
+#### Runtime layer
+
+Owned by infrastructure.
+
+This should answer:
+
+- create durable consumer
+- attach to mirror or main stream
+- process envelopes
+- ack
+- log
+- retry / poison handling
+- graceful shutdown
+- task spawning
+
+This keeps the slices simple and keeps NATS-specific mechanics out of their surface area.
+
+### Naming thoughts
+
+I would avoid names like `start_automation` as the main public abstraction if you also expect read models and maybe more consumer categories later.
+
+Possible conceptual naming directions:
+
+- `run_consumer`
+- `start_consumer`
+- `register_consumer`
+- `spawn_consumer`
+- `launch_consumer`
+
+Then the declaration carries whether it is an automation or read model.
+
+That is easier to scale than adding one start function per category.
+
+### Consumer identity
+
+`feature_name` and `unique_name` are the right idea, but I would strongly recommend a structured naming model.
+
+You probably want a stable consumer identity derived from something like:
+
+- bounded context / app
+- slice or feature
+- consumer role
+- projector name or explicit consumer name
+
+For example conceptually:
+
+- `billing.invoice-read-model`
+- `billing.send-payment-reminder`
+- `identity.sync-crm`
+
+This matters because durable consumers become operational assets, not just code details.
+
+I would avoid arbitrary string arguments spread around call sites. Better to centralize naming in the declaration.
+
+### Suggested shape for vertical slices
+
+What I think would feel best is if each slice exposes a small list of consumers it owns.
+
+Conceptually, not code:
+
+- read models it runs
+- automations it runs
+
+Then app startup collects all declarations and passes them to a shared runtime.
+
+That gives you:
+
+- one place per slice to see all consumers
+- less startup boilerplate
+- easier consistency in naming and policies
+- easier testing and introspection later
+
+### How I would distinguish the two categories
+
+### Automations
+
+I would define them with these expectations:
+
+- may run concurrently
+- may trigger commands
+- may call external APIs
+- should be idempotent
+- should tolerate redelivery
+- should usually ack only after successful completion
+- failures should be observable and maybe retried
+
+Main design implication:
+
+- treat them as workflow handlers, not just projections
+
+Even if they implement `Project`, operationally they are different from read models.
+
+You may eventually want a different trait name for them, even if they share the same envelope-to-handler pipeline underneath.
+
+### Read models
+
+I would define them with these expectations:
+
+- usually sequential
+- deterministic and replay-friendly
+- update persistent views
+- preferably no non-essential side effects
+- should be restart-safe
+- often should use a stable dedicated durable consumer
+- often good candidates for mirrored streams / isolated read state
+
+Main design implication:
+
+- treat them as state builders
+
+That difference is meaningful enough that I would preserve it in your declarations.
+
+### Should both still use `Project`?
+
+Short answer, yes for now, but maybe not forever.
+
+Using `Project` for both is fine if:
+
+- both consume the same typed event context
+- both fit the same `project(context) -> Result<(), Error>` handling model
+
+But conceptually, "automation" is often not really a projection. It is more like:
+
+- react to event
+- decide command
+- invoke side effect
+- maybe emit telemetry
+- maybe schedule follow-up work
+
+So I think this is okay as an implementation reuse strategy, but I would not force your external design language to pretend they are the same thing.
+
+A good compromise is:
+
+- keep `Project` internally as the handler contract
+- wrap it in consumer declarations with role-specific semantics
+
+### Strong recommendation, unify processing pipeline
+
+Your `process_message` idea is good. I would lean into that.
+
+You want one shared processing pipeline that does:
+
+- decode envelope
+- create `Context`
+- call handler
+- map errors
+- ack
+- log/tracing
+- maybe metrics
+
+Then your consumer runtime only varies in:
+
+- stream source
+- consumer identity
+- execution policy
+- error strategy
+
+This reduces divergence between automation and read model runners.
+
+### Error strategy matters more than it looks
+
+This is the part I would design explicitly now, even if you do not implement it yet.
+
+Because automations and read models often want different failure semantics.
+
+For example:
+
+- Read model failure may need to stop the consumer immediately, preserving order and consistency.
+- Automation failure may be okay to retry, dead-letter, or park, depending on the side effect.
+
+If this is not modeled, the runtime tends to accumulate hidden special cases.
+
+So in the declaration, I would eventually want a policy like:
+
+- stop on first error
+- log and continue
+- retry with backoff
+- send to dead letter / park stream
+
+Even if v1 only supports one policy, designing for it now will help.
+
+### About graceful shutdown
+
+I would definitely keep shutdown management out of slice-facing APIs.
+
+Slices should not know about:
+
+- valves
+- triggers
+- trackers
+- internal task control
+
+They should just declare consumers, and the runtime should own lifecycle.
+
+That means your current shutdown wiring is good infrastructure code, but not a good declaration pattern for feature code.
+
+### Suggested architectural model
+
+### Option A, one trait for all declared consumers
+
+A single declaration abstraction, with role + policy fields.
+
+Pros:
+
+- simple
+- scalable
+- one registry / startup path
+- role-specific behavior still possible
+
+This is the approach I would choose first.
+
+### Option B, separate declaration types for automations and read models
+
+Two declarations:
+
+- automation declaration
+- read model declaration
+
+Pros:
+
+- clearer ergonomics for slice authors
+- better defaults
+- stronger semantic separation
+
+Cons:
+
+- some duplication
+- might later need shared internal normalization anyway
+
+This is also a good option if you want the API to feel very obvious to application developers.
+
+My bias:
+
+- external API: separate declaration builders or constructors for ergonomics
+- internal runtime: normalize both into one generic consumer spec
+
+That tends to give the best of both worlds.
+
+### Example of the design direction I would aim for
+
+Not implementation, just the target feel:
+
+- a slice declares a read model consumer with a stable name and default sequential execution
+- a slice declares an automation consumer with a stable name and configured concurrency
+- startup registers both with a shared runtime
+- runtime owns durable naming, shutdown, acking, retries, tracing, and task spawning
+
+So the slice says:
+
+- "run this projector as a read model"
+- "run this projector as an automation with max concurrency N"
+
+Not:
+
+- "subscribe durably, valve the stream, wire shutdown, choose the loop, clone the projector, process the message"
+
+That is the key simplification I would chase.
+
+### Practical recommendation for your next iteration
+
+If I were refining this branch, I would do this conceptually:
+
+- keep `durable_subscribe` private infrastructure
+- keep a single shared `process_message`
+- introduce consumer declarations
+- give declarations a `role`
+- give declarations an execution policy
+- make startup consume declarations
+- derive durable names from declaration identity, not ad hoc string arguments
+- keep graceful shutdown fully inside runtime
+
+### Final opinion
+
+I think your intuition is correct, the current functions are useful building blocks, but not the final API you want for vertical slices.
+
+The strongest design is:
+
+- slices declare consumers
+- declarations express role and guarantees
+- runtime handles transport and lifecycle
+
+That keeps your slice code intention-revealing, keeps NATS concerns localized, and gives you room to evolve retry, ordering, mirrors, partitioning, and observability later without changing every feature.
 
 ## Request: Expand the consumer declaration design with code examples
 
@@ -859,7 +1361,4 @@ That gives you:
 - room for retries, mirrors, partitioning, and observability later
 
 If you want, next I can turn this into a more concrete draft API that matches your current `NatsStore` and `Project` traits closely, using your existing types and naming style rather than pseudo-infrastructure code.
-
-</FILE_APPEND>
-</FILE_CHANGES>
 
