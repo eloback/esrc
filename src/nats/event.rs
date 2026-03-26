@@ -158,11 +158,7 @@ impl NatsStore {
         message: error::Result<NatsEnvelope>,
     ) -> error::Result<()>
     where
-        P: for<'de> Project<
-                EventGroup = <P as Project>::EventGroup,
-                Error = <P as Project>::Error,
-            > + Send
-            + Sync,
+        P: Project + Send + Sync,
         P::EventGroup: EventGroup + Send,
         P::Error: std::error::Error + Send + Sync + 'static,
     {
@@ -182,13 +178,7 @@ impl NatsStore {
     ) -> error::Result<()>
     where
         S: Stream<Item = error::Result<NatsEnvelope>> + Send + Unpin,
-        P: for<'de> Project<
-                EventGroup = <P as Project>::EventGroup,
-                Error = <P as Project>::Error,
-            > + Send
-            + Sync
-            + Clone
-            + 'static,
+        P: Project + Send + Sync + Clone + 'static,
         P::EventGroup: EventGroup + Send,
         P::Error: std::error::Error + Send + Sync + 'static,
     {
@@ -208,13 +198,7 @@ impl NatsStore {
     ) -> error::Result<()>
     where
         S: Stream<Item = error::Result<NatsEnvelope>> + Send,
-        P: for<'de> Project<
-                EventGroup = <P as Project>::EventGroup,
-                Error = <P as Project>::Error,
-            > + Send
-            + Sync
-            + Clone
-            + 'static,
+        P: Project + Send + Sync + Clone + 'static,
         P::EventGroup: EventGroup + Send,
         P::Error: std::error::Error + Send + Sync + 'static,
     {

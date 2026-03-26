@@ -146,14 +146,14 @@
     - Types: NatsStore, GracefulShutdown, NatsEnvelope
     - Functions: NatsStore::try_new, NatsStore::enable_mirror, NatsStore::get_task_tracker, NatsStore::wait_graceful_shutdown, NatsStore::update_durable_consumer_option, NatsStore::client, NatsStore::run_consumer, NatsStore::spawn_consumer, NatsStore::spawn_automation, NatsStore::spawn_read_model
 
-- src/nats/event.rs
-    - Summary: Implements core NATS JetStream operations for NatsStore, including event publishing (with and without OCC), stream replaying, subscriptions, and durable consumer management for projections.
-    - When To Use: Include this file when NATS-based event persistence, publishing logic, or projection synchronization via JetStream is required.
-    - Functions: publish, publish_without_occ, durable_observe, replay, replay_one, subscribe, truncate
-
 - src/project.rs
     - Summary: Defines the Project trait for event projection and a Context wrapper that encapsulates both the deserialized event and its associated envelope metadata.
     - When To Use: Use this file when implementing event projectors to build read models or handle side effects, particularly when you need access to envelope metadata like timestamps and sequence numbers during processing.
     - Types: Context, Project
     - Functions: Context::try_with_envelope, Context::id, Context::sequence, Context::timestamp, Context::get_metadata, Context::into_inner
+
+- src/nats/event.rs
+    - Summary: Implements NATS JetStream-backed event operations for NatsStore, including event publishing with Optimistic Concurrency Control (OCC), stream replaying, durable subscriptions, and stream truncation.
+    - When To Use: Include this file when NATS-based event persistence, stream replaying, or durable projection synchronization via JetStream is required in the system.
+    - Functions: publish, publish_without_occ, durable_observe, replay, replay_one, subscribe, truncate
 

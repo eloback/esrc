@@ -6,6 +6,7 @@ use async_nats::jetstream::stream::{
     Config as StreamConfig, DiscardPolicy, Source as StreamMirror, Stream as JetStream,
 };
 use async_nats::jetstream::Context;
+use futures::StreamExt;
 use stream_cancel::Trigger;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio_util::task::TaskTracker;
@@ -205,16 +206,11 @@ impl NatsStore {
         Ok(self.stream.create_consumer(config).await?)
     }
 
+    /// Run a consumer with the given specification.
     #[instrument(skip_all, level = "debug")]
     pub async fn run_consumer<P>(&self, spec: ConsumerSpec<P>) -> error::Result<()>
     where
-        P: for<'de> Project<
-                EventGroup = <P as Project>::EventGroup,
-                Error = <P as Project>::Error,
-            > + Send
-            + Sync
-            + Clone
-            + 'static,
+        P: Project + Send + Sync + Clone + 'static,
         P::EventGroup: crate::event::EventGroup + Send,
         P::Error: std::error::Error + Send + Sync + 'static,
     {
@@ -244,7 +240,7 @@ impl NatsStore {
 
                 self.run_consumer_concurrent(spec, stream, max_in_flight)
                     .await
-            }
+            },
         }
     }
 
@@ -254,13 +250,7 @@ impl NatsStore {
     /// reporting inside infrastructure while letting startup code stay concise.
     pub fn spawn_consumer<P>(&self, spec: ConsumerSpec<P>)
     where
-        P: for<'de> Project<
-                EventGroup = <P as Project>::EventGroup,
-                Error = <P as Project>::Error,
-            > + Send
-            + Sync
-            + Clone
-            + 'static,
+        P: Project + Send + Sync + Clone + 'static,
         P::EventGroup: crate::event::EventGroup + Send,
         P::Error: std::error::Error + Send + Sync + 'static,
     {
@@ -276,13 +266,7 @@ impl NatsStore {
     /// Spawn an automation declaration onto the store task tracker.
     pub fn spawn_automation<P>(&self, automation: Automation<P>)
     where
-        P: for<'de> Project<
-                EventGroup = <P as Project>::EventGroup,
-                Error = <P as Project>::Error,
-            > + Send
-            + Sync
-            + Clone
-            + 'static,
+        P: Project + Send + Sync + Clone + 'static,
         P::EventGroup: crate::event::EventGroup + Send,
         P::Error: std::error::Error + Send + Sync + 'static,
     {
@@ -292,13 +276,7 @@ impl NatsStore {
     /// Spawn a read model declaration onto the store task tracker.
     pub fn spawn_read_model<P>(&self, read_model: ReadModel<P>)
     where
-        P: for<'de> Project<
-                EventGroup = <P as Project>::EventGroup,
-                Error = <P as Project>::Error,
-            > + Send
-            + Sync
-            + Clone
-            + 'static,
+        P: Project + Send + Sync + Clone + 'static,
         P::EventGroup: crate::event::EventGroup + Send,
         P::Error: std::error::Error + Send + Sync + 'static,
     {

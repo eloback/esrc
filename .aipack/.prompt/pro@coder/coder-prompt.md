@@ -47,16 +47,40 @@ dev:
 # model: opus
 ## (see PATH_TO_PRO_CODER_DIR/README.md for full pro@coder documentation)
 ```
-following the plan rules, implement the next step of the plan.
+
+fix the following error:
+error[E0275]: overflow evaluating the requirement `<P as Project>::Error == _`
+--> src/nats/event.rs:156:5
+|
+156 | / async fn process_consumer_message<P>(
+157 | | projector: &mut P,
+158 | | message: error::Result<NatsEnvelope>,
+159 | | ) -> error::Result<()>
+... |
+166 | | P::EventGroup: EventGroup + Send,
+167 | | P::Error: std::error::Error + Send + Sync + 'static,
+| |****************************\_\_\_\_****************************^
+your solutin didn't work
+error[E0275]: overflow evaluating the requirement `<P as Project>::Error == _`
+   --> src/nats.rs:209:5
+    |
+209 | /     pub async fn run_consumer<P>(&self, spec: ConsumerSpec<P>) -> error::Result<()>
+210 | |     where
+211 | |         P: for<'de> Project<
+212 | |                 EventGroup = <P as Project>::EventGroup,
+...   |
+218 | |         P::EventGroup: crate::event::EventGroup + Send,
+219 | |         P::Error: std::error::Error + Send + Sync + 'static,
+    | |____________________________________________________________^
 
 ====
->   Info: Duration: 32s | ~$0.1099 | Prompt Tokens: 34,854 (cached: 5,888) | Completion Tokens: 2,404 
+>   Info: Duration: 10s | ~$0.0675 | Prompt Tokens: 26,154 (cached: 4,864) | Completion Tokens: 870 
 >  Model: gpt-5.4 (gpt-5.4-2026-03-05) | Adapter: OpenAIResp
->  Files: Context Files: 13 | Working Files: 0 | Knowledge Files: 1
+>  Files: Context Files: 9 | Working Files: 0 | Knowledge Files: 1
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
 <suggested_git_command>
-git add -A . && git commit -m ". consumers - finalize active projector workflow validation step"
+git commit -a -m "- nats - fix recursive Project bounds causing trait solver overflow"
 </suggested_git_command>
 
 

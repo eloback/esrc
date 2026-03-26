@@ -1222,8 +1222,8 @@
     },
     "src/nats/event.rs": {
       "file_path": "src/nats/event.rs",
-      "hash": "80d68e4c3edc7189d8fb01bb813c01b4cbff6df7767456aa711ded48c2430954",
-      "mtime": 1774519686006979,
+      "hash": "693f8c32efae565c7d4a84067de786ff59e1894895e7f5a26b563a04e745aa68",
+      "mtime": 1774520085645311,
       "public_functions": [
         "publish",
         "publish_without_occ",
@@ -1233,8 +1233,8 @@
         "subscribe",
         "truncate"
       ],
-      "summary": "Implements core NATS JetStream operations for NatsStore, including event publishing (with and without OCC), stream replaying, subscriptions, and durable consumer management for projections.",
-      "when_to_use": "Include this file when NATS-based event persistence, publishing logic, or projection synchronization via JetStream is required."
+      "summary": "Implements NATS JetStream-backed event operations for NatsStore, including event publishing with Optimistic Concurrency Control (OCC), stream replaying, durable subscriptions, and stream truncation.",
+      "when_to_use": "Include this file when NATS-based event persistence, stream replaying, or durable projection synchronization via JetStream is required in the system."
     },
     "src/nats/header.rs": {
       "file_path": "src/nats/header.rs",
