@@ -9,6 +9,8 @@ use super::subject::NatsSubject;
 use super::{NatsEnvelope, NatsStore};
 use crate::error::{self, Error};
 use crate::event::{Event, EventGroup, Publish, Replay, ReplayOne, Sequence, Subscribe, Truncate};
+use crate::event_modeling::ConsumerSpec;
+use crate::project::DynProject;
 use crate::version::SerializeVersion;
 
 impl Publish for NatsStore {
@@ -147,6 +149,62 @@ pub mod custom {
 
             Ok(())
         }
+    }
+}
+
+impl NatsStore {
+    async fn process_consumer_message(
+        mut projector: Box<dyn DynProject>,
+        message: error::Result<NatsEnvelope>,
+    ) -> error::Result<()> {
+        let envelope = message?;
+        projector.project_dyn(&envelope).await?;
+        envelope.ack().await;
+        Ok(())
+    }
+
+    pub(crate) async fn run_consumer_sequential<S, P>(
+        &self,
+        spec: ConsumerSpec<P>,
+        mut stream: S,
+    ) -> error::Result<()>
+    where
+        S: Stream<Item = error::Result<NatsEnvelope>> + Send + Unpin,
+        P: DynProject + 'static,
+    {
+        while let Some(message) = stream.next().await {
+            Self::process_consumer_message(Box::new(spec.projector().clone()), message).await?;
+        }
+
+        Ok(())
+    }
+
+    pub(crate) async fn run_consumer_concurrent<S, P>(
+        &self,
+        spec: ConsumerSpec<P>,
+        stream: S,
+        max_in_flight: usize,
+    ) -> error::Result<()>
+    where
+        S: Stream<Item = error::Result<NatsEnvelope>> + Send,
+        P: DynProject + 'static,
+    {
+        let durable_name = spec.name().durable_name();
+
+        stream
+            .for_each_concurrent(Some(max_in_flight), move |message| {
+                let durable_name = durable_name.clone();
+                let projector = Box::new(spec.projector().clone()) as Box<dyn DynProject>;
+
+                async move {
+                    if let Err(error) = Self::process_consumer_message(projector, message).await {
+                        tracing::error!(consumer = %durable_name, ?error, "Error processing message");
+                    }
+                }
+            })
+            .await;
+
+        Ok(())
     }
 }
 

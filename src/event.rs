@@ -69,6 +69,12 @@ pub trait EventGroup {
     fn names() -> impl Iterator<Item = &'static str>;
 }
 
+/// A helper trait for erased execution over event groups.
+pub trait EventGroupType: Send + Sync + 'static {
+    /// The names of all events within this Group.
+    fn names(&self) -> Vec<&'static str>;
+}
+
 impl Sequence {
     /// Create a starting sequence that is always valid in a new event stream.
     pub fn new() -> Self {
@@ -79,6 +85,15 @@ impl Sequence {
 impl<E: Event> EventGroup for E {
     fn names() -> impl Iterator<Item = &'static str> {
         iter::once(E::name())
+    }
+}
+
+impl<G> EventGroupType for G
+where
+    G: EventGroup + Send + Sync + 'static,
+{
+    fn names(&self) -> Vec<&'static str> {
+        G::names().collect()
     }
 }
 

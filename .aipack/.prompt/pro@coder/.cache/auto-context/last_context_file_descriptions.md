@@ -125,11 +125,6 @@
     - Summary: Workspace and root package manifest for the esrc project, defining shared dependencies, workspace members (derive, opentelemetry-nats), and feature flags for NATS and KurrentDB integrations.
     - When To Use: Use this file to understand the project's dependency tree, available feature configurations, and workspace structure for event-sourcing implementations.
 
-- src/lib.rs
-    - Summary: The crate root for the event-sourcing library, defining core modules and re-exporting primary types like Aggregate, Envelope, Event, and View.
-    - When To Use: Use this file to understand the library's module structure, re-exported types, and feature-gated backend implementations for NATS and Kurrentdb.
-    - Types: Aggregate, Envelope, Error, Event, EventGroup, View
-
 - src/event.rs
     - Summary: Defines the core abstractions for an event-sourced system, including the Event and EventGroup traits, the Sequence struct for stream ordering, and re-exports for command handling, publishing, replaying, subscribing, and truncating events.
     - When To Use: Use this file to define domain events, handle event stream sequencing, or access the primary traits for interacting with an event store.
@@ -152,4 +147,14 @@
     - When To Use: Use this file when configuring NATS command handlers for aggregates, spawning background command services, or using the NatsStore to dispatch commands.
     - Types: ReplyError, CommandReply
     - Functions: serve, spawn_service, handle_request, send_command
+
+- src/event_modeling.rs
+    - Summary: Defines core types and builders for modeling event consumers, including roles (Automation and ReadModel), execution policies (Sequential and Concurrent), and structured naming conventions for consumers.
+    - When To Use: Use this file when defining new event consumers, configuring how messages should be processed (concurrency vs sequential), or establishing identity structures for consumers within bounded contexts.
+    - Types: ConsumerRole, ExecutionPolicy, ConsumerName, ConsumerSpec, Automation, ReadModel
+
+- src/lib.rs
+    - Summary: The crate root for the event-sourcing library, defining core modules and re-exporting primary types like Aggregate, Envelope, Event, and View.
+    - When To Use: Use this file to understand the library's module structure, re-exported types, and feature-gated backend implementations for NATS and Kurrentdb.
+    - Types: Aggregate, Envelope, Error, Event, EventGroup, View
 

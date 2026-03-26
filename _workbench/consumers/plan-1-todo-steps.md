@@ -1,21 +1,3 @@
-## Step - integrate event_modeling declarations with NatsStore consumer startup
-      status: not_started
-time-created: 2026-03-26 06:00:43
-
-Implement a runtime entrypoint on `NatsStore` that accepts the new event modeling consumer specification and executes it using the existing `Project` pipeline.
-
-- Add a shared consumer startup entrypoint that resolves the durable name from the structured declaration.
-- Keep durable subscription creation as an infrastructure detail.
-- Reuse a single message-processing pipeline for envelope conversion, typed context creation, projector execution, error mapping, and ack handling.
-
-- Support execution policies for:
-  - sequential processing
-  - concurrent processing with bounded in-flight work
-
-- Preserve infrastructure ownership of lifecycle concerns such as subscription creation and graceful shutdown wiring.
-
-References: see the definition in `plan-2-active-step.md` or `plan-3-done-steps.md`, step `Step - define the event_modeling module surface and consumer declaration model`.
-
 ## Step - expose ergonomic spawning helpers for automation and read model consumers
       status: not_started
 time-created: 2026-03-26 06:00:43

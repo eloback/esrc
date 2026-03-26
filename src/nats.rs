@@ -12,6 +12,8 @@ use tokio_util::task::TaskTracker;
 use tracing::instrument;
 
 use crate::error;
+use crate::event_modeling::{ConsumerSpec, ExecutionPolicy};
+use crate::project::DynProject;
 
 /// NATS-backed command service support for `NatsStore`.
 pub mod command_service;
@@ -200,5 +202,40 @@ impl NatsStore {
         config.durable_name = Some(name);
 
         Ok(self.stream.create_consumer(config).await?)
+    }
+
+    #[instrument(skip_all, level = "debug")]
+    pub async fn run_consumer<P>(&self, spec: ConsumerSpec<P>) -> error::Result<()>
+    where
+        P: DynProject + 'static,
+    {
+        let durable_name = spec.name().durable_name();
+        let mut names = spec.projector().event_group().names();
+        names.sort();
+
+        let subjects = names
+            .iter()
+            .map(|&n| NatsSubject::Event(n.into()).into_string(self.prefix))
+            .collect();
+
+        let consumer = self.durable_consumer(durable_name, subjects).await?;
+        let stream = consumer
+            .messages()
+            .await?
+            .map(|m| NatsEnvelope::try_from_message(self.prefix, m?));
+
+        match spec.execution_policy() {
+            ExecutionPolicy::Sequential => self.run_consumer_sequential(spec, stream).await,
+            ExecutionPolicy::Concurrent { max_in_flight } => {
+                if max_in_flight == 0 {
+                    return Err(error::Error::Configuration(
+                        "concurrent consumers require max_in_flight > 0".to_owned(),
+                    ));
+                }
+
+                self.run_consumer_concurrent(spec, stream, max_in_flight)
+                    .await
+            }
+        }
     }
 }

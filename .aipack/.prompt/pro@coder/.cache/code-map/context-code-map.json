@@ -1046,6 +1046,22 @@
       "summary": "Defines the Truncate trait for deleting old messages from an event stream up to a given sequence number.",
       "when_to_use": "Use when you need the event-stream truncation API or want to implement/support pruning old events, typically alongside snapshotting to limit stream size."
     },
+    "src/event_modeling.rs": {
+      "file_path": "src/event_modeling.rs",
+      "hash": "3e9b93c582c0241e647606d5123312940415a346c9b4ac4a37e92a2d79061ea4",
+      "mtime": 1774516360639669,
+      "public_functions": [],
+      "public_types": [
+        "ConsumerRole",
+        "ExecutionPolicy",
+        "ConsumerName",
+        "ConsumerSpec",
+        "Automation",
+        "ReadModel"
+      ],
+      "summary": "Defines core types and builders for modeling event consumers, including roles (Automation and ReadModel), execution policies (Sequential and Concurrent), and structured naming conventions for consumers.",
+      "when_to_use": "Use this file when defining new event consumers, configuring how messages should be processed (concurrency vs sequential), or establishing identity structures for consumers within bounded contexts."
+    },
     "src/kurrent.rs": {
       "file_path": "src/kurrent.rs",
       "hash": "2b5ed9cc18515529b1bef228b0dd53c391e63f449dfd286d8fbeb43eb172aebb",
@@ -1124,8 +1140,8 @@
     },
     "src/lib.rs": {
       "file_path": "src/lib.rs",
-      "hash": "c9750ba1c8bf7935358856c2e26d1e16de0d701a52ad05013a5c8f901f5e686f",
-      "mtime": 1774510697679154,
+      "hash": "ae115b37a8e0ea3067e72a8f7d7c274f8417af541ef48ccf53e6a216c99e961c",
+      "mtime": 1774516360639669,
       "public_functions": [],
       "public_types": [
         "Aggregate",

@@ -56,3 +56,30 @@ References: see the definition in `plan-2-active-step.md` or `plan-3-done-steps.
 - Implemented explicit `Automation<P>` and `ReadModel<P>` builders that normalize into `ConsumerSpec<P>`.
 - Added structured naming helpers for both stable durable consumer names and slice path representation.
 - Kept the step scoped to declaration and normalization primitives, with no runtime startup integration yet.
+
+## Step - integrate event_modeling declarations with NatsStore consumer startup
+      status: done
+time-created: 2026-03-26 06:00:43
+   time-done: 2026-03-26 06:15:32
+
+Implement a runtime entrypoint on `NatsStore` that accepts the new event modeling consumer specification and executes it using the existing `Project` pipeline.
+
+- Add a shared consumer startup entrypoint that resolves the durable name from the structured declaration.
+- Keep durable subscription creation as an infrastructure detail.
+- Reuse a single message-processing pipeline for envelope conversion, typed context creation, projector execution, error mapping, and ack handling.
+
+- Support execution policies for:
+  - sequential processing
+  - concurrent processing with bounded in-flight work
+
+- Preserve infrastructure ownership of lifecycle concerns such as subscription creation and graceful shutdown wiring.
+
+References: see the definition in `plan-2-active-step.md` or `plan-3-done-steps.md`, step `Step - define the event_modeling module surface and consumer declaration model`.
+
+### Summary
+- Added `NatsStore::run_consumer` as the runtime entrypoint that accepts `event_modeling::ConsumerSpec<P>`.
+- Kept durable subscription setup inside infrastructure by deriving durable names and event subjects from the structured declaration and projector event group.
+- Reused a shared message-processing pipeline for dynamic typed context creation, projector execution, error mapping, and ack handling.
+- Implemented execution policy support for sequential and bounded concurrent processing.
+- Added runtime validation for invalid concurrent configuration with a dedicated configuration error variant.
+- Introduced erased projector execution support so declared consumer specs can be executed generically by the NATS runtime layer.

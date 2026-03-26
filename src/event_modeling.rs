@@ -1,4 +1,4 @@
-use crate::project::Project;
+use crate::project::DynProject;
 
 /// The semantic role a consumer plays in the system.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -101,7 +101,7 @@ pub struct ConsumerSpec<P> {
 
 impl<P> ConsumerSpec<P>
 where
-    P: Project,
+    P: DynProject,
 {
     /// Create a new consumer specification with the given role defaults.
     pub fn new(name: ConsumerName, role: ConsumerRole, projector: P) -> Self {
@@ -158,7 +158,7 @@ pub struct Automation<P> {
 
 impl<P> Automation<P>
 where
-    P: Project,
+    P: DynProject,
 {
     /// Create a new automation declaration with automation defaults.
     pub fn new(name: ConsumerName, projector: P) -> Self {
@@ -197,7 +197,7 @@ pub struct ReadModel<P> {
 
 impl<P> ReadModel<P>
 where
-    P: Project,
+    P: DynProject,
 {
     /// Create a new read model declaration with read model defaults.
     pub fn new(name: ConsumerName, projector: P) -> Self {

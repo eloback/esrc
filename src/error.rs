@@ -35,6 +35,12 @@ pub enum Error {
     /// can usually just be retried after applying any new events.
     #[error("event transaction failed")]
     Conflict,
+    /// An invalid consumer execution policy was provided.
+    ///
+    /// This is used for runtime configuration errors such as a concurrent
+    /// consumer declaration with zero maximum in-flight work.
+    #[error("invalid consumer configuration ({0})")]
+    Configuration(String),
 }
 
 /// An alias type that always implies an event-sourcing error.

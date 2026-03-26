@@ -17,12 +17,13 @@ file_content_mode: udiffx
 ## All resolve files(sent to AI with content, in this order)
 
 - src/error.rs
-- src/envelope.rs
-- src/nats/subject.rs
+- src/event/future.rs
+- src/nats/envelope.rs
+- src/nats/event.rs
 - src/project.rs
-- Cargo.toml
-- src/lib.rs
 - src/event.rs
+- src/nats.rs
+- src/event_modeling.rs
 - _workbench/consumers/dev-chat.md
 - _workbench/consumers/plan-1-todo-steps.md
 - _workbench/consumers/plan-2-active-step.md
@@ -48,6 +49,7 @@ None
   - envelope.rs
   - error.rs
   - event.rs
+  - event_modeling.rs
   - kurrent.rs
   - lib.rs
   - nats.rs
