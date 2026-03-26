@@ -23,7 +23,10 @@ pub enum ExecutionPolicy {
     /// Process one message at a time, preserving consumer order.
     Sequential,
     /// Process multiple messages concurrently, up to the configured in-flight limit.
-    Concurrent { max_in_flight: usize },
+    Concurrent { 
+        /// Maximum number of messages to process concurrently. Must be greater than zero.
+        max_in_flight: usize
+    },
 }
 
 /// A structured consumer identity derived from slice-oriented naming segments.
@@ -74,17 +77,14 @@ impl ConsumerName {
     /// Returns the stable durable consumer name.
     pub fn durable_name(&self) -> String {
         format!(
-            "{}.{}.{}.{}",
+            "{}_{}_{}_{}",
             self.bounded_context, self.domain, self.feature, self.consumer
         )
     }
 
     /// Returns the structured slice path without the consumer segment.
     pub fn slice_path(&self) -> String {
-        format!(
-            "{}.{}.{}",
-            self.bounded_context, self.domain, self.feature
-        )
+        format!("{}_{}_{}", self.bounded_context, self.domain, self.feature)
     }
 }
 
@@ -97,8 +97,7 @@ pub struct ConsumerSpec<P> {
     projector: P,
 }
 
-impl<P> ConsumerSpec<P>
-{
+impl<P> ConsumerSpec<P> {
     /// Create a new consumer specification with the given role defaults.
     pub fn new(name: ConsumerName, role: ConsumerRole, projector: P) -> Self {
         Self {
@@ -152,8 +151,7 @@ pub struct Automation<P> {
     spec: ConsumerSpec<P>,
 }
 
-impl<P> Automation<P>
-{
+impl<P> Automation<P> {
     /// Create a new automation declaration with automation defaults.
     pub fn new(name: ConsumerName, projector: P) -> Self {
         Self {
@@ -189,8 +187,7 @@ pub struct ReadModel<P> {
     spec: ConsumerSpec<P>,
 }
 
-impl<P> ReadModel<P>
-{
+impl<P> ReadModel<P> {
     /// Create a new read model declaration with read model defaults.
     pub fn new(name: ConsumerName, projector: P) -> Self {
         Self {

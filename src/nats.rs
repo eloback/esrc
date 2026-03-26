@@ -7,7 +7,7 @@ use async_nats::jetstream::stream::{
 };
 use async_nats::jetstream::Context;
 use futures::StreamExt;
-use stream_cancel::Trigger;
+use stream_cancel::{Trigger, Tripwire};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio_util::task::TaskTracker;
 use tracing::error;
@@ -50,8 +50,6 @@ pub struct NatsStore {
     mirror_stream: Option<JetStream>,
 
     graceful_shutdown: GracefulShutdown,
-
-    durable_consumer_options: ConsumerConfig,
 }
 
 /// A structure to help with graceful shutdown of tasks.
@@ -82,11 +80,6 @@ impl NatsStore {
             context.get_or_create_stream(config).await?
         };
 
-        let config = ConsumerConfig {
-            deliver_policy: DeliverPolicy::New,
-            ..Default::default()
-        };
-
         // if there is more than 1000 automations this should be increased
         let (exit_tx, exit_rx) = tokio::sync::mpsc::channel::<stream_cancel::Trigger>(1000);
         let task_tracker = tokio_util::task::TaskTracker::new();
@@ -106,8 +99,6 @@ impl NatsStore {
             mirror_stream: None,
 
             graceful_shutdown,
-
-            durable_consumer_options: config,
         })
     }
 
@@ -157,13 +148,6 @@ impl NatsStore {
         self.graceful_shutdown.task_tracker.wait().await;
     }
 
-    /// the subjects and durable name of the consumer are overwritten by the function that starts
-    /// the consumer, all other options should be alright for modification
-    pub fn update_durable_consumer_option(mut self, options: ConsumerConfig) -> Self {
-        self.durable_consumer_options = options;
-        self
-    }
-
     /// return a clone of the underlying Nats Client
     pub fn client(&self) -> async_nats::Client {
         self.context.client()
@@ -198,7 +182,10 @@ impl NatsStore {
         name: String,
         subjects: Vec<String>,
     ) -> error::Result<Consumer<ConsumerConfig>> {
-        let mut config = self.durable_consumer_options.clone();
+        let mut config = ConsumerConfig {
+            deliver_policy: DeliverPolicy::New,
+            ..Default::default()
+        };
 
         config.filter_subjects = subjects;
         config.durable_name = Some(name);
@@ -255,10 +242,27 @@ impl NatsStore {
         P::Error: std::error::Error + Send + Sync + 'static,
     {
         let store = self.clone();
+        let durable_name = spec.name().durable_name();
+        let (trigger, tripwire) = Tripwire::new();
+
+        let exit_tx = self.graceful_shutdown.exit_tx.clone();
+
         self.graceful_shutdown.task_tracker.spawn(async move {
-            let durable_name = spec.name().durable_name();
-            if let Err(err) = store.run_consumer(spec).await {
-                error!(consumer = %durable_name, ?err, "consumer stopped");
+            // Register the trigger so it is cancelled during graceful shutdown.
+            if exit_tx.send(trigger).await.is_err() {
+                tracing::warn!("failed to register shutdown trigger for command service");
+                return;
+            }
+
+            tokio::select! {
+                result = store.run_consumer(spec) => {
+                    if let Err(e) = result {
+                        error!(consumer = %durable_name, err=?e, "consumer stopped");
+                    }
+                }
+                _ = tripwire => {
+                    tracing::info!(consumer = %durable_name, "shutting down consumer");
+                }
             }
         });
     }

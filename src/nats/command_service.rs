@@ -126,9 +126,8 @@ impl NatsStore {
         let (trigger, tripwire) = Tripwire::new();
 
         let exit_tx = self.graceful_shutdown.exit_tx.clone();
-        let task_tracker = self.graceful_shutdown.task_tracker.clone();
 
-        task_tracker.spawn(async move {
+        self.graceful_shutdown.task_tracker.spawn(async move {
             // Register the trigger so it is cancelled during graceful shutdown.
             if exit_tx.send(trigger).await.is_err() {
                 tracing::warn!("failed to register shutdown trigger for command service");
@@ -256,7 +255,7 @@ impl CommandClient for NatsStore {
         A::Command: serde::ser::Serialize + Send,
         A::Error: std::error::Error + Serialize + DeserializeOwned + Send + Sync + 'static,
     {
-        let subject = format!("{}.{}", A::Event::name(), id);
+        let subject = format!("{}.command.{}", A::Event::name(), id);
         let payload = serde_json::to_vec(&command).map_err(|e| {
             Error::Internal(format!("failed to serialize command for sending: {e}").into())
         })?;
