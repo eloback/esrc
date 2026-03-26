@@ -102,3 +102,22 @@ time-created: 2026-03-26 14:58:37
   - Registers a shutdown trigger, wraps `serve` in a tracked cancellable task.
 
 - Registered `pub mod query_service` in `src/nats.rs`.
+
+## Step - NATS KV-backed QueryHandler implementation
+      status: done
+time-created: 2026-03-26 15:39:52
+   time-done: 2026-03-26 16:54:53
+
+- Created `src/nats/query_kv.rs` with `NatsKvStore<RM, Q>`, a shared read/write store backed by NATS JetStream Key-Value.
+
+- `NatsKvStore` provides:
+  - `new(nats_store, name, query_fn)`: constructor deriving bucket name from `ComponentName::durable_name()` prefixed with `rm_`.
+  - `with_bucket_name`, `from_context`: alternative constructors for custom bucket names or direct JetStream context usage.
+  - `put`, `delete`, `get`: CRUD operations serializing read models as JSON.
+  - `bucket()`: access to the underlying NATS KV bucket for advanced operations.
+
+- Implements `QueryHandler` with `type Id = String`, delegating `get_by_id` to `get` and `handle` to the user-supplied closure.
+
+- Store is cheaply cloneable (`Arc`-wrapped), shareable between `Project` (write) and `QuerySpec` (read).
+
+- Registered `pub mod query_kv` in `src/nats.rs`.

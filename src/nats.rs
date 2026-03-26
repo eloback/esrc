@@ -16,6 +16,7 @@ use tracing::instrument;
 use crate::error;
 use crate::event_modeling::{Automation, ConsumerSpec, ExecutionPolicy, ReadModel};
 use crate::project::Project;
+use crate::query::{Query, QueryHandler, QueryService};
 
 /// NATS-backed command service support for `NatsStore`.
 pub mod command_service;
@@ -297,5 +298,32 @@ impl NatsStore {
         P::Error: std::error::Error + Send + Sync + 'static,
     {
         self.spawn_consumer(read_model.into_spec());
+    }
+
+    /// Spawn a read model slice, starting both the event consumer and the
+    /// query service as tracked background tasks.
+    ///
+    /// This is the recommended way to register a vertical slice that pairs
+    /// a read model projection with its query handler.
+    pub fn spawn_read_model_slice<P, H>(
+        &self,
+        slice: crate::event_modeling::ReadModelSlice<P, H>,
+    ) where
+        P: Project + Send + Sync + Clone + 'static,
+        P::EventGroup: crate::event::EventGroup + Send,
+        P::Error: std::error::Error + Send + Sync + 'static,
+        H: QueryHandler + Send + Sync + 'static,
+        H::Query: serde::de::DeserializeOwned + Sync,
+        H::Id: serde::de::DeserializeOwned,
+        <H::Query as Query>::ReadModel: serde::Serialize + Sync,
+        <H::Query as Query>::Response: serde::Serialize + Sync,
+    {
+        let (consumer_spec, query_spec) = slice.into_specs();
+
+        // Spawn the event consumer (read model projection).
+        self.spawn_consumer(consumer_spec);
+
+        // Spawn the query service.
+        self.spawn_query_service(query_spec);
     }
 }

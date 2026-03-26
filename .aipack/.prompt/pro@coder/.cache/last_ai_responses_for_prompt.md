@@ -1,27 +1,28 @@
 ====
->   Info: Duration: 1m 4s | ~$0.2952 | Prompt Tokens: 31,608 (cached: 0, cache_creation: 0) | Completion Tokens: 5,488 
+>   Info: Duration: 43s | ~$0.1909 | Prompt Tokens: 20,225 (cached: 0, cache_creation: 0) | Completion Tokens: 3,592 
 >  Model: claude-opus-4-6 | Adapter: Anthropic
->  Files: Context Files: 13 | Working Files: 0 | Knowledge Files: 1
+>  Files: Context Files: 9 | Working Files: 0 | Knowledge Files: 1
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
-Looking at the plan files, the active step is "In-memory QueryHandler helper for View-based live projections" which is already implemented. The next step in `plan-1-todo-steps.md` is "NATS KV-backed QueryHandler implementation".
+Looking at the plan, the active step is "NATS KV-backed QueryHandler implementation" which is already implemented (see `src/nats/query_kv.rs`). So I need to move it to done and implement the next todo step: "Vertical slice helper composing ConsumerSpec and QuerySpec".
 
-Since the active step is already done, I need to:
-1. Move the active step to done
-2. Activate the next todo step and implement it
-
-However, looking at the NATS KV step, I need to check if I have the necessary files. Let me review what I have:
-
-- `src/nats.rs` ✓
-- `src/nats/query_service.rs` ✓
-- `src/query/mod.rs` ✓
-- `src/query/in_memory.rs` ✓
-- `src/event_modeling.rs` ✓
-
-I have sufficient context to implement the NATS KV-backed QueryHandler. Let me proceed.
+Let me analyze what's needed:
+- A convenience builder that combines a `ReadModel` consumer (`ConsumerSpec`) and a `QueryHandler` (`QuerySpec`) into a single vertical slice declaration.
+- A `spawn_read_model_slice` method on `NatsStore` to spawn both the consumer and query service in one call.
 
 
+
+The implementation adds:
+
+1. **`ReadModelSlice<P, H>`** in `src/event_modeling.rs`: A builder struct that composes a `ConsumerSpec` (read model consumer) and a `QuerySpec` (query handler) using a shared `ComponentName`. It provides:
+   - `new(name, projector, handler)` constructor with sensible defaults (sequential execution, NATS request-reply transport).
+   - Override methods for execution policy and query transport.
+   - Accessors for both specs, projector, handler, and a destructuring `into_specs()`.
+
+2. **`spawn_read_model_slice`** on `NatsStore` in `src/nats.rs`: A single method that takes a `ReadModelSlice`, destructures it into its two specs, and spawns both the event consumer and the query service as tracked background tasks.
+
+3. **Re-export** of `ReadModelSlice` from `src/lib.rs` alongside the existing `Automation` re-export.
 
 <suggested_git_command>
-git add -A . && git commit -a -m "+ nats/query_kv - Add NATS KV-backed QueryHandler implementation"
+git add -A . && git commit -a -m "+ event_modeling - Add ReadModelSlice vertical slice helper composing ConsumerSpec and QuerySpec"
 </suggested_git_command>

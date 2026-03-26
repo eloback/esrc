@@ -1,18 +1,17 @@
 # Plan 2 - Active Step
 
-## Step - NATS KV-backed QueryHandler implementation
+## Step - Vertical slice helper composing ConsumerSpec and QuerySpec
       status: active
 time-created: 2026-03-26 15:39:52
-time-current: 2026-03-26 16:28:37
+time-current: 2026-03-26 16:54:53
 
-- Create a concrete `QueryHandler` implementation backed by NATS JetStream Key-Value store.
-- This provides a persistence layer for read models without requiring the developer to set up external storage.
+- Create a convenience builder or type that declares a `ReadModel` consumer (`ConsumerSpec`) and its `QueryHandler` (`QuerySpec`) together as a single vertical slice.
+- This simplifies the developer experience for the common case where a read model has both an event consumer (write side) and a query handler (read side).
 - Design considerations:
-  - The KV bucket name should be derived from the `ComponentName` (convention over configuration), with an option to override.
-  - `get_by_id` reads from the KV bucket by key.
-  - The `Project` implementation writes to the same KV bucket (the developer calls a save/put method inside their `project()` implementation).
-  - Provide a helper or wrapper that the developer can hold inside their `Project` impl to write to the KV store, and that also implements `QueryHandler` for reads.
-  - Serialization format: JSON (consistent with other NATS message payloads in the crate).
-- Module placement: `src/nats/query_kv.rs` or similar, registered in `src/nats.rs`.
-- References: see `src/query.rs` for `QueryHandler`, `src/nats.rs` for `NatsStore`.
+  - Should compose, not replace, the existing `ConsumerSpec` and `QuerySpec` types.
+  - A builder pattern (e.g., `ReadModelSlice::new(name, projector, handler)`) that produces both specs, or a struct that holds both and can be passed to `NatsStore` for spawning.
+  - Consider adding a `spawn_read_model_slice` or similar convenience method on `NatsStore` that spawns both the consumer and the query service in one call.
+  - Be mindful of how these components are registered in the runtime (the user emphasized developer UX and runtime registration flow).
+- Module placement: likely in `src/event_modeling.rs` since it is a declaration/composition concern, or a new `src/slice.rs` if it grows.
+- References: see `src/event_modeling.rs` for `ConsumerSpec`, `ReadModel`, `Automation`; see `src/query.rs` for `QuerySpec`.
 

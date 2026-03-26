@@ -221,3 +221,105 @@ impl<P> ReadModel<P> {
         self.spec
     }
 }
+
+/// A declaration builder that composes a read model consumer (`ConsumerSpec`)
+/// and its query handler (`QuerySpec`) as a single vertical slice.
+///
+/// This simplifies the common case where a read model has both an event
+/// consumer (write side) and a query handler (read side), allowing both to
+/// be declared and spawned together.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use esrc::event_modeling::{ComponentName, ReadModelSlice};
+/// use esrc::query::QueryTransport;
+///
+/// let slice = ReadModelSlice::new(
+///     ComponentName::new("shop", "catalog", "products", "list"),
+///     my_projector,
+///     my_kv_store,
+/// );
+///
+/// // Spawn both the consumer and query service:
+/// nats_store.spawn_read_model_slice(slice);
+/// ```
+#[derive(Clone, Debug)]
+pub struct ReadModelSlice<P, H> {
+    consumer_spec: ConsumerSpec<P>,
+    query_spec: crate::query::QuerySpec<H>,
+}
+
+impl<P, H> ReadModelSlice<P, H> {
+    /// Create a new read model slice with the given projector and query handler.
+    ///
+    /// The `ComponentName` is shared between the consumer and query specs.
+    /// The consumer is created with `ConsumerRole::ReadModel` defaults
+    /// (sequential execution). The query transport defaults to
+    /// `NatsRequestReply`.
+    pub fn new(name: ComponentName, projector: P, handler: H) -> Self {
+        let consumer_spec = ConsumerSpec::new(name.clone(), ConsumerRole::ReadModel, projector);
+        let query_spec = crate::query::QuerySpec::new(
+            name,
+            crate::query::QueryTransport::NatsRequestReply,
+            handler,
+        );
+
+        Self {
+            consumer_spec,
+            query_spec,
+        }
+    }
+
+    /// Override the execution policy for the consumer.
+    pub fn with_execution_policy(mut self, execution_policy: ExecutionPolicy) -> Self {
+        self.consumer_spec = self.consumer_spec.with_execution_policy(execution_policy);
+        self
+    }
+
+    /// Override the transport for the query service.
+    pub fn with_query_transport(mut self, transport: crate::query::QueryTransport) -> Self {
+        self.query_spec = self.query_spec.with_transport(transport);
+        self
+    }
+
+    /// Returns a reference to the consumer specification.
+    pub fn consumer_spec(&self) -> &ConsumerSpec<P> {
+        &self.consumer_spec
+    }
+
+    /// Returns a reference to the query specification.
+    pub fn query_spec(&self) -> &crate::query::QuerySpec<H> {
+        &self.query_spec
+    }
+
+    /// Consumes the slice and returns both specifications.
+    pub fn into_specs(self) -> (ConsumerSpec<P>, crate::query::QuerySpec<H>) {
+        (self.consumer_spec, self.query_spec)
+    }
+
+    /// Returns a reference to the shared component name.
+    pub fn name(&self) -> &ComponentName {
+        self.consumer_spec.name()
+    }
+
+    /// Returns a reference to the projector.
+    pub fn projector(&self) -> &P {
+        self.consumer_spec.projector()
+    }
+
+    /// Returns a mutable reference to the projector.
+    pub fn projector_mut(&mut self) -> &mut P {
+        self.consumer_spec.projector_mut()
+    }
+
+    /// Returns a reference to the query handler.
+    pub fn handler(&self) -> &H {
+        self.query_spec.handler()
+    }
+
+    /// Returns a mutable reference to the query handler.
+    pub fn handler_mut(&mut self) -> &mut H {
+        self.query_spec.handler_mut()
+    }
+}

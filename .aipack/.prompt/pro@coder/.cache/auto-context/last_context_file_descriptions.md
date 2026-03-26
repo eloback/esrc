@@ -120,46 +120,11 @@
     - When To Use: Include this file when you need to define how events are projected into read models or side effects, or when working with the context of a specific event being projected.
     - Types: Context, Project
 
-- examples/multi-slice-command-service/domain.rs
-    - Summary: Defines the domain model for a multi-slice command service example, including aggregates, commands, events, and errors for Signup and Email contexts.
-    - When To Use: Include this file when you need to reference the business logic, state transitions, or data structures for the Signup and Email aggregates in the multi-slice example.
-    - Types: SignupEvent, EmailEvent, SignupCommand, EmailCommand, SignupError, EmailError, SignupAggregate, EmailAggregate
-
 - src/nats/command_service.rs
     - Summary: Implements NATS-based command processing for aggregates, providing both a service (to listen and execute commands) and a client (to send commands via request/reply).
     - When To Use: Use this file when setting up a NATS microservice to handle domain commands for an aggregate or when you need to send commands to such a service from another part of the system.
     - Types: ReplyError, CommandReply
     - Functions: serve, spawn_service, handle_request, send_command
-
-- examples/multi-slice-command-service/main.rs
-    - Summary: Main entry point for a multi-slice command service example demonstrating aggregate service initialization, background automation (slices) setup, and command dispatching using NATS JetStream.
-    - When To Use: Use this file as a template for bootstrapping an esrc application, specifically for initializing the NatsStore, spawning services, and coordinating multiple domain modules.
-    - Types: BOUNDED_CONTEXT, SIGNUP_DOMAIN, EMAIL_DOMAIN
-    - Functions: main
-
-- examples/multi-slice-command-service/queue_welcome_email/mod.rs
-    - Summary: Implements an automation component that reacts to SignupRequested events by dispatching commands to both the Email and Signup aggregates to coordinate a welcome email workflow.
-    - When To Use: Use this file as a reference for implementing event-driven automations (sagas/process managers) that trigger side effects or commands across multiple aggregates in an esrc-based application.
-    - Types: QueueWelcomeEmailAutomation
-    - Functions: setup
-
-- examples/multi-slice-command-service/send_welcome_email/mod.rs
-    - Summary: Implements the SendWelcomeEmailAutomation, which acts as a process manager that listens for WelcomeEmailRequested events and responds by sending a MarkWelcomeEmailSent command.
-    - When To Use: Include this file when looking for an example of how to implement event-driven automations or side effects within the esrc framework, particularly those that involve command-loopback patterns.
-    - Types: SendWelcomeEmailAutomation
-    - Functions: setup
-
-- src/event_modeling.rs
-    - Summary: Defines core primitives and builders for event-driven consumers, including semantic roles, execution policies, and structured component naming conventions.
-    - When To Use: Use this file when defining new event consumers (Automations or Read Models), configuring message execution behaviors, or generating standardized infrastructure names for consumers and query subjects.
-    - Types: ConsumerRole, ExecutionPolicy, ComponentName, ConsumerSpec, Automation, ReadModel
-    - Functions: ConsumerRole::default_execution_policy, ComponentName::new, ComponentName::bounded_context, ComponentName::domain, ComponentName::feature, ComponentName::component, ComponentName::durable_name, ComponentName::query_subject, ComponentName::slice_path, ConsumerSpec::new, ConsumerSpec::name, ConsumerSpec::role, ConsumerSpec::execution_policy, ConsumerSpec::projector, ConsumerSpec::projector_mut, ConsumerSpec::into_projector, ConsumerSpec::with_execution_policy, Automation::new, Automation::with_execution_policy, Automation::max_concurrency, Automation::as_spec, Automation::into_spec, ReadModel::new, ReadModel::with_execution_policy, ReadModel::as_spec, ReadModel::into_spec
-
-- src/nats.rs
-    - Summary: Provides a NATS JetStream-backed implementation of an event store, handling stream configuration, consumer management, and graceful task shutdown.
-    - When To Use: Include this file when you need to initialize a NATS event store, manage JetStream streams, or spawn background consumers, automations, and read models that react to NATS events.
-    - Types: NatsStore, GracefulShutdown, NatsEnvelope
-    - Functions: try_new, enable_mirror, get_task_tracker, wait_graceful_shutdown, client, run_consumer, spawn_consumer, spawn_automation, spawn_read_model
 
 - src/nats/query_service.rs
     - Summary: Implements NATS-based query services and clients using request-reply patterns. It provides the logic to serve read models and custom queries over NATS, as well as the client implementation to invoke those queries.
@@ -170,23 +135,6 @@
 - Cargo.toml
     - Summary: Workspace manifest and package configuration for esrc, a library providing primitives for event sourcing and CQRS systems.
     - When To Use: When needing to check dependency versions, feature flag definitions, or the structure of the workspace including its sub-crates (derive, opentelemetry-nats).
-
-- examples/basic-query-service/domain.rs
-    - Summary: Defines the core domain model for an Order system, including its state (Aggregate), the actions that can be taken (Commands), the resulting state changes (Events), and potential business logic errors.
-    - When To Use: Use this file to understand or modify the business logic, state transitions, and event/command definitions for the order processing domain.
-    - Types: OrderEvent, OrderCommand, OrderError, OrderAggregate
-
-- examples/basic-query-service/main.rs
-    - Summary: The main entry point for an example service demonstrating the full CQRS/ES lifecycle using NATS. It sets up an event store, spawns a command service for an order aggregate, establishes a read model projector, and runs a query service.
-    - When To Use: Refer to this file when you need an end-to-end example of how to configure and run command services, read models, and query handlers using the esrc library.
-    - Types: BOUNDED_CONTEXT, ORDER_DOMAIN
-    - Functions: main
-
-- examples/basic-query-service/read_model.rs
-    - Summary: Defines the read-side components for an order service, including the OrderReadModel, an in-memory store, a projector to update state from events, and a query handler.
-    - When To Use: Refer to this file when implementing CQRS read models, projections, or query handlers using the esrc framework.
-    - Types: OrderReadModel, OrderQuery, OrderStore, OrderProjector, OrderQueryHandler
-    - Functions: OrderStore::new, OrderStore::get, OrderStore::upsert, OrderStore::all, OrderProjector::new, OrderQueryHandler::new
 
 - src/aggregate.rs
     - Summary: Defines the core `Aggregate` trait and the `Root` struct, which are central to representing and managing domain objects that are constructed from event streams.
@@ -210,4 +158,22 @@
     - Summary: The crate root for the esrc library, defining the core module structure and re-exporting primary traits and types for event sourcing, including aggregates, envelopes, and views.
     - When To Use: Include this file to understand the overall architecture of the library, identify available sub-modules (like NATS or Kurrent integrations), or see the main public API entry points.
     - Types: Aggregate, Envelope, Error, Event, EventGroup, View
+
+- src/nats/query_kv.rs
+    - Summary: Implements a NATS JetStream Key-Value backed store for read models. It serves as a shared store that handles both the persistence (writing) of read model instances and the execution of queries (reading) as a QueryHandler.
+    - When To Use: Use this file when you need to implement a read model store or a query handler using NATS JetStream KV buckets as the underlying storage mechanism.
+    - Types: NatsKvStore, QueryFuture
+    - Functions: NatsKvStore::new, NatsKvStore::with_bucket_name, NatsKvStore::from_context, NatsKvStore::put, NatsKvStore::delete, NatsKvStore::get, NatsKvStore::bucket
+
+- src/event_modeling.rs
+    - Summary: Defines core primitives and builders for event-driven consumers, including semantic roles, execution policies, and structured component naming conventions.
+    - When To Use: Use this file when defining new event consumers (Automations or Read Models), configuring message execution behaviors, or generating standardized infrastructure names for consumers and query subjects.
+    - Types: ConsumerRole, ExecutionPolicy, ComponentName, ConsumerSpec, Automation, ReadModel
+    - Functions: ConsumerRole::default_execution_policy, ComponentName::new, ComponentName::bounded_context, ComponentName::domain, ComponentName::feature, ComponentName::component, ComponentName::durable_name, ComponentName::query_subject, ComponentName::slice_path, ConsumerSpec::new, ConsumerSpec::name, ConsumerSpec::role, ConsumerSpec::execution_policy, ConsumerSpec::projector, ConsumerSpec::projector_mut, ConsumerSpec::into_projector, ConsumerSpec::with_execution_policy, Automation::new, Automation::with_execution_policy, Automation::max_concurrency, Automation::as_spec, Automation::into_spec, ReadModel::new, ReadModel::with_execution_policy, ReadModel::as_spec, ReadModel::into_spec
+
+- src/nats.rs
+    - Summary: Provides a NATS JetStream-backed implementation of an event store, handling stream configuration, consumer management, and graceful task shutdown.
+    - When To Use: Include this file when you need to initialize a NATS event store, manage JetStream streams, or spawn background consumers, automations, and read models that react to NATS events.
+    - Types: NatsStore, GracefulShutdown, NatsEnvelope
+    - Functions: try_new, enable_mirror, get_task_tracker, wait_graceful_shutdown, client, jetstream_context, run_consumer, spawn_consumer, spawn_automation, spawn_read_model
 

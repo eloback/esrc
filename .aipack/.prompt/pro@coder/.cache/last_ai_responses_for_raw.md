@@ -1,120 +1,27 @@
 ====
->   Info: Duration: 1m 4s | ~$0.2952 | Prompt Tokens: 31,608 (cached: 0, cache_creation: 0) | Completion Tokens: 5,488 
+>   Info: Duration: 43s | ~$0.1909 | Prompt Tokens: 20,225 (cached: 0, cache_creation: 0) | Completion Tokens: 3,592 
 >  Model: claude-opus-4-6 | Adapter: Anthropic
->  Files: Context Files: 13 | Working Files: 0 | Knowledge Files: 1
+>  Files: Context Files: 9 | Working Files: 0 | Knowledge Files: 1
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
 
 
-Looking at the plan files, the active step is "In-memory QueryHandler helper for View-based live projections" which is already implemented. The next step in `plan-1-todo-steps.md` is "NATS KV-backed QueryHandler implementation".
+Looking at the plan, the active step is "NATS KV-backed QueryHandler implementation" which is already implemented (see `src/nats/query_kv.rs`). So I need to move it to done and implement the next todo step: "Vertical slice helper composing ConsumerSpec and QuerySpec".
 
-Since the active step is already done, I need to:
-1. Move the active step to done
-2. Activate the next todo step and implement it
-
-However, looking at the NATS KV step, I need to check if I have the necessary files. Let me review what I have:
-
-- `src/nats.rs` ✓
-- `src/nats/query_service.rs` ✓
-- `src/query/mod.rs` ✓
-- `src/query/in_memory.rs` ✓
-- `src/event_modeling.rs` ✓
-
-I have sufficient context to implement the NATS KV-backed QueryHandler. Let me proceed.
+Let me analyze what's needed:
+- A convenience builder that combines a `ReadModel` consumer (`ConsumerSpec`) and a `QueryHandler` (`QuerySpec`) into a single vertical slice declaration.
+- A `spawn_read_model_slice` method on `NatsStore` to spawn both the consumer and query service in one call.
 
 <FILE_CHANGES>
 
-<FILE_PATCH file_path="_workbench/queries/plan-3-done-steps.md">
+<FILE_PATCH file_path="_workbench/queries/plan-2-active-step.md">
 @@
--## Step - Implement NATS QueryService and QueryClient
-+## Step - In-memory QueryHandler helper for View-based live projections
-       status: done
--time-created: 2026-03-26 14:58:37
--   time-done: 2026-03-26 15:36:55
-+time-created: 2026-03-26 15:39:52
-+   time-done: 2026-03-26 16:28:37
- 
--- Created `src/nats/query_service.rs` with full NATS-backed implementations.
-+- Created `src/query/in_memory.rs` with `InMemoryViewStore<RM, Q>`, a thread-safe, in-memory store for read model instances keyed by `Uuid`.
- 
--- Implemented `QueryService` for `NatsStore`:
--  - Derives NATS request-reply subject from `ComponentName::query_subject()`: `query.<bounded_context>.<domain>.<feature>.<component>`.
--  - Uses the async-nats service builder to create a service group and endpoint, following the same pattern as `CommandService` in `src/nats/command_service.rs`.
--  - Deserializes incoming `QueryRequest` (either `GetById` or `Query` variant), dispatches to the `QueryHandler`, serializes and sends back results.
--  - Includes serializable reply/error types: `QueryRequest`, `QueryReplyError`, `GetByIdReply`, `QueryReply`.
--  - Error handling follows the same pattern as `CommandReply`/`ReplyError`, with fallback error replies if serialization fails.
-+- `InMemoryViewStore` provides:
-+  - `new(query_fn)`: constructor with closure for custom query logic.
-+  - `upsert`, `remove`, `get`, `all`, `len`, `is_empty` methods.
- 
--- Implemented `QueryClient` for `NatsStore`:
--  - `get_by_id`: serializes a `QueryRequest::GetById`, sends as NATS request to `<query_subject>.query`, deserializes `GetByIdReply`.
--  - `query`: serializes a `QueryRequest::Query`, sends as NATS request, deserializes `QueryReply`.
--  - Maps transport/service errors back to `esrc::error::Error::Internal`.
-+- Implements `QueryHandler` with `type Id = Uuid`, delegating to the store and closure.
- 
--- Added `spawn_query_service` method to `NatsStore`:
--  - Follows the `spawn_service` pattern with `Tripwire`-based graceful shutdown.
--  - Registers a shutdown trigger, wraps `serve` in a tracked cancellable task.
-+- Converted `src/query.rs` to `src/query/mod.rs` module directory.
- 
--- Registered `pub mod query_service` in `src/nats.rs`.
-+- Store is cheaply cloneable (`Arc`-wrapped), shareable between `Project` (write) and `QuerySpec` (read).
-+
-+## Step - Implement NATS QueryService and QueryClient
-+      status: done
-+time-created: 2026-03-26 14:58:37
-+   time-done: 2026-03-26 15:36:55
-+
-+- Created `src/nats/query_service.rs` with full NATS-backed implementations.
-+
-+- Implemented `QueryService` for `NatsStore`:
-+  - Derives NATS request-reply subject from `ComponentName::query_subject()`: `query.<bounded_context>.<domain>.<feature>.<component>`.
-+  - Uses the async-nats service builder to create a service group and endpoint, following the same pattern as `CommandService` in `src/nats/command_service.rs`.
-+  - Deserializes incoming `QueryRequest` (either `GetById` or `Query` variant), dispatches to the `QueryHandler`, serializes and sends back results.
-+  - Includes serializable reply/error types: `QueryRequest`, `QueryReplyError`, `GetByIdReply`, `QueryReply`.
-+  - Error handling follows the same pattern as `CommandReply`/`ReplyError`, with fallback error replies if serialization fails.
-+
-+- Implemented `QueryClient` for `NatsStore`:
-+  - `get_by_id`: serializes a `QueryRequest::GetById`, sends as NATS request to `<query_subject>.query`, deserializes `GetByIdReply`.
-+  - `query`: serializes a `QueryRequest::Query`, sends as NATS request, deserializes `QueryReply`.
-+  - Maps transport/service errors back to `esrc::error::Error::Internal`.
-+
-+- Added `spawn_query_service` method to `NatsStore`:
-+  - Follows the `spawn_service` pattern with `Tripwire`-based graceful shutdown.
-+  - Registers a shutdown trigger, wraps `serve` in a tracked cancellable task.
-+
-+- Registered `pub mod query_service` in `src/nats.rs`.
-</FILE_PATCH>
-
-<FILE_NEW file_path="_workbench/queries/plan-2-active-step.md">
-# Plan 2 - Active Step
-
-## Step - NATS KV-backed QueryHandler implementation
-      status: active
-time-created: 2026-03-26 15:39:52
-time-current: 2026-03-26 16:28:37
-
-- Create a concrete `QueryHandler` implementation backed by NATS JetStream Key-Value store.
-- This provides a persistence layer for read models without requiring the developer to set up external storage.
-- Design considerations:
-  - The KV bucket name should be derived from the `ComponentName` (convention over configuration), with an option to override.
-  - `get_by_id` reads from the KV bucket by key.
-  - The `Project` implementation writes to the same KV bucket (the developer calls a save/put method inside their `project()` implementation).
-  - Provide a helper or wrapper that the developer can hold inside their `Project` impl to write to the KV store, and that also implements `QueryHandler` for reads.
-  - Serialization format: JSON (consistent with other NATS message payloads in the crate).
-- Module placement: `src/nats/query_kv.rs` or similar, registered in `src/nats.rs`.
-- References: see `src/query.rs` for `QueryHandler`, `src/nats.rs` for `NatsStore`.
-
-</FILE_NEW>
-
-<FILE_PATCH file_path="_workbench/queries/plan-1-todo-steps.md">
-@@
- # Plan 1 - Todo Steps
- 
+-# Plan 2 - Active Step
+-
 -## Step - NATS KV-backed QueryHandler implementation
--      status: not_started
+-      status: active
 -time-created: 2026-03-26 15:39:52
+-time-current: 2026-03-26 16:28:37
 -
 -- Create a concrete `QueryHandler` implementation backed by NATS JetStream Key-Value store.
 -- This provides a persistence layer for read models without requiring the developer to set up external storage.
@@ -126,328 +33,239 @@ time-current: 2026-03-26 16:28:37
 -  - Serialization format: JSON (consistent with other NATS message payloads in the crate).
 -- Module placement: `src/nats/query_kv.rs` or similar, registered in `src/nats.rs`.
 -- References: see `src/query.rs` for `QueryHandler`, `src/nats.rs` for `NatsStore`.
--
- ## Step - Vertical slice helper composing ConsumerSpec and QuerySpec
++# Plan 2 - Active Step
++
++## Step - Vertical slice helper composing ConsumerSpec and QuerySpec
++      status: active
++time-created: 2026-03-26 15:39:52
++time-current: 2026-03-26 16:54:53
++
++- Create a convenience builder or type that declares a `ReadModel` consumer (`ConsumerSpec`) and its `QueryHandler` (`QuerySpec`) together as a single vertical slice.
++- This simplifies the developer experience for the common case where a read model has both an event consumer (write side) and a query handler (read side).
++- Design considerations:
++  - Should compose, not replace, the existing `ConsumerSpec` and `QuerySpec` types.
++  - A builder pattern (e.g., `ReadModelSlice::new(name, projector, handler)`) that produces both specs, or a struct that holds both and can be passed to `NatsStore` for spawning.
++  - Consider adding a `spawn_read_model_slice` or similar convenience method on `NatsStore` that spawns both the consumer and the query service in one call.
++  - Be mindful of how these components are registered in the runtime (the user emphasized developer UX and runtime registration flow).
++- Module placement: likely in `src/event_modeling.rs` since it is a declaration/composition concern, or a new `src/slice.rs` if it grows.
++- References: see `src/event_modeling.rs` for `ConsumerSpec`, `ReadModel`, `Automation`; see `src/query.rs` for `QuerySpec`.
 </FILE_PATCH>
 
-<FILE_NEW file_path="src/nats/query_kv.rs">
-//! NATS JetStream Key-Value backed [`QueryHandler`] implementation.
-//!
-//! Provides [`NatsKvStore`], a shared store that persists read model instances
-//! in a NATS JetStream Key-Value bucket. It can be used both as the write
-//! target inside a [`Project`](crate::project::Project) implementation and as
-//! the read source for a [`QueryHandler`].
-//!
-//! # Usage
-//!
-//! 1. Create an `NatsKvStore` from a `NatsStore` (or directly from a JetStream
-//!    context) with a query handler closure.
-//! 2. Clone the store into your `Project` implementation and call
-//!    [`put`](NatsKvStore::put) / [`delete`](NatsKvStore::delete) inside
-//!    `project()`.
-//! 3. Pass the same store (or a clone) as the `QueryHandler` to a `QuerySpec`.
-//!
-//! # Example
-//!
-//! ```rust,ignore
-//! use esrc::nats::query_kv::NatsKvStore;
-//!
-//! let kv_store: NatsKvStore<MyReadModel, MyQuery> = NatsKvStore::new(
-//!     &nats_store,
-//!     &component_name,
-//!     |query, getter| Box::pin(async move {
-//!         match query {
-//!             MyQuery::ListActive => {
-//!                 // For list queries, the developer must implement their own
-//!                 // iteration strategy or maintain secondary indices.
-//!                 todo!("implement custom query logic")
-//!             }
-//!         }
-//!     }),
-//! ).await?;
-//!
-//! // Inside your Project impl:
-//! // kv_store.put("some-id", &read_model).await?;
-//!
-//! // Wire as QueryHandler via QuerySpec:
-//! // QuerySpec::new(name, transport, kv_store.clone())
-//! ```
+<FILE_PATCH file_path="_workbench/queries/plan-1-todo-steps.md">
+@@
+ # Plan 1 - Todo Steps
+ 
+-## Step - Vertical slice helper composing ConsumerSpec and QuerySpec
+-      status: not_started
+-time-created: 2026-03-26 15:39:52
+-
+-- Create a convenience builder or type that declares a `ReadModel` consumer (`ConsumerSpec`) and its `QueryHandler` (`QuerySpec`) together as a single vertical slice.
+-- This simplifies the developer experience for the common case where a read model has both an event consumer (write side) and a query handler (read side).
+-- Design considerations:
+-  - Should compose, not replace, the existing `ConsumerSpec` and `QuerySpec` types.
+-  - A builder pattern (e.g., `ReadModelSlice::new(name, projector, handler)`) that produces both specs, or a struct that holds both and can be passed to `NatsStore` for spawning.
+-  - Consider adding a `spawn_read_model_slice` or similar convenience method on `NatsStore` that spawns both the consumer and the query service in one call.
+-  - Be mindful of how these components are registered in the runtime (the user emphasized developer UX and runtime registration flow).
+-- Module placement: likely in `src/event_modeling.rs` since it is a declaration/composition concern, or a new `src/slice.rs` if it grows.
+-- References: see `src/event_modeling.rs` for `ConsumerSpec`, `ReadModel`, `Automation`; see `src/query.rs` for `QuerySpec`.
+-
+ ## Step - Caching decorator for QueryHandler
+</FILE_PATCH>
 
-use std::sync::Arc;
+<FILE_PATCH file_path="_workbench/queries/plan-3-done-steps.md">
+@@
+ - Registered `pub mod query_service` in `src/nats.rs`.
++
++## Step - NATS KV-backed QueryHandler implementation
++      status: done
++time-created: 2026-03-26 15:39:52
++   time-done: 2026-03-26 16:54:53
++
++- Created `src/nats/query_kv.rs` with `NatsKvStore<RM, Q>`, a shared read/write store backed by NATS JetStream Key-Value.
++
++- `NatsKvStore` provides:
++  - `new(nats_store, name, query_fn)`: constructor deriving bucket name from `ComponentName::durable_name()` prefixed with `rm_`.
++  - `with_bucket_name`, `from_context`: alternative constructors for custom bucket names or direct JetStream context usage.
++  - `put`, `delete`, `get`: CRUD operations serializing read models as JSON.
++  - `bucket()`: access to the underlying NATS KV bucket for advanced operations.
++
++- Implements `QueryHandler` with `type Id = String`, delegating `get_by_id` to `get` and `handle` to the user-supplied closure.
++
++- Store is cheaply cloneable (`Arc`-wrapped), shareable between `Project` (write) and `QuerySpec` (read).
++
++- Registered `pub mod query_kv` in `src/nats.rs`.
+</FILE_PATCH>
 
-use async_nats::jetstream::kv::{Config as KvConfig, Store as KvBucket};
-use serde::de::DeserializeOwned;
-use serde::Serialize;
+<FILE_APPEND file_path="src/event_modeling.rs">
 
-use crate::error::{self, Error};
-use crate::event_modeling::ComponentName;
-use crate::query::{Query, QueryHandler};
-
-/// A type alias for the boxed future returned by the query function closure.
-pub type QueryFuture<'a, T> = std::pin::Pin<Box<dyn std::future::Future<Output = error::Result<T>> + Send + 'a>>;
-
-/// A read/write store for read model instances backed by a NATS JetStream
-/// Key-Value bucket.
+/// A declaration builder that composes a read model consumer (`ConsumerSpec`)
+/// and its query handler (`QuerySpec`) as a single vertical slice.
 ///
-/// This type is cheaply cloneable (internally `Arc`-wrapped) and can be shared
-/// between a `Project` implementation (write side) and a `QueryHandler` (read
-/// side).
+/// This simplifies the common case where a read model has both an event
+/// consumer (write side) and a query handler (read side), allowing both to
+/// be declared and spawned together.
 ///
-/// The generic parameter `Q` is the user's `Query` enum type, which determines
-/// the `ReadModel` and `Response` associated types. Custom query logic is
-/// supplied via a closure at construction time. The closure receives the query
-/// enum and a reference to the `NatsKvStore` itself (for key lookups), and
-/// returns a future producing the query response.
-pub struct NatsKvStore<RM, Q>
-where
-    RM: Clone + Send + Sync,
-    Q: Query<ReadModel = RM>,
-{
-    inner: Arc<Inner<RM, Q>>,
+/// # Example
+///
+/// ```rust,ignore
+/// use esrc::event_modeling::{ComponentName, ReadModelSlice};
+/// use esrc::query::QueryTransport;
+///
+/// let slice = ReadModelSlice::new(
+///     ComponentName::new("shop", "catalog", "products", "list"),
+///     my_projector,
+///     my_kv_store,
+/// );
+///
+/// // Spawn both the consumer and query service:
+/// nats_store.spawn_read_model_slice(slice);
+/// ```
+#[derive(Clone, Debug)]
+pub struct ReadModelSlice<P, H> {
+    consumer_spec: ConsumerSpec<P>,
+    query_spec: crate::query::QuerySpec<H>,
 }
 
-struct Inner<RM, Q>
-where
-    RM: Clone + Send + Sync,
-    Q: Query<ReadModel = RM>,
-{
-    bucket: KvBucket,
-    query_fn: Box<dyn Fn(Q, NatsKvStore<RM, Q>) -> QueryFuture<'static, Q::Response> + Send + Sync>,
-}
+impl<P, H> ReadModelSlice<P, H> {
+    /// Create a new read model slice with the given projector and query handler.
+    ///
+    /// The `ComponentName` is shared between the consumer and query specs.
+    /// The consumer is created with `ConsumerRole::ReadModel` defaults
+    /// (sequential execution). The query transport defaults to
+    /// `NatsRequestReply`.
+    pub fn new(name: ComponentName, projector: P, handler: H) -> Self {
+        let consumer_spec = ConsumerSpec::new(name.clone(), ConsumerRole::ReadModel, projector);
+        let query_spec = crate::query::QuerySpec::new(
+            name,
+            crate::query::QueryTransport::NatsRequestReply,
+            handler,
+        );
 
-impl<RM, Q> Clone for NatsKvStore<RM, Q>
-where
-    RM: Clone + Send + Sync,
-    Q: Query<ReadModel = RM>,
-{
-    fn clone(&self) -> Self {
         Self {
-            inner: Arc::clone(&self.inner),
-        }
-    }
-}
-
-impl<RM, Q> std::fmt::Debug for NatsKvStore<RM, Q>
-where
-    RM: Clone + Send + Sync,
-    Q: Query<ReadModel = RM>,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("NatsKvStore")
-            .field("bucket", &self.inner.bucket.status().map(|_| "connected"))
-            .finish()
-    }
-}
-
-impl<RM, Q> NatsKvStore<RM, Q>
-where
-    RM: Clone + Send + Sync + Serialize + DeserializeOwned + 'static,
-    Q: Query<ReadModel = RM> + Send + 'static,
-    Q::Response: Send + 'static,
-{
-    /// Create a new NATS KV store with the bucket name derived from the
-    /// `ComponentName`.
-    ///
-    /// The bucket name is derived using `ComponentName::durable_name()`,
-    /// prefixed with `rm_` (read model). The bucket is created if it does not
-    /// already exist.
-    ///
-    /// The `query_fn` closure receives the user's query enum value and a clone
-    /// of this `NatsKvStore` (so the closure can call `get`, `get_by_id`, etc.
-    /// for lookups). It returns a boxed future producing the query response.
-    ///
-    /// # Example
-    ///
-    /// ```rust,ignore
-    /// let store = NatsKvStore::new(&nats_store, &name, |query, store| {
-    ///     Box::pin(async move {
-    ///         match query {
-    ///             MyQuery::ListActive => todo!(),
-    ///         }
-    ///     })
-    /// }).await?;
-    /// ```
-    pub async fn new<F>(
-        nats_store: &super::NatsStore,
-        name: &ComponentName,
-        query_fn: F,
-    ) -> error::Result<Self>
-    where
-        F: Fn(Q, NatsKvStore<RM, Q>) -> QueryFuture<'static, Q::Response> + Send + Sync + 'static,
-    {
-        let bucket_name = format!("rm_{}", name.durable_name());
-        Self::with_bucket_name(nats_store, &bucket_name, query_fn).await
-    }
-
-    /// Create a new NATS KV store with an explicit bucket name.
-    ///
-    /// Use this when the default derived bucket name is not suitable.
-    pub async fn with_bucket_name<F>(
-        nats_store: &super::NatsStore,
-        bucket_name: &str,
-        query_fn: F,
-    ) -> error::Result<Self>
-    where
-        F: Fn(Q, NatsKvStore<RM, Q>) -> QueryFuture<'static, Q::Response> + Send + Sync + 'static,
-    {
-        let context = nats_store.jetstream_context();
-
-        let bucket = context
-            .create_key_value(KvConfig {
-                bucket: bucket_name.to_owned(),
-                ..Default::default()
-            })
-            .await
-            .map_err(|e| Error::Internal(e.into()))?;
-
-        Ok(Self {
-            inner: Arc::new(Inner {
-                bucket,
-                query_fn: Box::new(query_fn),
-            }),
-        })
-    }
-
-    /// Create a new NATS KV store directly from a JetStream context and
-    /// bucket name.
-    ///
-    /// This is useful when a `NatsStore` instance is not available.
-    pub async fn from_context<F>(
-        context: &async_nats::jetstream::Context,
-        bucket_name: &str,
-        query_fn: F,
-    ) -> error::Result<Self>
-    where
-        F: Fn(Q, NatsKvStore<RM, Q>) -> QueryFuture<'static, Q::Response> + Send + Sync + 'static,
-    {
-        let bucket = context
-            .create_key_value(KvConfig {
-                bucket: bucket_name.to_owned(),
-                ..Default::default()
-            })
-            .await
-            .map_err(|e| Error::Internal(e.into()))?;
-
-        Ok(Self {
-            inner: Arc::new(Inner {
-                bucket,
-                query_fn: Box::new(query_fn),
-            }),
-        })
-    }
-
-    /// Put (insert or update) a read model instance by its string key.
-    ///
-    /// The read model is serialized to JSON before storage.
-    pub async fn put(&self, key: &str, model: &RM) -> error::Result<()> {
-        let bytes = serde_json::to_vec(model)
-            .map_err(|e| Error::Format(e.into()))?;
-
-        self.inner
-            .bucket
-            .put(key, bytes.into())
-            .await
-            .map_err(|e| Error::Internal(e.into()))?;
-
-        Ok(())
-    }
-
-    /// Delete a read model instance by its string key.
-    ///
-    /// This is a soft delete in NATS KV (places a delete marker).
-    pub async fn delete(&self, key: &str) -> error::Result<()> {
-        self.inner
-            .bucket
-            .delete(key)
-            .await
-            .map_err(|e| Error::Internal(e.into()))?;
-
-        Ok(())
-    }
-
-    /// Get a read model instance by its string key.
-    ///
-    /// Returns `None` if the key does not exist or has been deleted.
-    pub async fn get(&self, key: &str) -> error::Result<Option<RM>> {
-        match self.inner.bucket.get(key).await {
-            Ok(Some(entry)) => {
-                let model: RM = serde_json::from_slice(&entry)
-                    .map_err(|e| Error::Format(e.into()))?;
-                Ok(Some(model))
-            },
-            Ok(None) => Ok(None),
-            Err(e) => Err(Error::Internal(e.into())),
+            consumer_spec,
+            query_spec,
         }
     }
 
-    /// Returns a reference to the underlying NATS KV bucket.
-    ///
-    /// This can be used for advanced operations not covered by the
-    /// convenience methods (e.g., watching for changes, listing keys).
-    pub fn bucket(&self) -> &KvBucket {
-        &self.inner.bucket
+    /// Override the execution policy for the consumer.
+    pub fn with_execution_policy(mut self, execution_policy: ExecutionPolicy) -> Self {
+        self.consumer_spec = self.consumer_spec.with_execution_policy(execution_policy);
+        self
+    }
+
+    /// Override the transport for the query service.
+    pub fn with_query_transport(mut self, transport: crate::query::QueryTransport) -> Self {
+        self.query_spec = self.query_spec.with_transport(transport);
+        self
+    }
+
+    /// Returns a reference to the consumer specification.
+    pub fn consumer_spec(&self) -> &ConsumerSpec<P> {
+        &self.consumer_spec
+    }
+
+    /// Returns a reference to the query specification.
+    pub fn query_spec(&self) -> &crate::query::QuerySpec<H> {
+        &self.query_spec
+    }
+
+    /// Consumes the slice and returns both specifications.
+    pub fn into_specs(self) -> (ConsumerSpec<P>, crate::query::QuerySpec<H>) {
+        (self.consumer_spec, self.query_spec)
+    }
+
+    /// Returns a reference to the shared component name.
+    pub fn name(&self) -> &ComponentName {
+        self.consumer_spec.name()
+    }
+
+    /// Returns a reference to the projector.
+    pub fn projector(&self) -> &P {
+        self.consumer_spec.projector()
+    }
+
+    /// Returns a mutable reference to the projector.
+    pub fn projector_mut(&mut self) -> &mut P {
+        self.consumer_spec.projector_mut()
+    }
+
+    /// Returns a reference to the query handler.
+    pub fn handler(&self) -> &H {
+        self.query_spec.handler()
+    }
+
+    /// Returns a mutable reference to the query handler.
+    pub fn handler_mut(&mut self) -> &mut H {
+        self.query_spec.handler_mut()
     }
 }
-
-impl<RM, Q> QueryHandler for NatsKvStore<RM, Q>
-where
-    RM: Clone + Send + Sync + Serialize + DeserializeOwned + 'static,
-    Q: Query<ReadModel = RM> + Send + 'static,
-    Q::Response: Send + 'static,
-{
-    type Query = Q;
-    type Id = String;
-
-    async fn get_by_id(
-        &self,
-        id: Self::Id,
-    ) -> error::Result<Option<RM>> {
-        self.get(&id).await
-    }
-
-    async fn handle(
-        &self,
-        query: Q,
-    ) -> error::Result<Q::Response> {
-        let store_clone = self.clone();
-        (self.inner.query_fn)(query, store_clone).await
-    }
-}
-</FILE_NEW>
+</FILE_APPEND>
 
 <FILE_PATCH file_path="src/nats.rs">
 @@
- /// NATS-backed command service support for `NatsStore`.
- pub mod command_service;
- #[doc(hidden)]
- pub mod convert;
- /// Use a Jetstream message as an esrc Envelope.
- pub mod envelope;
- #[doc(hidden)]
- pub mod event;
- /// NATS-backed query service support for `NatsStore`.
- pub mod query_service;
-+/// NATS JetStream Key-Value backed QueryHandler implementation.
-+pub mod query_kv;
+ use crate::event_modeling::{Automation, ConsumerSpec, ExecutionPolicy, ReadModel};
+ use crate::project::Project;
++use crate::query::{Query, QueryHandler, QueryService};
 @@
-     pub fn client(&self) -> async_nats::Client {
-         self.context.client()
+     /// Spawn a read model declaration onto the store task tracker.
+     pub fn spawn_read_model<P>(&self, read_model: ReadModel<P>)
+     where
+         P: Project + Send + Sync + Clone + 'static,
+         P::EventGroup: crate::event::EventGroup + Send,
+         P::Error: std::error::Error + Send + Sync + 'static,
+     {
+         self.spawn_consumer(read_model.into_spec());
      }
- 
-+    /// Returns the underlying JetStream context.
-+    ///
-+    /// This can be used to create Key-Value stores or perform other
-+    /// JetStream operations outside the event store abstraction.
-+    pub fn jetstream_context(&self) -> &Context {
-+        &self.context
-+    }
 +
-     /// Select the stream used for creating read-side consumers.
++    /// Spawn a read model slice, starting both the event consumer and the
++    /// query service as tracked background tasks.
++    ///
++    /// This is the recommended way to register a vertical slice that pairs
++    /// a read model projection with its query handler.
++    pub fn spawn_read_model_slice<P, H>(
++        &self,
++        slice: crate::event_modeling::ReadModelSlice<P, H>,
++    ) where
++        P: Project + Send + Sync + Clone + 'static,
++        P::EventGroup: crate::event::EventGroup + Send,
++        P::Error: std::error::Error + Send + Sync + 'static,
++        H: QueryHandler + Send + Sync + 'static,
++        H::Query: serde::de::DeserializeOwned + Sync,
++        H::Id: serde::de::DeserializeOwned,
++        <H::Query as Query>::ReadModel: serde::Serialize + Sync,
++        <H::Query as Query>::Response: serde::Serialize + Sync,
++    {
++        let (consumer_spec, query_spec) = slice.into_specs();
++
++        // Spawn the event consumer (read model projection).
++        self.spawn_consumer(consumer_spec);
++
++        // Spawn the query service.
++        self.spawn_query_service(query_spec);
++    }
+ }
+</FILE_PATCH>
+
+<FILE_PATCH file_path="src/lib.rs">
+@@
+ pub use event_modeling::Automation;
++pub use event_modeling::ReadModelSlice;
 </FILE_PATCH>
 
 </FILE_CHANGES>
 
+The implementation adds:
+
+1. **`ReadModelSlice<P, H>`** in `src/event_modeling.rs`: A builder struct that composes a `ConsumerSpec` (read model consumer) and a `QuerySpec` (query handler) using a shared `ComponentName`. It provides:
+   - `new(name, projector, handler)` constructor with sensible defaults (sequential execution, NATS request-reply transport).
+   - Override methods for execution policy and query transport.
+   - Accessors for both specs, projector, handler, and a destructuring `into_specs()`.
+
+2. **`spawn_read_model_slice`** on `NatsStore` in `src/nats.rs`: A single method that takes a `ReadModelSlice`, destructures it into its two specs, and spawns both the event consumer and the query service as tracked background tasks.
+
+3. **Re-export** of `ReadModelSlice` from `src/lib.rs` alongside the existing `Automation` re-export.
+
 <suggested_git_command>
-git add -A . && git commit -a -m "+ nats/query_kv - Add NATS KV-backed QueryHandler implementation"
+git add -A . && git commit -a -m "+ event_modeling - Add ReadModelSlice vertical slice helper composing ConsumerSpec and QuerySpec"
 </suggested_git_command>
 

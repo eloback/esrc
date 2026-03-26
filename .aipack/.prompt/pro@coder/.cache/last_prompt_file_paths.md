@@ -16,23 +16,18 @@ file_content_mode: udiffx
 
 ## All resolve files(sent to AI with content, in this order)
 
-- src/version.rs
 - src/error.rs
 - src/project.rs
+- src/query/mod.rs
+- src/nats/query_kv.rs
 - src/event_modeling.rs
 - src/nats.rs
-- src/nats/query_service.rs
-- src/query/mod.rs
-- src/query/in_memory.rs
-- src/lib.rs
-- _workbench/queries/dev-chat.md
 - _workbench/queries/plan-1-todo-steps.md
 - _workbench/queries/plan-2-active-step.md
 - _workbench/queries/plan-3-done-steps.md
 
 ## Post (just for info, included in the All resolved files above)
 
-- _workbench/queries/dev-chat.md
 - _workbench/queries/plan-1-todo-steps.md
 - _workbench/queries/plan-2-active-step.md
 - _workbench/queries/plan-3-done-steps.md
@@ -92,6 +87,7 @@ None
   - envelope.rs
   - event.rs
   - header.rs
+  - query_kv.rs
   - query_service.rs
   - subject.rs
 - src/query/

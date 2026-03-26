@@ -441,7 +441,7 @@
     "src/event_modeling.rs": {
       "file_path": "src/event_modeling.rs",
       "hash": "f8a9c970739249136f78f6536a6def1524e3de4e5fdda33724d78cca783f17d3",
-      "mtime": 1774548946471666,
+      "mtime": 1774554850484913,
       "public_functions": [
         "ConsumerRole::default_execution_policy",
         "ComponentName::new",
@@ -572,14 +572,15 @@
     },
     "src/nats.rs": {
       "file_path": "src/nats.rs",
-      "hash": "fc4d9f2d2f0b1b50bb4fbdbc8037cc2ab3a8be40b4a3d2bba0b1b3bb0ddedec8",
-      "mtime": 1774549183105176,
+      "hash": "a76fe76a5c8d3b7014c2ae45af976d72a0e38ab795842b783d9c493451066789",
+      "mtime": 1774554850486913,
       "public_functions": [
         "try_new",
         "enable_mirror",
         "get_task_tracker",
         "wait_graceful_shutdown",
         "client",
+        "jetstream_context",
         "run_consumer",
         "spawn_consumer",
         "spawn_automation",
@@ -661,6 +662,26 @@
       "public_types": [],
       "summary": "Provides constants for standard NATS header keys and a helper function to extract header values from NATS messages.",
       "when_to_use": "Use when you need to retrieve metadata, version, or event type information from the headers of an async_nats::Message."
+    },
+    "src/nats/query_kv.rs": {
+      "file_path": "src/nats/query_kv.rs",
+      "hash": "ddad258fd82390254964bad1fa364589bdc3ea0ab2a25ee9087c50ab3e23bf17",
+      "mtime": 1774553611273508,
+      "public_functions": [
+        "NatsKvStore::new",
+        "NatsKvStore::with_bucket_name",
+        "NatsKvStore::from_context",
+        "NatsKvStore::put",
+        "NatsKvStore::delete",
+        "NatsKvStore::get",
+        "NatsKvStore::bucket"
+      ],
+      "public_types": [
+        "NatsKvStore",
+        "QueryFuture"
+      ],
+      "summary": "Implements a NATS JetStream Key-Value backed store for read models. It serves as a shared store that handles both the persistence (writing) of read model instances and the execution of queries (reading) as a QueryHandler.",
+      "when_to_use": "Use this file when you need to implement a read model store or a query handler using NATS JetStream KV buckets as the underlying storage mechanism."
     },
     "src/nats/query_service.rs": {
       "file_path": "src/nats/query_service.rs",
