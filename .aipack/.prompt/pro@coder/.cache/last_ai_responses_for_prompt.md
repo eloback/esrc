@@ -1,26 +1,23 @@
 ====
->   Info: Duration: 39s | ~$0.1857 | Prompt Tokens: 27,432 (cached: 0, cache_creation: 0) | Completion Tokens: 1,943 
+>   Info: Duration: 1m 1s | ~$0.2713 | Prompt Tokens: 30,444 (cached: 0, cache_creation: 0) | Completion Tokens: 4,764 
 >  Model: claude-opus-4-6 | Adapter: Anthropic
->  Files: Context Files: 11 | Working Files: 0 | Knowledge Files: 1
+>  Files: Context Files: 13 | Working Files: 0 | Knowledge Files: 1
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
-Looking at the dev-chat design summary, the done steps, and the "What Is NOT Included in the Initial Implementation" section, I can identify the remaining features to plan.
+Looking at the existing `multi-slice-command-service` example, I need to create a similar example that demonstrates the `QueryHandler` and `QueryClient` working with the NATS backend. Let me study the existing patterns and create a basic example.
 
-The completed steps cover:
-1. ✅ Rename `ConsumerName` to `ComponentName`
-2. ✅ Core traits (`Query`, `QueryHandler`, `QueryTransport`, `QuerySpec`) in `src/query.rs`
-3. ✅ `QueryService` and `QueryClient` traits in `src/query.rs`
-4. ✅ NATS `QueryService`/`QueryClient` implementation
+I'll create an example that:
+1. Defines a simple domain with events and an aggregate
+2. Creates a `Project` implementation that maintains a read model
+3. Implements a `QueryHandler` for that read model
+4. Uses `QueryService` (via `spawn_query_service`) and `QueryClient` (via `get_by_id` and `query`) to validate the round-trip
 
-Remaining from the design summary's deferred list:
-- In-memory `QueryHandler` helper for `View`-based live projections
-- NATS KV-backed `QueryHandler` implementation
-- Vertical slice helper/builder that composes a `ConsumerSpec` + `QuerySpec`
-- Caching layer (decorator pattern)
-- Pagination/sorting helper types
+
+
+Wait, I need to also check that the plan-1-todo-steps doesn't have a duplicate. Let me re-read my patch. The patch adds the active step at the top of todo, but per the rules, the step should be moved from todo to active (not remain in todo). Let me fix the plan files properly.
 
 
 
 <suggested_git_command>
-git commit -a -m ". queries plan - Add todo steps for remaining query framework features"
+git add -A . && git commit -a -m "+ basic-query-service - Add example validating QueryHandler and QueryClient over NATS"
 </suggested_git_command>

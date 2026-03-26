@@ -78,7 +78,7 @@ time = { version = "0.3", features = ["serde", "macros"] }
 anyhow.workspace = true
 serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["full"] }
-uuid = { workspace = true, features = ["v7"] }
+uuid = { workspace = true, features = ["v7", "serde"] }
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 
 [[example]]

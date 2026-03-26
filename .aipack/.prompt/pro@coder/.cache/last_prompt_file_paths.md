@@ -17,7 +17,9 @@ file_content_mode: udiffx
 ## All resolve files(sent to AI with content, in this order)
 
 - src/view.rs
-- src/project.rs
+- src/error.rs
+- examples/multi-slice-command-service/domain.rs
+- examples/multi-slice-command-service/main.rs
 - src/lib.rs
 - src/event_modeling.rs
 - src/nats.rs
