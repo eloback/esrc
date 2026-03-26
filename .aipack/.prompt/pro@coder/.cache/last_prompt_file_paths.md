@@ -19,7 +19,9 @@ file_content_mode: udiffx
 - src/view.rs
 - src/error.rs
 - src/event/command_service.rs
+- src/lib.rs
 - src/project.rs
+- src/nats/command_service.rs
 - src/event_modeling.rs
 - _workbench/queries/dev-chat.md
 
