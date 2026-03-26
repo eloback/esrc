@@ -53,16 +53,18 @@ impl CommandService for NatsStore {
         A::Error: std::error::Error + Serialize + DeserializeOwned + Send + Sync + 'static,
     {
         let event_name = A::Event::name();
+        let prefix = self.prefix;
+        let scoped_name = format!("{prefix}.{event_name}");
 
         let service = self
             .client()
             .service_builder()
-            .description(format!("Command service for {event_name}"))
-            .start(event_name, "0.0.1")
+            .description(format!("Command service for {scoped_name}"))
+            .start(&scoped_name, "0.0.1")
             .await
             .map_err(|e| Error::Internal(e.into()))?;
 
-        let group = service.group(event_name);
+        let group = service.group(&scoped_name);
 
         // The endpoint subject uses a wildcard to capture the aggregate UUID
         // from the last token, e.g. `<event_name>.*`.
@@ -126,6 +128,7 @@ impl NatsStore {
         let (trigger, tripwire) = Tripwire::new();
 
         let exit_tx = self.graceful_shutdown.exit_tx.clone();
+        let prefix = self.prefix;
 
         self.graceful_shutdown.task_tracker.spawn(async move {
             // Register the trigger so it is cancelled during graceful shutdown.
@@ -137,11 +140,11 @@ impl NatsStore {
             tokio::select! {
                 result = store.serve::<A>() => {
                     if let Err(e) = result {
-                        tracing::error!("command service for '{}' exited with error: {e}", A::Event::name());
+                        tracing::error!("command service for '{}.{}' exited with error: {e}", prefix, A::Event::name());
                     }
                 }
                 _ = tripwire => {
-                    tracing::info!("command service for '{}' shutting down gracefully", A::Event::name());
+                    tracing::info!("command service for '{}.{}' shutting down gracefully", prefix, A::Event::name());
                 }
             }
         });
@@ -255,7 +258,7 @@ impl CommandClient for NatsStore {
         A::Command: serde::ser::Serialize + Send,
         A::Error: std::error::Error + Serialize + DeserializeOwned + Send + Sync + 'static,
     {
-        let subject = format!("{}.command.{}", A::Event::name(), id);
+        let subject = format!("{}.{}.command.{}", self.prefix, A::Event::name(), id);
         let payload = serde_json::to_vec(&command).map_err(|e| {
             Error::Internal(format!("failed to serialize command for sending: {e}").into())
         })?;
