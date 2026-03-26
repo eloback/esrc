@@ -1,19 +1,3 @@
-## Step - define the event_modeling module surface and consumer declaration model
-      status: not_started
-time-created: 2026-03-26 06:00:43
-
-Create the new `event_modeling` module plan and define the initial public API surface for consumer declarations. This step should introduce the core declaration concepts discussed in the dev chat, with explicit support for consumer roles such as automation and read model, and stable slice-oriented naming based on bounded context, domain, and feature.
-
-- Define the planned types and responsibilities for:
-  - consumer identity and naming
-  - automation and read model declaration builders
-  - a normalized internal consumer specification
-  - execution policy defaults and overrides
-
-- Capture the intended naming model so durable identities are derived from structured slice information instead of ad hoc strings.
-
-- Favor the direction described in `_workbench/consumers/dev-chat.md`, request `Expand the consumer declaration design with code examples`, especially step 5 of `My recommended practical path`, while intentionally skipping step 4 for now.
-
 ## Step - implement the event_modeling module with declaration types and builders
       status: not_started
 time-created: 2026-03-26 06:00:43
