@@ -1,24 +1,26 @@
 ====
->   Info: Duration: 20s | ~$0.2525 | Prompt Tokens: 42,684 (cached: 0, cache_creation: 0) | Completion Tokens: 1,562 
+>   Info: Duration: 39s | ~$0.1857 | Prompt Tokens: 27,432 (cached: 0, cache_creation: 0) | Completion Tokens: 1,943 
 >  Model: claude-opus-4-6 | Adapter: Anthropic
->  Files: Context Files: 18 | Working Files: 0 | Knowledge Files: 1
+>  Files: Context Files: 11 | Working Files: 0 | Knowledge Files: 1
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
-Looking at the plan files, the `plan-1-todo-steps.md` is empty and there is an active step in `plan-2-active-step.md`. According to the plan rules:
+Looking at the dev-chat design summary, the done steps, and the "What Is NOT Included in the Initial Implementation" section, I can identify the remaining features to plan.
 
-> When the user asks to do, that is, implement, the next step, but there is nothing in the plan-1-todo file and there is an active step in the active-step file, simply move the active step to the done file as usual, and inform the user that everything is complete.
+The completed steps cover:
+1. ✅ Rename `ConsumerName` to `ComponentName`
+2. ✅ Core traits (`Query`, `QueryHandler`, `QueryTransport`, `QuerySpec`) in `src/query.rs`
+3. ✅ `QueryService` and `QueryClient` traits in `src/query.rs`
+4. ✅ NATS `QueryService`/`QueryClient` implementation
 
-The active step "Implement NATS QueryService and QueryClient" has already been fully implemented (the code in `src/nats/query_service.rs` and `src/nats.rs` confirms this). I will move it to done and inform you.
+Remaining from the design summary's deferred list:
+- In-memory `QueryHandler` helper for `View`-based live projections
+- NATS KV-backed `QueryHandler` implementation
+- Vertical slice helper/builder that composes a `ConsumerSpec` + `QuerySpec`
+- Caching layer (decorator pattern)
+- Pagination/sorting helper types
 
 
-
-All steps in the plan have been completed. There are no remaining items in `plan-1-todo-steps.md`. Here is a summary of everything that was implemented across all steps:
-
-1. **Renamed `ConsumerName` to `ComponentName`** in `src/event_modeling.rs`, including the `consumer` field to `component`.
-2. **Created `src/query.rs`** with `Query`, `QueryHandler`, `QueryTransport`, and `QuerySpec` types.
-3. **Added `QueryService` and `QueryClient` traits** to `src/query.rs` with transport-agnostic definitions.
-4. **Implemented NATS `QueryService` and `QueryClient`** in `src/nats/query_service.rs`, including `spawn_query_service` for graceful shutdown integration.
 
 <suggested_git_command>
-git commit -a -m ". queries - Finalize plan, move last active step to done"
+git commit -a -m ". queries plan - Add todo steps for remaining query framework features"
 </suggested_git_command>
