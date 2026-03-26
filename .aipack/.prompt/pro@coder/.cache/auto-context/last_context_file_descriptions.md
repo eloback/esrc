@@ -104,26 +104,6 @@
     - When To Use: Include this file when working with event-sourced read models, projections, or any code that implements or uses the `View` trait to replay/apply events.
     - Types: View
 
-- Cargo.toml
-    - Summary: Workspace and root package manifest for the esrc project, defining shared dependencies, workspace members (derive, opentelemetry-nats), and feature flags for NATS and KurrentDB integrations.
-    - When To Use: Use this file to understand the project's dependency tree, available feature configurations, and workspace structure for event-sourcing implementations.
-
-- src/event/command_service.rs
-    - Summary: Defines traits for serving and interacting with command-handling services for event-sourced aggregates.
-    - When To Use: Use this file when implementing a service to process aggregate commands or a client to send commands to such a service.
-    - Types: CommandService, CommandClient
-
-- src/nats/command_service.rs
-    - Summary: Implements a NATS-based command service for event-sourced aggregates, providing a listener that replays aggregate state to process commands and a client for sending commands via the NATS request/reply pattern.
-    - When To Use: Use this file when configuring NATS command handlers for aggregates, spawning background command services, or using the NatsStore to dispatch commands.
-    - Types: ReplyError, CommandReply
-    - Functions: serve, spawn_service, handle_request, send_command
-
-- src/lib.rs
-    - Summary: The crate root for the event-sourcing library, defining core modules and re-exporting primary types like Aggregate, Envelope, Event, and View.
-    - When To Use: Use this file to understand the library's module structure, re-exported types, and feature-gated backend implementations for NATS and Kurrentdb.
-    - Types: Aggregate, Envelope, Error, Event, EventGroup, View
-
 - src/error.rs
     - Summary: Defines the central Error enum and Result alias for event-sourcing, including transport, formatting, and optimistic concurrency variants.
     - When To Use: Include when handling or returning errors from event-sourcing operations, especially command processing and event projection.
@@ -135,25 +115,45 @@
     - Types: CommandClient, CommandService, Event, EventGroup, EventGroupType, Publish, PublishExt, Replay, ReplayExt, ReplayOne, ReplayOneExt, Sequence, Subscribe, SubscribeExt, Truncate
     - Functions: Sequence::new
 
-- src/event_modeling.rs
-    - Summary: Defines core types and builders for modeling event consumers, including roles (Automation, ReadModel), execution policies (Sequential, Concurrent), and structured naming conventions.
-    - When To Use: Use when defining event consumers and their execution policies, or when establishing structured consumer identities across bounded contexts.
-    - Types: Automation, ConsumerName, ConsumerRole, ConsumerSpec, ExecutionPolicy, ReadModel
+- src/event/command_service.rs
+    - Summary: Defines traits for serving and interacting with command-handling services for event-sourced aggregates.
+    - When To Use: Use this file when implementing a service to process aggregate commands or a client to send commands to such a service.
+    - Types: CommandService, CommandClient
 
-- src/nats.rs
-    - Summary: Implementation of a NATS JetStream-backed event store, providing functionality for stream management, durable/ordered consumer creation, and lifecycle management for event-processing tasks.
-    - When To Use: Use when integrating NATS as the event storage backend, specifically for initializing streams, managing read mirrors, and spawning background consumers for read models or automations.
-    - Types: NatsStore, GracefulShutdown, NatsEnvelope
-    - Functions: NatsStore::try_new, NatsStore::enable_mirror, NatsStore::get_task_tracker, NatsStore::wait_graceful_shutdown, NatsStore::update_durable_consumer_option, NatsStore::client, NatsStore::run_consumer, NatsStore::spawn_consumer, NatsStore::spawn_automation, NatsStore::spawn_read_model
-
-- src/project.rs
-    - Summary: Defines the Project trait for event projection and a Context wrapper that encapsulates both the deserialized event and its associated envelope metadata.
-    - When To Use: Use this file when implementing event projectors to build read models or handle side effects, particularly when you need access to envelope metadata like timestamps and sequence numbers during processing.
-    - Types: Context, Project
-    - Functions: Context::try_with_envelope, Context::id, Context::sequence, Context::timestamp, Context::get_metadata, Context::into_inner
+- src/lib.rs
+    - Summary: The crate root for the event-sourcing library, defining core modules and re-exporting primary types like Aggregate, Envelope, Event, and View.
+    - When To Use: Use this file to understand the library's module structure, re-exported types, and feature-gated backend implementations for NATS and Kurrentdb.
+    - Types: Aggregate, Envelope, Error, Event, EventGroup, View
 
 - src/nats/event.rs
     - Summary: Implements NATS JetStream-backed event operations for NatsStore, including event publishing with Optimistic Concurrency Control (OCC), stream replaying, durable subscriptions, and stream truncation.
     - When To Use: Include this file when NATS-based event persistence, stream replaying, or durable projection synchronization via JetStream is required in the system.
     - Functions: publish, publish_without_occ, durable_observe, replay, replay_one, subscribe, truncate
+
+- src/project.rs
+    - Summary: Defines the Project trait for event projection and a Context wrapper that encapsulates both the deserialized event and its associated envelope metadata.
+    - When To Use: Use this file when implementing event projectors to build read models or handle side effects, particularly when you need access to envelope metadata like timestamps and sequence numbers during processing.
+    - Types: Context, Project
+    - Functions: Context::try_with_envelope, Context::id, Context::sequence, Context::timestamp, Context::get_metadata, Context::into_inner, Project::project
+
+- Cargo.toml
+    - Summary: Root workspace manifest for the esrc project, defining shared dependencies, workspace members (derive, opentelemetry-nats), and feature flags for NATS and KurrentDB integrations.
+    - When To Use: Use this file to identify available feature flags, workspace structure, and specific dependency versions for event-sourcing and CQRS implementations.
+
+- src/nats.rs
+    - Summary: Implementation of a NATS JetStream-backed event store, providing functionality for stream management, durable/ordered consumer creation, and lifecycle management for event-processing tasks.
+    - When To Use: Use when integrating NATS as the event storage backend, specifically for initializing streams, managing read mirrors, and spawning background consumers for read models or automations.
+    - Types: NatsStore, GracefulShutdown, NatsEnvelope
+    - Functions: NatsStore::try_new, NatsStore::enable_mirror, NatsStore::get_task_tracker, NatsStore::wait_graceful_shutdown, NatsStore::client, NatsStore::run_consumer, NatsStore::spawn_consumer, NatsStore::spawn_automation, NatsStore::spawn_read_model
+
+- src/nats/command_service.rs
+    - Summary: Implements a NATS-based command service for event-sourced aggregates, providing a listener that replays aggregate state to process commands and a client for sending commands via the NATS request/reply pattern.
+    - When To Use: Use this file when configuring NATS command handlers for aggregates, spawning background command services, or using the NatsStore to dispatch commands.
+    - Types: ReplyError, CommandReply
+    - Functions: serve, spawn_service, handle_request, send_command
+
+- src/event_modeling.rs
+    - Summary: Defines core types and builders for modeling event consumers, including roles (Automation, ReadModel), execution policies (Sequential, Concurrent), and structured naming conventions.
+    - When To Use: Use when defining event consumers and their execution policies, or when establishing structured consumer identities across bounded contexts.
+    - Types: Automation, ConsumerName, ConsumerRole, ConsumerSpec, ExecutionPolicy, ReadModel
 

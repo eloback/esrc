@@ -2,12 +2,12 @@
   "file_map": {
     "Cargo.toml": {
       "file_path": "Cargo.toml",
-      "hash": "36d155ba126595d48a927cf78fe01c77122f261cf5996cb97c1a8bb1475f2bc5",
-      "mtime": 1774510697678154,
+      "hash": "b94a6ce1d5316954e5341b756046801f6777c9d4c9b7b0c387915db4729559a1",
+      "mtime": 1774529768162573,
       "public_functions": [],
       "public_types": [],
-      "summary": "Workspace and root package manifest for the esrc project, defining shared dependencies, workspace members (derive, opentelemetry-nats), and feature flags for NATS and KurrentDB integrations.",
-      "when_to_use": "Use this file to understand the project's dependency tree, available feature configurations, and workspace structure for event-sourcing implementations."
+      "summary": "Root workspace manifest for the esrc project, defining shared dependencies, workspace members (derive, opentelemetry-nats), and feature flags for NATS and KurrentDB integrations.",
+      "when_to_use": "Use this file to identify available feature flags, workspace structure, and specific dependency versions for event-sourcing and CQRS implementations."
     },
     "compilation_errors.txt": {
       "file_path": "compilation_errors.txt",
@@ -929,7 +929,7 @@
     "src/error.rs": {
       "file_path": "src/error.rs",
       "hash": "68f27b85c581d790b92c996e159b535abe908460a02647d2b7866a777515eafe",
-      "mtime": 1774516818669172,
+      "mtime": 1774529607128266,
       "public_functions": [],
       "public_types": [
         "Error",
@@ -941,7 +941,7 @@
     "src/event.rs": {
       "file_path": "src/event.rs",
       "hash": "232b91e92e290e691b82520b11c0abd6ccfdc6c50f924d6a0d0e01eaefdc3559",
-      "mtime": 1774516818669172,
+      "mtime": 1774529607128266,
       "public_functions": [
         "Sequence::new"
       ],
@@ -968,7 +968,7 @@
     "src/event/command_service.rs": {
       "file_path": "src/event/command_service.rs",
       "hash": "10b156e5ae2ae9d9908768fe5a9dd18823c6692d2a16b5478d746e6cd25dfc1a",
-      "mtime": 1774511728547547,
+      "mtime": 1774529607128266,
       "public_functions": [],
       "public_types": [
         "CommandService",
@@ -1049,8 +1049,8 @@
     },
     "src/event_modeling.rs": {
       "file_path": "src/event_modeling.rs",
-      "hash": "ac90af4fc4d5f54e8928f9279f316c3312307e5427da4377294e4a27315cd289",
-      "mtime": 1774519686006979,
+      "hash": "a843ad436ee2685695ef60ded6c4027243a66ae8c63108400659142e87a18ff6",
+      "mtime": 1774534181672359,
       "public_functions": [],
       "public_types": [
         "Automation",
@@ -1142,7 +1142,7 @@
     "src/lib.rs": {
       "file_path": "src/lib.rs",
       "hash": "ae115b37a8e0ea3067e72a8f7d7c274f8417af541ef48ccf53e6a216c99e961c",
-      "mtime": 1774516360639669,
+      "mtime": 1774529607128266,
       "public_functions": [],
       "public_types": [
         "Aggregate",
@@ -1157,14 +1157,13 @@
     },
     "src/nats.rs": {
       "file_path": "src/nats.rs",
-      "hash": "af455c30666fa849dd7d33758ee15b15047adcd5299c260c3c6d28156a4eca2c",
-      "mtime": 1774519686006979,
+      "hash": "3fb6c73d0355740fd294fa7cc41c4af8db96407a4ea9c7862a87a58ac6ef4bcd",
+      "mtime": 1774532740872035,
       "public_functions": [
         "NatsStore::try_new",
         "NatsStore::enable_mirror",
         "NatsStore::get_task_tracker",
         "NatsStore::wait_graceful_shutdown",
-        "NatsStore::update_durable_consumer_option",
         "NatsStore::client",
         "NatsStore::run_consumer",
         "NatsStore::spawn_consumer",
@@ -1181,8 +1180,8 @@
     },
     "src/nats/command_service.rs": {
       "file_path": "src/nats/command_service.rs",
-      "hash": "59071afcebcf783e1305f9a6b37ee7f81b9f6dabd6afdfbfe54d14c1dfdb98a6",
-      "mtime": 1774511728547547,
+      "hash": "611837c6e134e9100081e5faf05332bdfe8a76a0de509a183a530ba716bb6b63",
+      "mtime": 1774532753603953,
       "public_functions": [
         "serve",
         "spawn_service",
@@ -1223,7 +1222,7 @@
     "src/nats/event.rs": {
       "file_path": "src/nats/event.rs",
       "hash": "693f8c32efae565c7d4a84067de786ff59e1894895e7f5a26b563a04e745aa68",
-      "mtime": 1774520085645311,
+      "mtime": 1774529607128266,
       "public_functions": [
         "publish",
         "publish_without_occ",
@@ -1267,15 +1266,16 @@
     },
     "src/project.rs": {
       "file_path": "src/project.rs",
-      "hash": "776fa3e266714f3ceb4ff5851869ecd2ce9b928eeedf2e0c654337dfd0f0e8de",
-      "mtime": 1774519686006979,
+      "hash": "2c3f6c231568fa77fe0ab3a96a33d35505f23b84c1e9298b2bbfe5b749d769aa",
+      "mtime": 1774529607128266,
       "public_functions": [
         "Context::try_with_envelope",
         "Context::id",
         "Context::sequence",
         "Context::timestamp",
         "Context::get_metadata",
-        "Context::into_inner"
+        "Context::into_inner",
+        "Project::project"
       ],
       "public_types": [
         "Context",
