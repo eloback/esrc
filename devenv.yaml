@@ -4,9 +4,6 @@ inputs:
     inputs:
       nixpkgs:
         follows: nixpkgs
-  nixdev:
-    url: github:maisagil/nixdev
-    flake: false
   nixpkgs:
     url: github:cachix/devenv-nixpkgs/rolling
   nixpkgs-unstable:
@@ -17,5 +14,3 @@ inputs:
       nixpkgs:
         follows: nixpkgs
 allowUnfree: true
-imports:
-- nixdev

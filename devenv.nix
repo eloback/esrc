@@ -1,12 +1,7 @@
 {
   pkgs,
-  config,
-  lib,
   ...
 }:
-let
-  cfg = config.custom;
-in
 {
   imports = [
     {
@@ -14,19 +9,13 @@ in
         # NATS
         pkgs.natscli
       ];
-      processes.nats-server = {
-        exec = "${lib.getExe pkgs.nats-server} -js -DV -sd .devenv/state/nats";
-        process-compose = {
-          ready_log_line = "Server is ready";
-        };
+      services.nats = {
+        enable = true;
+        jetstream.enable = true;
       };
     }
   ];
   config = {
-    custom = {
-      common.project_name = "esrc";
-      rust.enable = false;
-    };
     languages.rust = {
       channel = "stable";
       enable = true;
