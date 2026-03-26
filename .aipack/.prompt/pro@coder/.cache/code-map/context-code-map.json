@@ -1210,8 +1210,8 @@
     },
     "src/nats.rs": {
       "file_path": "src/nats.rs",
-      "hash": "3fb6c73d0355740fd294fa7cc41c4af8db96407a4ea9c7862a87a58ac6ef4bcd",
-      "mtime": 1774532740872035,
+      "hash": "fc4d9f2d2f0b1b50bb4fbdbc8037cc2ab3a8be40b4a3d2bba0b1b3bb0ddedec8",
+      "mtime": 1774549183105176,
       "public_functions": [
         "NatsStore::try_new",
         "NatsStore::enable_mirror",
@@ -1228,8 +1228,8 @@
         "GracefulShutdown",
         "NatsEnvelope"
       ],
-      "summary": "Implementation of a NATS JetStream-backed event store, providing functionality for stream management, durable/ordered consumer creation, and lifecycle management for event-processing tasks.",
-      "when_to_use": "Use when integrating NATS as the event storage backend, specifically for initializing streams, managing read mirrors, and spawning background consumers for read models or automations."
+      "summary": "Implementation of a NATS JetStream-backed event store, managing stream creation, consumer orchestration (durable and ordered), and background task lifecycle management for automations and read models.",
+      "when_to_use": "Use when initializing a NATS event store, configuring stream mirrors, or spawning background event consumers like automations and read models."
     },
     "src/nats/command_service.rs": {
       "file_path": "src/nats/command_service.rs",
@@ -1303,6 +1303,22 @@
       "summary": "Defines NATS header key constants and a helper for reading header values from an async_nats message.",
       "when_to_use": "Use this file when working with NATS message headers, especially to access standardized event/version metadata or to extract header strings from messages."
     },
+    "src/nats/query_service.rs": {
+      "file_path": "src/nats/query_service.rs",
+      "hash": "c9917a88aaefc02097ca872158e9dff67d92eefc667233a7922eb02387cae751",
+      "mtime": 1774550084730192,
+      "public_functions": [
+        "spawn_query_service"
+      ],
+      "public_types": [
+        "QueryRequest",
+        "QueryReplyError",
+        "GetByIdReply",
+        "QueryReply"
+      ],
+      "summary": "Implements NATS-based query handling and client capabilities, allowing services to expose read models and custom queries over NATS request-reply subjects.",
+      "when_to_use": "Use this file when configuring a service to handle incoming queries or when a client needs to request data from a query service via NATS."
+    },
     "src/nats/subject.rs": {
       "file_path": "src/nats/subject.rs",
       "hash": "22cd70262e8f3333a9784760eb23b6b314af195a5bfcc3e60ecb0082adc3c3d3",
@@ -1339,8 +1355,8 @@
     },
     "src/query.rs": {
       "file_path": "src/query.rs",
-      "hash": "634dc92a2e40ffea11c20d49a080ffb92292257db01c6d8e0165523c405d3994",
-      "mtime": 1774548946471666,
+      "hash": "31a2962347c49aacae96dbf08e5ca95085e90f827aaa49c37c559a8e4c47ebd5",
+      "mtime": 1774550047538073,
       "public_functions": [
         "QuerySpec::new",
         "QuerySpec::name",
@@ -1358,7 +1374,7 @@
         "QueryService",
         "QueryClient"
       ],
-      "summary": "Defines traits and types for declaring, handling, serving, and invoking queries against read models, providing infrastructure for remote query execution via transports like NATS.",
+      "summary": "Defines traits and types for declaring, handling, serving, and invoking queries against read models, providing infrastructure for remote query execution.",
       "when_to_use": "Use this file when defining domain-specific queries, implementing read model handlers, or configuring query services and clients for distributed communication."
     },
     "src/version.rs": {

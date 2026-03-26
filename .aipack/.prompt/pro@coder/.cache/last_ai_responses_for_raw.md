@@ -1,394 +1,89 @@
 ====
->   Info: Duration: 1m | ~$0.253 | Prompt Tokens: 28,353 (cached: 0, cache_creation: 0) | Completion Tokens: 4,450 
+>   Info: Duration: 20s | ~$0.2525 | Prompt Tokens: 42,684 (cached: 0, cache_creation: 0) | Completion Tokens: 1,562 
 >  Model: claude-opus-4-6 | Adapter: Anthropic
->  Files: Context Files: 13 | Working Files: 0 | Knowledge Files: 1
+>  Files: Context Files: 18 | Working Files: 0 | Knowledge Files: 1
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
+Looking at the plan files, the `plan-1-todo-steps.md` is empty and there is an active step in `plan-2-active-step.md`. According to the plan rules:
 
+> When the user asks to do, that is, implement, the next step, but there is nothing in the plan-1-todo file and there is an active step in the active-step file, simply move the active step to the done file as usual, and inform the user that everything is complete.
 
-Looking at the plan, the active step needs to be moved to done, and the next todo step "Implement NATS QueryService and QueryClient" needs to be activated and implemented.
-
-Let me analyze the existing patterns from `src/nats/command_service.rs` to implement the NATS query service following the same approach.
+The active step "Implement NATS QueryService and QueryClient" has already been fully implemented (the code in `src/nats/query_service.rs` and `src/nats.rs` confirms this). I will move it to done and inform you.
 
 <FILE_CHANGES>
 
-<FILE_NEW file_path="src/nats/query_service.rs">
-use async_nats::service::ServiceExt;
-use futures::StreamExt;
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
-use stream_cancel::Tripwire;
-use tracing::instrument;
-
-use crate::error::{self, Error};
-use crate::event_modeling::ComponentName;
-use crate::query::{Query, QueryClient, QueryHandler, QueryService, QuerySpec};
-
-/// The kind of query request sent over NATS request-reply.
-#[derive(Debug, Serialize, Deserialize)]
-pub enum QueryRequest<Q, Id> {
-    /// Fetch a single read model instance by its identifier.
-    GetById(Id),
-    /// Execute a custom query.
-    Query(Q),
-}
-
-/// Serializable error payload returned by the NATS query service.
-#[derive(Debug, Serialize, Deserialize)]
-pub enum QueryReplyError {
-    /// An internal or transport error occurred.
-    Internal(String),
-}
-
-/// Serializable reply payload for a `get_by_id` request.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct GetByIdReply<RM> {
-    /// The read model instance, or `None` if not found.
-    pub result: Option<RM>,
-    /// `None` indicates success. `Some(...)` contains the failure.
-    pub error: Option<QueryReplyError>,
-}
-
-/// Serializable reply payload for a custom query request.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct QueryReply<R> {
-    /// The query response, present when the request succeeded.
-    pub result: Option<R>,
-    /// `None` indicates success. `Some(...)` contains the failure.
-    pub error: Option<QueryReplyError>,
-}
-
-impl QueryService for super::NatsStore {
-    #[instrument(skip_all, level = "debug")]
-    async fn serve<H>(&self, spec: &QuerySpec<H>) -> error::Result<()>
-    where
-        H: QueryHandler + 'static,
-        H::Query: DeserializeOwned,
-        H::Id: DeserializeOwned,
-        <H::Query as Query>::ReadModel: Serialize,
-        <H::Query as Query>::Response: Serialize,
-    {
-        let subject = spec.name().query_subject();
-        let service_name = spec.name().durable_name();
-
-        let service = self
-            .client()
-            .service_builder()
-            .description(format!("Query service for {service_name}"))
-            .start(&service_name, "0.0.1")
-            .await
-            .map_err(|e| Error::Internal(e.into()))?;
-
-        let group = service.group(&subject);
-
-        let mut endpoint = group
-            .endpoint_builder()
-            .name("query")
-            .add("*")
-            .await
-            .map_err(|e| Error::Internal(e.into()))?;
-
-        while let Some(request) = endpoint.next().await {
-            let payload: QueryRequest<H::Query, H::Id> =
-                match serde_json::from_slice(&request.message.payload) {
-                    Ok(req) => req,
-                    Err(e) => {
-                        let reply = ErrorOnly {
-                            error: Some(QueryReplyError::Internal(format!(
-                                "failed to deserialize query request: {e}"
-                            ))),
-                        };
-                        respond_json(&request, &reply).await;
-                        continue;
-                    },
-                };
-
-            match payload {
-                QueryRequest::GetById(id) => {
-                    let reply = match spec.handler().get_by_id(id).await {
-                        Ok(result) => GetByIdReply {
-                            result,
-                            error: None,
-                        },
-                        Err(e) => GetByIdReply {
-                            result: None,
-                            error: Some(QueryReplyError::Internal(format!("{e}"))),
-                        },
-                    };
-                    respond_json(&request, &reply).await;
-                },
-                QueryRequest::Query(query) => {
-                    let reply = match spec.handler().handle(query).await {
-                        Ok(result) => QueryReply {
-                            result: Some(result),
-                            error: None,
-                        },
-                        Err(e) => QueryReply {
-                            result: None,
-                            error: Some(QueryReplyError::Internal(format!("{e}"))),
-                        },
-                    };
-                    respond_json(&request, &reply).await;
-                },
-            }
-        }
-
-        Ok(())
-    }
-}
-
-impl QueryClient for super::NatsStore {
-    async fn get_by_id<Q, Id>(
-        &self,
-        name: &ComponentName,
-        id: Id,
-    ) -> error::Result<Option<Q::ReadModel>>
-    where
-        Q: Query,
-        Q::ReadModel: DeserializeOwned,
-        Id: Serialize + Send,
-    {
-        let subject = format!("{}.query", name.query_subject());
-        let request: QueryRequest<(), Id> = QueryRequest::GetById(id);
-        let payload = serde_json::to_vec(&request).map_err(|e| {
-            Error::Internal(format!("failed to serialize get_by_id request: {e}").into())
-        })?;
-
-        let message = self
-            .client()
-            .request(subject, payload.into())
-            .await
-            .map_err(|e| {
-                Error::Internal(format!("failed to send get_by_id request: {e}").into())
-            })?;
-
-        let reply: GetByIdReply<Q::ReadModel> =
-            serde_json::from_slice(&message.payload).map_err(|e| {
-                Error::Internal(format!("failed to deserialize get_by_id reply: {e}").into())
-            })?;
-
-        match reply.error {
-            None => Ok(reply.result),
-            Some(QueryReplyError::Internal(e)) => Err(Error::Internal(e.into())),
-        }
-    }
-
-    async fn query<Q>(
-        &self,
-        name: &ComponentName,
-        query: Q,
-    ) -> error::Result<Q::Response>
-    where
-        Q: Query + Serialize,
-        Q::Response: DeserializeOwned,
-    {
-        let subject = format!("{}.query", name.query_subject());
-        let request: QueryRequest<Q, ()> = QueryRequest::Query(query);
-        let payload = serde_json::to_vec(&request).map_err(|e| {
-            Error::Internal(format!("failed to serialize query request: {e}").into())
-        })?;
-
-        let message = self
-            .client()
-            .request(subject, payload.into())
-            .await
-            .map_err(|e| Error::Internal(format!("failed to send query request: {e}").into()))?;
-
-        let reply: QueryReply<Q::Response> =
-            serde_json::from_slice(&message.payload).map_err(|e| {
-                Error::Internal(format!("failed to deserialize query reply: {e}").into())
-            })?;
-
-        match reply.error {
-            Some(QueryReplyError::Internal(e)) => Err(Error::Internal(e.into())),
-            None => reply.result.ok_or_else(|| {
-                Error::Internal("query reply contained no result and no error".into())
-            }),
-        }
-    }
-}
-
-/// Helper to serialize and send a JSON reply, logging errors if the response fails.
-async fn respond_json<T: Serialize>(request: &async_nats::service::Request, reply: &T) {
-    let bytes = match serde_json::to_vec(reply) {
-        Ok(b) => bytes::Bytes::from(b),
-        Err(e) => {
-            tracing::error!("failed to serialize query reply: {e}");
-            let fallback = ErrorOnly {
-                error: Some(QueryReplyError::Internal(format!(
-                    "failed to serialize query reply: {e}"
-                ))),
-            };
-            match serde_json::to_vec(&fallback) {
-                Ok(b) => bytes::Bytes::from(b),
-                Err(e2) => {
-                    tracing::error!("failed to serialize fallback error reply: {e2}");
-                    return;
-                },
-            }
-        },
-    };
-
-    if let Err(e) = request.respond(Ok(bytes)).await {
-        tracing::error!("failed to send query reply: {e}");
-    }
-}
-
-/// A minimal reply type used when only an error needs to be sent back.
-#[derive(Debug, Serialize, Deserialize)]
-struct ErrorOnly {
-    error: Option<QueryReplyError>,
-}
-
-impl super::NatsStore {
-    /// Spawn `serve` for a query specification as a background task with graceful shutdown.
-    ///
-    /// This wraps [`QueryService::serve`] in a tracked, cancellable task
-    /// using the `GracefulShutdown` / `TaskTracker` already present on
-    /// `NatsStore`. The spawned task registers a shutdown trigger, serves
-    /// queries for the given specification, and exits either when serving
-    /// fails or when [`NatsStore::wait_graceful_shutdown`] requests
-    /// cancellation.
-    pub fn spawn_query_service<H>(&self, spec: QuerySpec<H>)
-    where
-        H: QueryHandler + 'static,
-        H::Query: DeserializeOwned,
-        H::Id: DeserializeOwned,
-        <H::Query as Query>::ReadModel: Serialize,
-        <H::Query as Query>::Response: Serialize,
-    {
-        let store = self.clone();
-        let service_name = spec.name().durable_name();
-        let (trigger, tripwire) = Tripwire::new();
-
-        let exit_tx = self.graceful_shutdown.exit_tx.clone();
-
-        self.graceful_shutdown.task_tracker.spawn(async move {
-            // Register the trigger so it is cancelled during graceful shutdown.
-            if exit_tx.send(trigger).await.is_err() {
-                tracing::warn!("failed to register shutdown trigger for query service");
-                return;
-            }
-
-            tokio::select! {
-                result = store.serve(&spec) => {
-                    if let Err(e) = result {
-                        tracing::error!(service = %service_name, err=?e, "query service stopped");
-                    }
-                }
-                _ = tripwire => {
-                    tracing::info!(service = %service_name, "shutting down query service");
-                }
-            }
-        });
-    }
-}
-</FILE_NEW>
-
-<FILE_PATCH file_path="src/nats.rs">
+<FILE_PATCH file_path="_workbench/queries/plan-2-active-step.md">
 @@
- /// NATS-backed command service support for `NatsStore`.
- pub mod command_service;
- #[doc(hidden)]
- pub mod convert;
- /// Use a Jetstream message as an esrc Envelope.
- pub mod envelope;
- #[doc(hidden)]
- pub mod event;
-+/// NATS-backed query service support for `NatsStore`.
-+pub mod query_service;
- 
- pub use envelope::NatsEnvelope;
-</FILE_PATCH>
-
-<FILE_PATCH file_path="_workbench/queries/plan-1-todo-steps.md">
-@@
- # Plan 1 - Todo Steps
- 
+-# Plan 2 - Active Step
+-
 -## Step - Implement NATS QueryService and QueryClient
--      status: not_started
+-      status: active
 -time-created: 2026-03-26 14:58:37
+-time-current: 2026-03-26 15:18:42
 -
--- Create `src/nats/query_service.rs` (or extend existing nats module structure).
+-- Created `src/nats/query_service.rs` with full NATS-backed implementations.
 -
--- Implement `QueryService` for `NatsStore`:
--  - Derive NATS request-reply subject from `ComponentName` segments: `query.<bounded_context>.<domain>.<feature>.<component>`.
--  - Deserialize incoming query requests, dispatch to the `QueryHandler`, serialize and send back results.
--  - Follow the same pattern as `CommandService` in `src/nats/command_service.rs` (service builder, endpoint, request/reply loop).
--  - Include serializable reply/error types analogous to `CommandReply`/`ReplyError`.
+-- Implemented `QueryService` for `NatsStore`:
+-  - Derives NATS request-reply subject from `ComponentName::query_subject()`: `query.<bounded_context>.<domain>.<feature>.<component>`.
+-  - Uses the async-nats service builder to create a service group and endpoint, following the same pattern as `CommandService` in `src/nats/command_service.rs`.
+-  - Deserializes incoming `QueryRequest` (either `GetById` or `Query` variant), dispatches to the `QueryHandler`, serializes and sends back results.
+-  - Includes serializable reply/error types: `QueryRequest`, `QueryReplyError`, `GetByIdReply`, `QueryReply`.
+-  - Error handling follows the same pattern as `CommandReply`/`ReplyError`, with fallback error replies if serialization fails.
 -
--- Implement `QueryClient` for `NatsStore`:
--  - Serialize query, send as NATS request to the derived subject, deserialize reply.
--  - Map transport/service errors back to `esrc::error::Error`.
+-- Implemented `QueryClient` for `NatsStore`:
+-  - `get_by_id`: serializes a `QueryRequest::GetById`, sends as NATS request to `<query_subject>.query`, deserializes `GetByIdReply`.
+-  - `query`: serializes a `QueryRequest::Query`, sends as NATS request, deserializes `QueryReply`.
+-  - Maps transport/service errors back to `esrc::error::Error::Internal`.
 -
--- Add `spawn_query_service` method to `NatsStore` for spawning with graceful shutdown (following `spawn_service` pattern).
+-- Added `spawn_query_service` method to `NatsStore`:
+-  - Follows the `spawn_service` pattern with `Tripwire`-based graceful shutdown.
+-  - Registers a shutdown trigger, wraps `serve` in a tracked cancellable task.
 -
--- Register the new module in `src/nats.rs`.
--
--- References: see the `QueryService`/`QueryClient` traits defined in `src/query.rs` (previous step), and the `CommandService`/`CommandClient` NATS implementation in `src/nats/command_service.rs` for the pattern to follow.
+-- Registered `pub mod query_service` in `src/nats.rs`.
++# Plan 2 - Active Step
 </FILE_PATCH>
-
-<FILE_NEW file_path="_workbench/queries/plan-2-active-step.md">
-# Plan 2 - Active Step
-
-## Step - Implement NATS QueryService and QueryClient
-      status: active
-time-created: 2026-03-26 14:58:37
-time-current: 2026-03-26 15:18:42
-
-- Created `src/nats/query_service.rs` with full NATS-backed implementations.
-
-- Implemented `QueryService` for `NatsStore`:
-  - Derives NATS request-reply subject from `ComponentName::query_subject()`: `query.<bounded_context>.<domain>.<feature>.<component>`.
-  - Uses the async-nats service builder to create a service group and endpoint, following the same pattern as `CommandService` in `src/nats/command_service.rs`.
-  - Deserializes incoming `QueryRequest` (either `GetById` or `Query` variant), dispatches to the `QueryHandler`, serializes and sends back results.
-  - Includes serializable reply/error types: `QueryRequest`, `QueryReplyError`, `GetByIdReply`, `QueryReply`.
-  - Error handling follows the same pattern as `CommandReply`/`ReplyError`, with fallback error replies if serialization fails.
-
-- Implemented `QueryClient` for `NatsStore`:
-  - `get_by_id`: serializes a `QueryRequest::GetById`, sends as NATS request to `<query_subject>.query`, deserializes `GetByIdReply`.
-  - `query`: serializes a `QueryRequest::Query`, sends as NATS request, deserializes `QueryReply`.
-  - Maps transport/service errors back to `esrc::error::Error::Internal`.
-
-- Added `spawn_query_service` method to `NatsStore`:
-  - Follows the `spawn_service` pattern with `Tripwire`-based graceful shutdown.
-  - Registers a shutdown trigger, wraps `serve` in a tracked cancellable task.
-
-- Registered `pub mod query_service` in `src/nats.rs`.
-</FILE_NEW>
 
 <FILE_PATCH file_path="_workbench/queries/plan-3-done-steps.md">
 @@
-    time-done: 2026-03-26 15:15:09
- 
- - Created `src/query.rs` as a single file containing:
-@@
- - Registered the module in `src/lib.rs` with a doc comment.
+ - Both traits use `#[trait_variant::make(Send)]`.
+ - Subject derivation convention: `query.<bounded_context>.<domain>.<feature>.<component>` (documented via `ComponentName::query_subject()` helper method on `ComponentName`).
 +
-+## Step - Add QueryService and QueryClient traits to src/query.rs
++## Step - Implement NATS QueryService and QueryClient
 +      status: done
 +time-created: 2026-03-26 14:58:37
-+   time-done: 2026-03-26 15:18:42
++   time-done: 2026-03-26 15:36:55
 +
-+- Added transport-agnostic trait definitions to `src/query.rs`, following the `CommandService`/`CommandClient` pattern from `src/event/command_service.rs`.
++- Created `src/nats/query_service.rs` with full NATS-backed implementations.
 +
-+- `QueryService` trait (using `#[trait_variant::make(Send)]`):
-+  - `async fn serve<H>(&self, spec: &QuerySpec<H>) -> error::Result<()>` method to serve/handle incoming query requests.
-+  - Serde bounds (`Serialize + DeserializeOwned`) added at the method level on the query enum, response, and read model types.
-+  - The `QueryHandler::Id` also requires `DeserializeOwned` for receiving `get_by_id` requests.
++- Implemented `QueryService` for `NatsStore`:
++  - Derives NATS request-reply subject from `ComponentName::query_subject()`: `query.<bounded_context>.<domain>.<feature>.<component>`.
++  - Uses the async-nats service builder to create a service group and endpoint, following the same pattern as `CommandService` in `src/nats/command_service.rs`.
++  - Deserializes incoming `QueryRequest` (either `GetById` or `Query` variant), dispatches to the `QueryHandler`, serializes and sends back results.
++  - Includes serializable reply/error types: `QueryRequest`, `QueryReplyError`, `GetByIdReply`, `QueryReply`.
++  - Error handling follows the same pattern as `CommandReply`/`ReplyError`, with fallback error replies if serialization fails.
 +
-+- `QueryClient` trait (using `#[trait_variant::make(Send)]`):
-+  - `async fn get_by_id<Q, Id>(&self, name: &ComponentName, id: Id) -> error::Result<Option<<Q as Query>::ReadModel>>` for the built-in by-ID query.
-+  - `async fn query<Q>(&self, name: &ComponentName, query: Q) -> error::Result<Q::Response>` for custom queries.
-+  - Serde bounds at the method level.
++- Implemented `QueryClient` for `NatsStore`:
++  - `get_by_id`: serializes a `QueryRequest::GetById`, sends as NATS request to `<query_subject>.query`, deserializes `GetByIdReply`.
++  - `query`: serializes a `QueryRequest::Query`, sends as NATS request, deserializes `QueryReply`.
++  - Maps transport/service errors back to `esrc::error::Error::Internal`.
 +
-+- Both traits use `#[trait_variant::make(Send)]`.
-+- Subject derivation convention: `query.<bounded_context>.<domain>.<feature>.<component>` (documented via `ComponentName::query_subject()` helper method on `ComponentName`).
++- Added `spawn_query_service` method to `NatsStore`:
++  - Follows the `spawn_service` pattern with `Tripwire`-based graceful shutdown.
++  - Registers a shutdown trigger, wraps `serve` in a tracked cancellable task.
++
++- Registered `pub mod query_service` in `src/nats.rs`.
 </FILE_PATCH>
 
 </FILE_CHANGES>
 
+All steps in the plan have been completed. There are no remaining items in `plan-1-todo-steps.md`. Here is a summary of everything that was implemented across all steps:
+
+1. **Renamed `ConsumerName` to `ComponentName`** in `src/event_modeling.rs`, including the `consumer` field to `component`.
+2. **Created `src/query.rs`** with `Query`, `QueryHandler`, `QueryTransport`, and `QuerySpec` types.
+3. **Added `QueryService` and `QueryClient` traits** to `src/query.rs` with transport-agnostic definitions.
+4. **Implemented NATS `QueryService` and `QueryClient`** in `src/nats/query_service.rs`, including `spawn_query_service` for graceful shutdown integration.
+
 <suggested_git_command>
-git add -A . && git commit -a -m "+ nats/query_service - Implement NATS QueryService and QueryClient for NatsStore"
+git commit -a -m ". queries - Finalize plan, move last active step to done"
 </suggested_git_command>
 

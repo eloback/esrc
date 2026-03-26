@@ -219,12 +219,6 @@
     - When To Use: Use this file as a reference for defining domain entities and business logic in an Event Sourcing system with multiple aggregates.
     - Types: SignupEvent, EmailEvent, SignupCommand, EmailCommand, SignupError, EmailError, SignupAggregate, EmailAggregate
 
-- src/nats.rs
-    - Summary: Implementation of a NATS JetStream-backed event store, providing functionality for stream management, durable/ordered consumer creation, and lifecycle management for event-processing tasks.
-    - When To Use: Use when integrating NATS as the event storage backend, specifically for initializing streams, managing read mirrors, and spawning background consumers for read models or automations.
-    - Types: NatsStore, GracefulShutdown, NatsEnvelope
-    - Functions: NatsStore::try_new, NatsStore::enable_mirror, NatsStore::get_task_tracker, NatsStore::wait_graceful_shutdown, NatsStore::client, NatsStore::run_consumer, NatsStore::spawn_consumer, NatsStore::spawn_automation, NatsStore::spawn_read_model
-
 - src/nats/command_service.rs
     - Summary: Implements a NATS-based command service for event-sourced aggregates, providing a listener that replays aggregate state to process commands and a client for sending commands via the NATS request/reply pattern.
     - When To Use: Use this file when configuring NATS command handlers for aggregates, spawning background command services, or using the NatsStore to dispatch commands.
@@ -257,9 +251,21 @@
     - When To Use: Use when defining event consumers and their execution policies, or when establishing structured component identities across bounded contexts.
     - Types: Automation, ComponentName, ConsumerRole, ConsumerSpec, ExecutionPolicy, ReadModel
 
+- src/nats.rs
+    - Summary: Implementation of a NATS JetStream-backed event store, managing stream creation, consumer orchestration (durable and ordered), and background task lifecycle management for automations and read models.
+    - When To Use: Use when initializing a NATS event store, configuring stream mirrors, or spawning background event consumers like automations and read models.
+    - Types: NatsStore, GracefulShutdown, NatsEnvelope
+    - Functions: NatsStore::try_new, NatsStore::enable_mirror, NatsStore::get_task_tracker, NatsStore::wait_graceful_shutdown, NatsStore::client, NatsStore::run_consumer, NatsStore::spawn_consumer, NatsStore::spawn_automation, NatsStore::spawn_read_model
+
 - src/query.rs
-    - Summary: Defines traits and types for declaring, handling, serving, and invoking queries against read models, providing infrastructure for remote query execution via transports like NATS.
+    - Summary: Defines traits and types for declaring, handling, serving, and invoking queries against read models, providing infrastructure for remote query execution.
     - When To Use: Use this file when defining domain-specific queries, implementing read model handlers, or configuring query services and clients for distributed communication.
     - Types: Query, QueryHandler, QueryTransport, QuerySpec, QueryService, QueryClient
     - Functions: QuerySpec::new, QuerySpec::name, QuerySpec::transport, QuerySpec::handler, QuerySpec::handler_mut, QuerySpec::into_handler, QuerySpec::with_transport
+
+- src/nats/query_service.rs
+    - Summary: Implements NATS-based query handling and client capabilities, allowing services to expose read models and custom queries over NATS request-reply subjects.
+    - When To Use: Use this file when configuring a service to handle incoming queries or when a client needs to request data from a query service via NATS.
+    - Types: QueryRequest, QueryReplyError, GetByIdReply, QueryReply
+    - Functions: spawn_query_service
 
