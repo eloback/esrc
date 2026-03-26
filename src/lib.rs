@@ -18,8 +18,6 @@ pub mod project;
 pub mod query;
 /// (De)Serialize types with extra version information for upcasting.
 pub mod version;
-/// Read models built from event streams, without commands or errors.
-pub mod view;
 
 /// An event store implementation on top of NATS Jetstream.
 #[cfg(feature = "nats")]
@@ -29,4 +27,3 @@ pub use aggregate::Aggregate;
 pub use envelope::Envelope;
 pub use error::Error;
 pub use event::{Event, EventGroup};
-pub use view::View;
