@@ -17,11 +17,14 @@ file_content_mode: udiffx
 ## All resolve files(sent to AI with content, in this order)
 
 - src/lib.rs
-- src/error.rs
+- src/event.rs
 - src/event_modeling.rs
 - src/nats.rs
-- src/nats/event.rs
 - src/project.rs
+- _workbench/consumers/dev-chat.md
+- _workbench/consumers/plan-1-todo-steps.md
+- _workbench/consumers/plan-2-active-step.md
+- _workbench/consumers/plan-3-done-steps.md
 - _workbench/consumers/dev-chat.md
 - _workbench/consumers/plan-1-todo-steps.md
 - _workbench/consumers/plan-2-active-step.md

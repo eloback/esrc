@@ -1529,3 +1529,64 @@ The most useful documentation shape is a focused workflow guide that explains:
 - how sequential and concurrent execution remain supported without changing the declaration model
 
 That would preserve the reasoning behind the current API shape and make the new execution model much easier to understand later.
+
+## Request: Validate the generic projector runtime after removing DynProject
+
+### Summary
+
+The current generic projector runtime looks like the correct long-term direction.
+
+What matters most is that removing `DynProject` did not force any declaration-layer redesign. The consumer declaration model still fits the runtime cleanly.
+
+The retained shape is coherent:
+
+- `ConsumerSpec<P>` is still the normalized declaration
+- `Automation<P>` and `ReadModel<P>` are still the slice-facing role wrappers
+- `ConsumerName` still provides stable durable identity
+- `P::EventGroup` still drives subject derivation
+- execution policy still chooses sequential or bounded concurrent processing
+
+### Why the generic execution boundary is better
+
+The runtime does not actually need a dynamically erased projector boundary.
+
+It needs to know:
+
+- which event group the projector consumes
+- how to construct a typed `Context`
+- how to call `Project::project`
+- how to do that under the declared execution policy
+
+Those are all ordinary generic concerns.
+
+`DynProject` tried to erase the wrong boundary. It bundled:
+
+- associated event group typing
+- typed context creation
+- async projector invocation
+
+into one erased abstraction, but that abstraction was not the real runtime seam.
+
+The real seam is simpler:
+
+- declaration stays generic
+- infrastructure runs the typed projector directly
+
+That is why the current model is a better fit for the consumer runtime domain.
+
+### What should be documented clearly
+
+The workflow should now be documented around these retained decisions:
+
+- declaration layer versus runtime layer remains the core split
+- explicit `Automation<P>` and `ReadModel<P>` wrappers still matter for ergonomics
+- `NatsStore` owns runtime execution and lifecycle
+- one shared processing pipeline is used for envelope conversion, context creation, projector execution, error mapping, and acking
+- the implementation intentionally kept the wrapper-builder API and still skipped the intermediate `ConsumerSpec` convenience constructor path
+
+### Final view
+
+This is a good outcome.
+
+You kept the higher-level consumer declaration model that makes slice code readable, while simplifying the runtime to the typed behavior it actually needs. That should make the code easier to maintain and easier to extend later if you add retries, mirrors, or more execution policies.
+
