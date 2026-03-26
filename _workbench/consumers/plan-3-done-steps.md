@@ -156,3 +156,24 @@ References: see the definition in `plan-2-active-step.md` or `plan-3-done-steps.
 - Documented why `Automation<P>` and `ReadModel<P>` remain explicit slice-facing concepts while normalizing internally to `ConsumerSpec<P>`.
 - Captured the structured naming model based on bounded context, domain, feature, and consumer segments.
 - Appended a new dev chat entry recording that the implementation follows the recommended wrapper-builder path and intentionally skipped the initial `ConsumerSpec` convenience constructor step.
+
+## Step - implement the new projector execution abstraction and remove DynProject compile errors
+      status: done
+time-created: 2026-03-26 07:00:52
+   time-done: 2026-03-26 07:07:19
+
+Replace the current `DynProject` implementation with the compile-safe abstraction defined in the previous step, updating the relevant runtime and declaration code so the crate builds correctly again.
+
+- Update the projector execution flow used by consumer declarations and `NatsStore` runtime helpers.
+
+- Ensure the implementation preserves the existing declaration-layer ergonomics where possible, while fixing object-safety, associated type, and async dispatch problems in the current design.
+
+- Remove or adapt the existing `DynProject` machinery only as needed to support the new execution model cleanly.
+
+References: see the retained event modeling design context in `plan-3-done-steps.md`, step `Step - integrate event_modeling declarations with NatsStore consumer startup`.
+
+### Summary
+- Replaced the runtime `DynProject` path with compile-safe generic projector execution based on concrete `Project` types.
+- Kept `ConsumerSpec<P>`, `Automation<P>`, and `ReadModel<P>` as generic declaration-layer types without reintroducing erased projector dispatch into the runtime path.
+- Updated `NatsStore` consumer startup and execution helpers to derive subjects from `P::EventGroup`, create typed `Context` values directly, and execute sequential or concurrent projector handling through ordinary generic bounds.
+- Removed the failing dynamic projector machinery from `project.rs` while preserving the existing `Context` and `Project` surface.

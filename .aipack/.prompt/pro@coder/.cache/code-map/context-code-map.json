@@ -1049,8 +1049,8 @@
     },
     "src/event_modeling.rs": {
       "file_path": "src/event_modeling.rs",
-      "hash": "2f4a0c3fa68a84d27666a5c4f0597d0ca96c780d6d8b182715333a12420422db",
-      "mtime": 1774516818669172,
+      "hash": "ac90af4fc4d5f54e8928f9279f316c3312307e5427da4377294e4a27315cd289",
+      "mtime": 1774519686006979,
       "public_functions": [],
       "public_types": [
         "Automation",
@@ -1060,8 +1060,8 @@
         "ExecutionPolicy",
         "ReadModel"
       ],
-      "summary": "Defines core types and builders for modeling event consumers, including roles (Automation and ReadModel), execution policies (Sequential and Concurrent), and structured naming conventions for consumers.",
-      "when_to_use": "Use this file when defining new event consumers, configuring how messages should be processed (concurrency vs sequential), or establishing identity structures for consumers within bounded contexts."
+      "summary": "Defines core types and builders for modeling event consumers, including roles (Automation, ReadModel), execution policies (Sequential, Concurrent), and structured naming conventions.",
+      "when_to_use": "Use when defining event consumers and their execution policies, or when establishing structured consumer identities across bounded contexts."
     },
     "src/kurrent.rs": {
       "file_path": "src/kurrent.rs",
@@ -1157,8 +1157,8 @@
     },
     "src/nats.rs": {
       "file_path": "src/nats.rs",
-      "hash": "9b98b2791542a1e7b9712950e9aeab08cc6a0fe646cae9f5a31e0b731fda8b33",
-      "mtime": 1774516915817850,
+      "hash": "af455c30666fa849dd7d33758ee15b15047adcd5299c260c3c6d28156a4eca2c",
+      "mtime": 1774519686006979,
       "public_functions": [
         "NatsStore::try_new",
         "NatsStore::enable_mirror",
@@ -1176,8 +1176,8 @@
         "GracefulShutdown",
         "NatsEnvelope"
       ],
-      "summary": "Implementation of a NATS JetStream-backed event store, including stream configuration, durable/ordered consumer management, and graceful shutdown tracking for event-sourced tasks.",
-      "when_to_use": "Use when interacting with NATS as an event store backend, specifically for managing streams, mirrors, and spawning background consumers for automations or read models."
+      "summary": "Implementation of a NATS JetStream-backed event store, providing functionality for stream management, durable/ordered consumer creation, and lifecycle management for event-processing tasks.",
+      "when_to_use": "Use when integrating NATS as the event storage backend, specifically for initializing streams, managing read mirrors, and spawning background consumers for read models or automations."
     },
     "src/nats/command_service.rs": {
       "file_path": "src/nats/command_service.rs",
@@ -1222,19 +1222,19 @@
     },
     "src/nats/event.rs": {
       "file_path": "src/nats/event.rs",
-      "hash": "52803734cf41587b4e60e609e80070f479a41496eb4377efdeed719e94ec9a7f",
-      "mtime": 1774516818669172,
+      "hash": "80d68e4c3edc7189d8fb01bb813c01b4cbff6df7767456aa711ded48c2430954",
+      "mtime": 1774519686006979,
       "public_functions": [
-        "Publish::publish",
-        "Publish::publish_without_occ",
-        "NatsStore::durable_observe",
-        "Replay::replay",
-        "ReplayOne::replay_one",
-        "Subscribe::subscribe",
-        "Truncate::truncate"
+        "publish",
+        "publish_without_occ",
+        "durable_observe",
+        "replay",
+        "replay_one",
+        "subscribe",
+        "truncate"
       ],
-      "summary": "Implements core NATS JetStream operations for NatsStore, including event publishing with OCC, stream replay, subscriptions, and durable consumer management for projections.",
-      "when_to_use": "Include this file when NATS-based event persistence, event publishing logic, or projection synchronization via JetStream is required."
+      "summary": "Implements core NATS JetStream operations for NatsStore, including event publishing (with and without OCC), stream replaying, subscriptions, and durable consumer management for projections.",
+      "when_to_use": "Include this file when NATS-based event persistence, publishing logic, or projection synchronization via JetStream is required."
     },
     "src/nats/header.rs": {
       "file_path": "src/nats/header.rs",
@@ -1267,8 +1267,8 @@
     },
     "src/project.rs": {
       "file_path": "src/project.rs",
-      "hash": "3fa6adbd74d270a8dd3e0e41a46f8b9274d87f3b21e364f095b9ee742f22b8e1",
-      "mtime": 1774516818669172,
+      "hash": "776fa3e266714f3ceb4ff5851869ecd2ce9b928eeedf2e0c654337dfd0f0e8de",
+      "mtime": 1774519686006979,
       "public_functions": [
         "Context::try_with_envelope",
         "Context::id",
@@ -1279,11 +1279,10 @@
       ],
       "public_types": [
         "Context",
-        "Project",
-        "DynProject"
+        "Project"
       ],
-      "summary": "Defines the projection API for event-sourced processing, including the Project trait for handling events, the DynProject trait for dynamic dispatch, and the Context wrapper that provides access to both deserialized event data and envelope metadata.",
-      "when_to_use": "Include this file when implementing event projectors to build read models, handling side effects from events, or when needing to access envelope-level metadata like timestamps and IDs within a projection."
+      "summary": "Defines the Project trait for event projection and a Context wrapper that encapsulates both the deserialized event and its associated envelope metadata.",
+      "when_to_use": "Use this file when implementing event projectors to build read models or handle side effects, particularly when you need access to envelope metadata like timestamps and sequence numbers during processing."
     },
     "src/version.rs": {
       "file_path": "src/version.rs",

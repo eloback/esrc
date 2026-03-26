@@ -1468,3 +1468,64 @@ I would document this in a small focused guide that explains:
 
 That documentation will make the new surface easier to use and will preserve the reasoning behind the current API shape for later refinements.
 
+
+## Request: Validate the updated projector model after removing DynProject
+
+### Summary
+
+The generic projector execution model is the right long-term fit for the current consumer runtime.
+
+The important result is that the declaration model did not need to change in order to remove `DynProject`.
+
+What changed is only the execution boundary inside infrastructure:
+
+- declaration types remain generic over `P`
+- `NatsStore` now owns the typed execution path directly
+- sequential and concurrent execution still work with the same declaration API
+
+### What was validated
+
+The retained integration points are still coherent:
+
+- `ConsumerSpec<P>` remains the normalized declaration type
+- `Automation<P>` and `ReadModel<P>` still provide the intended slice-facing ergonomics
+- durable naming still comes from `ConsumerName`
+- subject derivation still comes from `P::EventGroup`
+- execution policy still selects between sequential and bounded concurrent processing
+
+That means the original declaration-layer versus runtime-layer split still holds after the projector abstraction change.
+
+### Why the generic projector model is better than `DynProject`
+
+Replacing `DynProject` with generic execution was the correct move because the runtime does not actually need per-message dynamic dispatch over an erased typed context boundary.
+
+The runtime needs to know only:
+
+- which event names belong to the projector event group
+- how to own or clone the projector value
+- how to invoke `Project::project` once a typed `Context` has been created
+
+Those are all a natural fit for ordinary generic bounds on `P`.
+
+The earlier `DynProject` direction pushed object safety, associated types, and async execution into one erased abstraction, but that abstraction did not correspond to the true runtime boundary.
+
+### Retained design decisions to document
+
+The final workflow should explicitly document that the implementation kept these earlier decisions:
+
+- slice-facing declarations stay explicit through `Automation<P>` and `ReadModel<P>`
+- runtime execution is centralized in `NatsStore`
+- one shared processing pipeline is used for envelope conversion, context creation, projector execution, error mapping, and acking
+- the implementation intentionally kept the wrapper-builder API and still skipped the intermediate `ConsumerSpec` convenience constructor step
+
+### Documentation recommendation
+
+The most useful documentation shape is a focused workflow guide that explains:
+
+- declaration layer versus runtime layer
+- why `Automation<P>` and `ReadModel<P>` are still explicit
+- how structured naming works
+- why generic projector execution replaced `DynProject`
+- how sequential and concurrent execution remain supported without changing the declaration model
+
+That would preserve the reasoning behind the current API shape and make the new execution model much easier to understand later.

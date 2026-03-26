@@ -1,156 +1,187 @@
-# Event modeling consumer workflow
+# Event modeling workflow
 
-This document explains how vertical slices should declare consumers with the `event_modeling` module and how infrastructure should execute them.
+The `event_modeling` module provides a declaration layer for vertical slices, while the runtime execution remains owned by infrastructure.
 
-## Declaration layer vs runtime layer
+## Declaration layer
 
-The design is intentionally split into two layers.
-
-### Declaration layer
-
-Owned by vertical slices.
-
-Slices should declare:
-
-- which projector handles the events
-- whether the consumer is an automation or a read model
-- the stable structured consumer name
-- any execution policy override that differs from the role default
-
-This is the layer exposed by `src/event_modeling.rs`, mainly through:
+Vertical slices should declare consumers using the `src/event_modeling.rs` types:
 
 - `ConsumerName`
 - `ConsumerSpec<P>`
 - `Automation<P>`
 - `ReadModel<P>`
 
-The slice should express intent, not transport mechanics.
+A slice declaration should express:
 
-### Runtime layer
+- the concrete projector type
+- the semantic role
+- the stable structured consumer identity
+- any execution policy override
 
-Owned by infrastructure.
+A slice should not deal with:
 
-Infrastructure should handle:
+- durable consumer creation
+- NATS subject derivation
+- graceful shutdown wiring
+- task spawning
+- message stream lifecycle
 
-- deriving durable consumer identities from declarations
-- creating NATS durable consumers
-- resolving event subjects from the projector event group
-- running sequential or concurrent execution loops
-- processing envelopes through the shared `Project` pipeline
-- background spawning and lifecycle ownership
+This keeps feature code focused on intent rather than transport mechanics.
 
-This is currently represented by `NatsStore::run_consumer`, `NatsStore::spawn_consumer`, `NatsStore::spawn_automation`, and `NatsStore::spawn_read_model`.
+## Runtime layer
 
-The runtime owns transport and lifecycle details so vertical slices do not need to wire shutdown, subscriptions, or loop mechanics directly.
+The runtime layer is currently implemented by `NatsStore` in `src/nats.rs` and `src/nats/event.rs`.
 
-## Why automation and read model stay explicit
+Infrastructure is responsible for:
 
-The design keeps `Automation<P>` and `ReadModel<P>` as explicit slice-facing concepts even though both normalize into `ConsumerSpec<P>` internally.
+- deriving the durable consumer name from `ConsumerName`
+- deriving event subjects from `<P as Project>::EventGroup::names()`
+- creating the durable consumer
+- executing the consumer according to its `ExecutionPolicy`
+- converting envelopes into typed `project::Context`
+- mapping projector failures into crate `Error`
+- acknowledging successfully processed messages
+- spawning background tasks and logging runtime failures
 
-That separation is intentional because the roles have different semantics:
+This preserves the intended split from the design discussion, slices declare consumers, infrastructure runs them.
 
-- automations represent workflow-style reactions, often triggering commands, external calls, or side effects
-- read models represent state-building consumers, usually favoring deterministic sequential processing
+## Why `Automation<P>` and `ReadModel<P>` remain explicit
 
-Keeping the two concepts explicit improves slice ergonomics and makes declarations more intention-revealing.
+The current API intentionally keeps explicit slice-facing wrappers:
 
-At the same time, both normalize into one internal specification so infrastructure can reuse a shared runtime path instead of duplicating startup and processing logic.
+- `Automation<P>`
+- `ReadModel<P>`
 
-This gives the best of both directions:
+These wrappers still normalize into `ConsumerSpec<P>` for runtime use, but they remain valuable because they make the consumer role obvious at the declaration site.
 
-- explicit role semantics for slice authors
-- one normalized execution model for infrastructure
+This preserves the ergonomic direction discussed in the dev chat:
+
+- automations are workflow-oriented consumers and default to concurrent execution
+- read models are state-building consumers and default to sequential execution
+
+The runtime does not duplicate execution machinery by role. Instead, both wrappers feed the same generic consumer execution path through `ConsumerSpec<P>` and `ExecutionPolicy`.
 
 ## Structured naming model
 
-Consumer identities use a structured naming model through `ConsumerName`.
-
-The naming segments are:
+`ConsumerName` captures four stable naming segments:
 
 - bounded context
 - domain
 - feature
 - consumer
 
-This produces a stable durable consumer name shaped like:
+The durable consumer name is derived as:
 
-- `bounded-context.domain.feature.consumer`
+- `bounded_context.domain.feature.consumer`
 
-In the current implementation, `ConsumerName::durable_name()` formats the full durable identifier from these segments, and `ConsumerName::slice_path()` returns the path without the final consumer segment.
+The slice path is derived as:
 
-This structured naming was chosen to avoid ad hoc string arguments at call sites and to make durable consumers operationally understandable.
+- `bounded_context.domain.feature`
 
-## Workflow for vertical slices
+This replaces ad hoc naming strings with a stable operational identity that is consistent across startup, observability, and infrastructure configuration.
 
-A typical slice-level workflow should look like this:
+## Projector execution model after removing `DynProject`
 
-- create a `ConsumerName` with bounded context, domain, feature, and consumer segments
-- choose `Automation::new(...)` or `ReadModel::new(...)`
-- optionally override execution policy
-- hand the declaration to `NatsStore` startup helpers
+The consumer runtime now executes declared consumers through generic projector execution instead of a dynamic `DynProject` trait object.
 
-Conceptually:
+The retained execution model is:
 
-- slices declare consumer intent
-- startup registers or spawns declarations
-- infrastructure executes them through the shared runtime pipeline
+- `ConsumerSpec<P>`, `Automation<P>`, and `ReadModel<P>` stay generic over the concrete projector type `P`
+- `NatsStore::run_consumer` is generic over `P`
+- startup subject discovery uses `<P as Project>::EventGroup`
+- typed `Context` construction happens inside the runtime from each incoming `NatsEnvelope`
+- sequential execution owns one mutable projector instance for the lifetime of the consumer loop
+- concurrent execution clones the projector for each in-flight task
 
-That keeps the feature-facing API focused on business meaning instead of NATS details.
+This replaced the previous `DynProject` direction because the runtime boundary did not actually need fully erased per-message projector dispatch.
 
-## Decisions carried forward from the dev chat
+The earlier dynamic approach mixed several concerns that do not fit well into one erased trait surface:
 
-The implementation follows the direction captured in `_workbench/consumers/dev-chat.md`.
+- object safety
+- associated event group typing
+- typed `Context` construction
+- async projector dispatch
 
-### Main decisions retained
+The generic execution path fits the actual runtime domain better because the runtime only needs to do three things:
 
-- durable subscription creation remains an infrastructure detail
-- one normalized consumer specification is used internally
-- automation and read model remain explicit declaration concepts
-- execution behavior is represented as policy, not hard-coded role-specific loops at the API boundary
-- startup ergonomics are provided through high-level spawning helpers on `NatsStore`
+- discover the event names for startup
+- own projector values with clone semantics appropriate to the execution policy
+- call the existing typed `Project` implementation for each envelope
 
-### Chosen practical path
+This keeps the implementation compile-safe and avoids forcing typed event processing through an erased abstraction that does not match the message handling boundary.
 
-The implementation intentionally favored step 5 from the dev chat section `My recommended practical path`:
+## Retained design decisions from the dev chat
 
-- create `ConsumerSpec<P>`
-- implement `run_consumer(spec)`
-- centralize shared runtime execution
-- add explicit wrapper builders
-  - `Automation<P>`
-  - `ReadModel<P>`
+The current implementation keeps the main design choices that were selected during the dev chat.
 
-### Intentional skip
+### Kept as infrastructure details
 
-The implementation intentionally skipped step 4 for the initial version.
+The runtime still keeps these concerns private to infrastructure:
 
-That means the crate does not currently expose convenience constructors directly on `ConsumerSpec`, such as:
+- durable subscription creation
+- consumer startup wiring
+- shared message processing
+- shutdown ownership
+- background task logging
 
-- `ConsumerSpec::automation(...)`
-- `ConsumerSpec::read_model(...)`
+This means vertical slices do not use low-level NATS subscription helpers directly.
 
-Instead, the initial public ergonomic layer is centered on the explicit wrapper builders:
+### Shared runtime entrypoint
+
+The runtime now has a shared entrypoint for declared consumers:
+
+- `NatsStore::run_consumer`
+
+And matching ergonomic startup helpers:
+
+- `NatsStore::spawn_consumer`
+- `NatsStore::spawn_automation`
+- `NatsStore::spawn_read_model`
+
+This follows the earlier recommendation to centralize runtime behavior instead of exposing separate low-level start functions as the main declaration model.
+
+### Shared processing pipeline
+
+The runtime still uses one shared execution pipeline for:
+
+- envelope conversion
+- typed context creation
+- projector execution
+- error mapping
+- ack handling
+
+The major change is only how the projector is represented during execution, generic `P` instead of erased `DynProject`.
+
+### Wrapper builders preserved
+
+The implementation kept the explicit wrapper-builder approach:
 
 - `Automation::new(...)`
 - `ReadModel::new(...)`
 
-This keeps the public surface aligned with the semantic distinction discussed in the dev chat while still normalizing internally to `ConsumerSpec<P>`.
+This intentionally preserves the ergonomic slice-facing API chosen earlier.
 
-## Current intended usage direction
+It also keeps the prior documented choice to skip the intermediate `ConsumerSpec::automation(...)` and `ConsumerSpec::read_model(...)` constructor step for now.
 
-For slice authors, the preferred shape is:
+## Integration status of the updated projector model
 
-- declare read models with `ReadModel`
-- declare automations with `Automation`
-- keep NATS-specific setup in infrastructure
-- use structured naming consistently
+The current generic projector execution model still supports the previously introduced declaration and runtime features:
 
-For infrastructure and startup code, the preferred shape is:
+- `ConsumerSpec<P>`
+- `Automation<P>`
+- `ReadModel<P>`
+- sequential consumer execution
+- concurrent consumer execution with bounded in-flight work
 
-- accept normalized consumer declarations
-- derive durable names and subjects from the declaration
-- execute with shared runtime machinery
-- preserve ownership of task lifecycle and background error reporting
+This means the projector abstraction changed, but the declaration layer versus runtime layer architecture remained intact.
 
-That is the workflow the current implementation is optimizing for.
+## Typical usage shape
 
+A vertical slice should still declare consumers in a way that reads like intent:
+
+- define a `ConsumerName`
+- wrap a concrete projector in `Automation<P>` or `ReadModel<P>`
+- optionally override execution policy
+- pass the declaration to `NatsStore`
+
+The runtime remains responsible for turning that declaration into a durable NATS consumer and running the typed `Project` implementation safely.
