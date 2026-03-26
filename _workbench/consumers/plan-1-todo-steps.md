@@ -1,22 +1,4 @@
 
-## Step - define the DynProject replacement direction and compile-safe abstraction
-      status: not_started
-time-created: 2026-03-26 07:00:52
-
-Document the intended replacement direction for the current `DynProject` design, focusing on a compile-safe abstraction that better matches the projector execution domain.
-
-- Evaluate whether the runtime should use boxed projector values directly, a new object-safe trait tailored to consumer execution, or another erased projector model that avoids the current generic/object-safety issues.
-
-- Define the responsibilities and constraints for the replacement abstraction, including:
-  - clone or factory behavior for per-message or per-task projector usage
-  - access to the event group names needed by consumer startup
-  - async message handling compatibility with the typed `Context` flow
-  - compatibility with sequential and concurrent NATS consumer execution
-
-- Capture the chosen direction in a way that subsequent implementation steps can reference without ambiguity.
-
-References: see the retained event modeling design context in `plan-3-done-steps.md`, step `Step - integrate event_modeling declarations with NatsStore consumer startup`.
-
 ## Step - implement the new projector execution abstraction and remove DynProject compile errors
       status: not_started
 time-created: 2026-03-26 07:00:52
