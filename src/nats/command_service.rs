@@ -54,12 +54,12 @@ impl CommandService for NatsStore {
     {
         let event_name = A::Event::name();
         let prefix = self.prefix;
-        let scoped_name = format!("{prefix}.{event_name}");
+        let scoped_name = format!("{prefix}_{event_name}");
 
         let service = self
             .client()
             .service_builder()
-            .description(format!("Command service for {scoped_name}"))
+            .description(format!("Command service for {scoped_name} aggregate"))
             .start(&scoped_name, "0.0.1")
             .await
             .map_err(|e| Error::Internal(e.into()))?;
@@ -258,7 +258,7 @@ impl CommandClient for NatsStore {
         A::Command: serde::ser::Serialize + Send,
         A::Error: std::error::Error + Serialize + DeserializeOwned + Send + Sync + 'static,
     {
-        let subject = format!("{}.{}.command.{}", self.prefix, A::Event::name(), id);
+        let subject = format!("{}_{}.command.{}", self.prefix, A::Event::name(), id);
         let payload = serde_json::to_vec(&command).map_err(|e| {
             Error::Internal(format!("failed to serialize command for sending: {e}").into())
         })?;
