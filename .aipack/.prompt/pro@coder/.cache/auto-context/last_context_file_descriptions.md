@@ -1,5 +1,38 @@
 # Context Files Descriptions (Sent to AI for selection)
 
+- derive/Cargo.toml
+    - Summary: Cargo manifest for the `esrc-derive` procedural macro crate, defining package metadata, proc-macro library settings, and dependencies used by the derive macros.
+    - When To Use: Include this file when you need to understand the build configuration, crate type, or dependency set for the `esrc-derive` proc-macro crate.
+
+- derive/src/lib.rs
+    - Summary: Proc-macro entry point for the derive crate. It defines shared ESRC derive attributes and exposes derive macros for Event, EventGroup, SerializeVersion, DeserializeVersion, and TryFromEnvelope by delegating to internal modules.
+    - When To Use: Use this file when you need the public derive macros or want to understand the top-level macro definitions, supported attributes, and how the derive crate is wired together.
+    - Types: EsrcAttributes
+    - Functions: DeserializeVersion, Event, EventGroup, SerializeVersion, TryFromEnvelope
+
+- derive/src/util.rs
+    - Summary: Utility module that re-exports the `lifetime` and `variant` submodules for the derive crate.
+    - When To Use: Include this file when you need the top-level utility module for the derive crate or want to access its `lifetime` and `variant` helpers.
+
+- derive/src/util/lifetime.rs
+    - Summary: Utility helpers for working with Rust lifetimes in derive macro generics, adding outlives bounds and converting them into where-clause predicates.
+    - When To Use: Include this file when you need to understand or modify how the derive code augments Generics with lifetime parameters and lifetime outlives constraints.
+    - Functions: add_supertype_bounds
+
+- derive/src/util/variant.rs
+    - Summary: Utility helpers for inspecting and filtering enum variants in derive macros, including collecting variants, extracting a variant's inner type, and conditionally ignoring variants based on parsed attributes.
+    - When To Use: Use this file when working on derive macro logic that needs to process enum variants, filter them by attributes, or validate/extract the single inner field of newtype variants.
+    - Functions: try_collect, try_into_inner_type
+
+- derive/tests/fixtures/mod.rs
+    - Summary: Test fixtures module that re-exports fixture submodules for derive-related tests.
+    - When To Use: Include when working on derive test fixtures or when tests need access to the envelope, event, or version fixture modules.
+
+- derive/tests/fixtures/version.rs
+    - Summary: Test fixture providing a helper that constructs a unit deserializer for serde tests.
+    - When To Use: Include when working on derive test fixtures or tests that need a simple serde unit deserializer implementation.
+    - Functions: unit_deserializer
+
 - src/event/future.rs
     - Summary: Defines a helper trait for converting a `Future` into a `Send` future, working around a compiler issue where `Send` cannot be inferred for an inner future.
     - When To Use: Include this file when working with async/event code that needs to guarantee a future is `Send`, especially when compiler inference fails for nested futures.
@@ -11,6 +44,52 @@
     - When To Use: Use when you need the event-stream truncation API or want to implement/support pruning old events, typically alongside snapshotting to limit stream size.
     - Types: Truncate
     - Functions: truncate
+
+- derive/src/event.rs
+    - Summary: Implements procedural macro helpers for deriving `Event` and `EventGroup` behavior from Rust types, including event name generation, enum variant type reporting, and skipping ignored event-group variants.
+    - When To Use: Use when you need to understand or modify the derive macros that generate `::esrc::event::Event` and `::esrc::event::EventGroup` impls for structs/enums, especially around event naming rules, suffix stripping, and variant collection.
+    - Types: EventMeta
+    - Functions: derive_event, derive_event_group
+
+- derive/tests/test_event.rs
+    - Summary: Integration tests for the Event and EventGroup derive macros, verifying generated event names, suffix handling, custom naming, generic/lifetime support, and ignored enum variants.
+    - When To Use: Include this file when working on or debugging the esrc_derive event macro behavior, especially name generation and EventGroup variant filtering.
+    - Types: Test, TestEvent, TestGroup
+    - Functions: event, event_suffix, event_keep_suffix, event_name, event_generics, event_group, event_group_ignore, event_group_lifetime
+
+- derive/tests/test_version.rs
+    - Summary: Integration tests for the derive macros that implement version-aware serialization/deserialization traits, including default versioning, explicit version attributes, lifetime-bearing types, and upgrading from a previous version.
+    - When To Use: Include this file when you need to understand or verify how the version derive macros are expected to behave in tests, especially around DeserializeVersion/SerializeVersion generation and previous-version conversion support.
+    - Types: TestEvent, TestEvent1, TestEvent2
+    - Functions: deserialize_version, deserialize_version_lifetime, deserialize_version_previous, serialize_version, serialize_version_default
+
+- derive/src/envelope.rs
+    - Summary: Implements the procedural macro logic for deriving `TryFromEnvelope` on enums by matching envelope names to single-field variants and deserializing the payload into the variant field.
+    - When To Use: Include this file when working on or debugging the derive macro that converts an `Envelope` into an enum via `TryFromEnvelope`, especially when inspecting variant validation, generated matching logic, or deserialization behavior.
+    - Types: TryFromEnvelopeArgs
+    - Functions: derive_try_from_envelope
+
+- derive/src/version.rs
+    - Summary: Implements procedural macro helpers for deriving versioned serialization and deserialization traits, including support for current and previous schema versions.
+    - When To Use: Use when you need to understand or modify the derive logic that generates `SerializeVersion` and `DeserializeVersion` implementations, especially version selection and backward-compatibility behavior.
+    - Types: SerdeMeta
+    - Functions: derive_deserialize_version, derive_serialize_version
+
+- derive/tests/fixtures/envelope.rs
+    - Summary: Test fixture defining a minimal `EmptyEnvelope` type that implements the `Envelope` trait for derive-related tests.
+    - When To Use: Use when tests need a simple mock envelope implementation with fixed/default values and version deserialization behavior.
+    - Types: EmptyEnvelope
+    - Functions: EmptyEnvelope::new
+
+- derive/tests/fixtures/event.rs
+    - Summary: Test fixture defining several example event types and their `Event`/`DeserializeVersion` implementations, including a lifetime-bearing event.
+    - When To Use: Use when tests or examples need concrete event fixtures to validate deriving, event naming, or versioned deserialization behavior.
+    - Types: FooEvent, BarEvent, LifetimeEvent<'a>
+
+- derive/tests/test_envelope.rs
+    - Summary: Test module for the TryFromEnvelope derive macro, verifying that envelope type names are correctly converted into enum variants, including ignored variants and lifetime-generic cases.
+    - When To Use: Use when working on or reviewing the TryFromEnvelope derive macro, its code generation, or its behavior against envelope-to-enum conversion tests.
+    - Functions: try_from_envelope, try_from_envelope_ignore, try_from_envelope_lifetime
 
 - src/aggregate.rs
     - Summary: Defines the core Aggregate trait for event-sourced domain objects and the Root wrapper that materializes an aggregate with stream identity and sequence tracking.

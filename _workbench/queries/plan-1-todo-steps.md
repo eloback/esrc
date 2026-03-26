@@ -1,16 +1,3 @@
-====
->   Info: Duration: 23s | ~$0.1587 | Prompt Tokens: 25,402 (cached: 0, cache_creation: 0) | Completion Tokens: 1,268 
->  Model: claude-opus-4-6 | Adapter: Anthropic
->  Files: Context Files: 9 | Working Files: 0 | Knowledge Files: 1
->   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
-
-
-
-Looking at the design summary from the dev chat, I need to create a plan that implements the query framework in incremental, non-breaking steps. Let me trace through the decisions and order the work properly.
-
-<FILE_CHANGES>
-
-<FILE_NEW file_path="_workbench/queries/plan-1-todo-steps.md">
 # Plan 1 - Todo Steps
 
 ## Step - Rename ConsumerName to ComponentName in event_modeling.rs
@@ -89,11 +76,3 @@ time-created: 2026-03-26 14:58:37
 - Register the new module in `src/nats.rs`.
 
 - References: see the `QueryService`/`QueryClient` traits defined in `src/query.rs` (previous step), and the `CommandService`/`CommandClient` NATS implementation in `src/nats/command_service.rs` for the pattern to follow.
-</FILE_NEW>
-
-</FILE_CHANGES>
-
-<suggested_git_command>
-git add -A . && git commit -m "+ queries - Create todo plan for query framework implementation"
-</suggested_git_command>
-
