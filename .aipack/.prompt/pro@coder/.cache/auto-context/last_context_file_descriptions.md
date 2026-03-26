@@ -236,11 +236,9 @@
     - Types: ReplyError, CommandReply
     - Functions: serve, spawn_service, handle_request, send_command
 
-- examples/multi-slice-command-service/send_welcome_email/mod.rs
-    - Summary: Implements the SendWelcomeEmailAutomation, which handles the side-effect of 'sending' an email by reacting to a WelcomeEmailRequested event and issuing a MarkWelcomeEmailSent command.
-    - When To Use: Include this file when examining examples of event-driven automations or process managers that coordinate actions between events and commands within the esrc framework.
-    - Types: SendWelcomeEmailAutomation
-    - Functions: setup
+- examples/multi-slice-command-service/main.rs
+    - Summary: The main entry point for a multi-slice command service example. It orchestrates the initialization of a NATS-backed event store, registers multiple aggregates (Signup and Email), sets up event-driven automation slices, and demonstrates a basic command-processing workflow.
+    - When To Use: Refer to this file when setting up the bootstrapping logic for an application using esrc, specifically for configuring NatsStore, spawning aggregate services, and connecting automation logic.
 
 - examples/multi-slice-command-service/queue_welcome_email/mod.rs
     - Summary: Implements the QueueWelcomeEmailAutomation which reacts to 'SignupRequested' events by triggering commands across the Email and Signup aggregates.
@@ -248,12 +246,14 @@
     - Types: QueueWelcomeEmailAutomation
     - Functions: setup
 
-- examples/multi-slice-command-service/main.rs
-    - Summary: The main entry point for a multi-slice command service example. It orchestrates the initialization of a NATS-backed event store, registers multiple aggregates (Signup and Email), sets up event-driven automation slices, and demonstrates a basic command-processing workflow.
-    - When To Use: Refer to this file when setting up the bootstrapping logic for an application using esrc, specifically for configuring NatsStore, spawning aggregate services, and connecting automation logic.
+- examples/multi-slice-command-service/send_welcome_email/mod.rs
+    - Summary: Implements the SendWelcomeEmailAutomation, which handles the side-effect of 'sending' an email by reacting to a WelcomeEmailRequested event and issuing a MarkWelcomeEmailSent command.
+    - When To Use: Include this file when examining examples of event-driven automations or process managers that coordinate actions between events and commands within the esrc framework.
+    - Types: SendWelcomeEmailAutomation
+    - Functions: setup
 
 - src/event_modeling.rs
-    - Summary: Defines core types and builders for modeling event consumers, including roles (Automation, ReadModel), execution policies (Sequential, Concurrent), and structured naming conventions.
-    - When To Use: Use when defining event consumers and their execution policies, or when establishing structured consumer identities across bounded contexts.
-    - Types: Automation, ConsumerName, ConsumerRole, ConsumerSpec, ExecutionPolicy, ReadModel
+    - Summary: Defines core types and builders for modeling event consumers, including roles (Automation, ReadModel), execution policies (Sequential, Concurrent), and structured component naming (ComponentName).
+    - When To Use: Use when defining event consumers and their execution policies, or when establishing structured component identities across bounded contexts.
+    - Types: Automation, ComponentName, ConsumerRole, ConsumerSpec, ExecutionPolicy, ReadModel
 

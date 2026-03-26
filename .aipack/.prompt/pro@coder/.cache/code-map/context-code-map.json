@@ -909,8 +909,8 @@
     },
     "examples/multi-slice-command-service/queue_welcome_email/mod.rs": {
       "file_path": "examples/multi-slice-command-service/queue_welcome_email/mod.rs",
-      "hash": "a1c7d8d1dbf9d1ae7e023c8c8484e52b77ab0a97a8e6d9818a4d2eb03ce05a0c",
-      "mtime": 1774533971127503,
+      "hash": "71d2431ec713cd88efb115d8c9a1a4bc52ed7d053cc27e9db6e7c90dbfa7d3c9",
+      "mtime": 1774548470735568,
       "public_functions": [
         "setup"
       ],
@@ -922,8 +922,8 @@
     },
     "examples/multi-slice-command-service/send_welcome_email/mod.rs": {
       "file_path": "examples/multi-slice-command-service/send_welcome_email/mod.rs",
-      "hash": "70340f49d867eec50a56b794669be48e1bb6b77876f3e721ad9a06a514045c87",
-      "mtime": 1774533880082859,
+      "hash": "ec4f6512cbbbaccd9b233897bc9ad98227dcc7768ce31a67585d32e4faecf25a",
+      "mtime": 1774548470735568,
       "public_functions": [
         "setup"
       ],
@@ -1102,19 +1102,19 @@
     },
     "src/event_modeling.rs": {
       "file_path": "src/event_modeling.rs",
-      "hash": "a843ad436ee2685695ef60ded6c4027243a66ae8c63108400659142e87a18ff6",
-      "mtime": 1774534181672359,
+      "hash": "2b2b8d156ddf893159b961cae04d7e07dce50a40144d8408ecb3e257adea1f28",
+      "mtime": 1774548470735568,
       "public_functions": [],
       "public_types": [
         "Automation",
-        "ConsumerName",
+        "ComponentName",
         "ConsumerRole",
         "ConsumerSpec",
         "ExecutionPolicy",
         "ReadModel"
       ],
-      "summary": "Defines core types and builders for modeling event consumers, including roles (Automation, ReadModel), execution policies (Sequential, Concurrent), and structured naming conventions.",
-      "when_to_use": "Use when defining event consumers and their execution policies, or when establishing structured consumer identities across bounded contexts."
+      "summary": "Defines core types and builders for modeling event consumers, including roles (Automation, ReadModel), execution policies (Sequential, Concurrent), and structured component naming (ComponentName).",
+      "when_to_use": "Use when defining event consumers and their execution policies, or when establishing structured component identities across bounded contexts."
     },
     "src/kurrent.rs": {
       "file_path": "src/kurrent.rs",

@@ -14,6 +14,8 @@ pub mod event;
 pub mod event_modeling;
 /// Process events and perform side effects for Events outside of an Aggregate.
 pub mod project;
+/// Traits and types for declaring and handling queries against read models.
+pub mod query;
 /// (De)Serialize types with extra version information for upcasting.
 pub mod version;
 /// Read models built from event streams, without commands or errors.

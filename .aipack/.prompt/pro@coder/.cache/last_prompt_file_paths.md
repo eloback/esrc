@@ -17,21 +17,21 @@ file_content_mode: udiffx
 ## All resolve files(sent to AI with content, in this order)
 
 - src/lib.rs
-- src/nats/event.rs
-- src/nats.rs
-- src/nats/command_service.rs
-- examples/multi-slice-command-service/send_welcome_email/mod.rs
-- examples/multi-slice-command-service/queue_welcome_email/mod.rs
 - examples/multi-slice-command-service/main.rs
+- _workbench/queries/plan-2-active-step.md
+- examples/multi-slice-command-service/queue_welcome_email/mod.rs
+- examples/multi-slice-command-service/send_welcome_email/mod.rs
 - src/event_modeling.rs
 - _workbench/queries/plan-1-todo-steps.md
 - _workbench/queries/dev-chat.md
 - _workbench/queries/plan-1-todo-steps.md
+- _workbench/queries/plan-2-active-step.md
 
 ## Post (just for info, included in the All resolved files above)
 
 - _workbench/queries/dev-chat.md
 - _workbench/queries/plan-1-todo-steps.md
+- _workbench/queries/plan-2-active-step.md
 
 # Working Files
 
