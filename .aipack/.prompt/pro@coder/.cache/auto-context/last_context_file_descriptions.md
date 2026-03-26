@@ -126,12 +126,6 @@
     - When To Use: Include this file when you need to define how events are projected into read models or side effects, or when working with the context of a specific event being projected.
     - Types: Context, Project
 
-- src/nats/command_service.rs
-    - Summary: Implements NATS-based command processing for aggregates, providing both a service (to listen and execute commands) and a client (to send commands via request/reply).
-    - When To Use: Use this file when setting up a NATS microservice to handle domain commands for an aggregate or when you need to send commands to such a service from another part of the system.
-    - Types: ReplyError, CommandReply
-    - Functions: serve, spawn_service, handle_request, send_command
-
 - src/nats/query_service.rs
     - Summary: Implements NATS-based query services and clients using request-reply patterns. It provides the logic to serve read models and custom queries over NATS, as well as the client implementation to invoke those queries.
     - When To Use: Use this file when dealing with NATS-backed query handlers, implementing read model retrieval, or managing the lifecycle of background query services within the NATS messaging layer.
@@ -225,4 +219,10 @@
     - Summary: Main entry point for a comprehensive example demonstrating Event Sourcing and CQRS using the esrc library and NATS. It sets up aggregates, automations, and multiple read models (in-memory and NATS KV), then executes a workflow and validates it via queries.
     - When To Use: Use this file as a reference for integrating aggregates, projections, and automations into a single application and for understanding how to perform end-to-end command/query operations.
     - Functions: main
+
+- src/nats/command_service.rs
+    - Summary: Implements NATS-based command handling for event-sourced aggregates, featuring a service that reconstructs state via replay to execute commands and a client for NATS request-reply communication.
+    - When To Use: Use this file to set up a command processing listener for an aggregate or to send commands to a remote aggregate service over NATS.
+    - Types: ReplyError, CommandReply
+    - Functions: serve, spawn_service, handle_request, send_command
 

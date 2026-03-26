@@ -756,8 +756,8 @@
     },
     "src/nats/command_service.rs": {
       "file_path": "src/nats/command_service.rs",
-      "hash": "611837c6e134e9100081e5faf05332bdfe8a76a0de509a183a530ba716bb6b63",
-      "mtime": 1774532753603953,
+      "hash": "67bd98d1ff7571bfa62b96a0d7b8f01f59f7933abd76a0e5c806f0f6ed5d35ea",
+      "mtime": 1774560437464751,
       "public_functions": [
         "serve",
         "spawn_service",
@@ -768,8 +768,8 @@
         "ReplyError",
         "CommandReply"
       ],
-      "summary": "Implements NATS-based command processing for aggregates, providing both a service (to listen and execute commands) and a client (to send commands via request/reply).",
-      "when_to_use": "Use this file when setting up a NATS microservice to handle domain commands for an aggregate or when you need to send commands to such a service from another part of the system."
+      "summary": "Implements NATS-based command handling for event-sourced aggregates, featuring a service that reconstructs state via replay to execute commands and a client for NATS request-reply communication.",
+      "when_to_use": "Use this file to set up a command processing listener for an aggregate or to send commands to a remote aggregate service over NATS."
     },
     "src/nats/convert.rs": {
       "file_path": "src/nats/convert.rs",

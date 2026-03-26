@@ -16,16 +16,17 @@ file_content_mode: udiffx
 
 ## All resolve files(sent to AI with content, in this order)
 
+- src/error.rs
 - src/event.rs
-- src/event/command_service.rs
-- src/nats/command_service.rs
 - src/nats.rs
-- examples/operations/main.rs
+- src/nats/command_service.rs
 - _workbench/integration_between_bounded_contexts/plan-1-todo-steps.md
+- _workbench/integration_between_bounded_contexts/plan-2-active-step.md
 
 ## Post (just for info, included in the All resolved files above)
 
 - _workbench/integration_between_bounded_contexts/plan-1-todo-steps.md
+- _workbench/integration_between_bounded_contexts/plan-2-active-step.md
 
 # Working Files
 
