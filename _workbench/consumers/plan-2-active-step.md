@@ -1,25 +1,21 @@
-## Step - add a multi-slice example for command services and automation chaining
+## Step - document the event_modeling workflow and dev chat decisions
       status: active
-time-created: 2026-03-26 06:07:23
-time-current: 2026-03-26 06:25:01
+time-created: 2026-03-26 06:00:43
+time-current: 2026-03-26 06:32:18
 
-Create an example that declares at least two vertical slices and demonstrates the intended end-to-end workflow for the new consumer declaration model.
+Document how vertical slices should declare consumers with the new `event_modeling` module, and record the key decisions carried forward from the dev chat.
 
-- The example should:
-  - declare at least two slices
-  - start the `CommandService`
-  - execute at least one command manually
-  - have automations listen to the published event stream and trigger new commands
-  - keep running until ctrl-c is pressed
+- Explain the distinction between:
+  - declaration layer owned by slices
+  - runtime layer owned by infrastructure
 
-- Keep the example aligned with the declaration layer and runtime layer split established by the earlier `event_modeling` steps, so the example validates the intended slice-facing ergonomics rather than exposing transport wiring directly.
-
-- Ensure the example is sequenced after the runtime and spawning helper work, since it depends on those pieces being available and should serve as a realistic usage reference.
+- Document why automation and read model remain explicit concepts while sharing a normalized internal consumer specification.
+- Document the structured naming approach using bounded context, domain, and feature.
+- Summarize the intentional implementation choices taken from `_workbench/consumers/dev-chat.md`, including favoring step 5 of `My recommended practical path` and skipping step 4 for the initial implementation.
 
 References: see the definition in `plan-2-active-step.md` or `plan-3-done-steps.md`, step `Step - define the event_modeling module surface and consumer declaration model`.
 
 ### Implementation Considerations
-- Added a new `examples/multi-slice-command-service.rs` example that keeps the slice-facing startup flow at the declaration layer by using `Automation` declarations and `NatsStore` spawning helpers.
-- Modeled two slices, signup and email delivery, with separate aggregate, command, and event types so the example shows cross-slice command chaining through published events.
-- Started both command services, sent one manual signup command, and wired automations that react to the event stream by sending follow-up commands through the command client API.
-- Kept the example process alive until ctrl-c so it serves as a realistic end-to-end reference for command services and background consumers running together.
+- Added `docs/event-modeling.md` to document the declaration workflow, the runtime boundary, and the structured naming model used by `event_modeling`.
+- Recorded the retained design decisions in `_workbench/consumers/dev-chat.md` so the implementation rationale stays connected to the original discussion.
+- Documented that the current API intentionally favors explicit `Automation` and `ReadModel` builders while normalizing internally to `ConsumerSpec<P>`.

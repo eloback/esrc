@@ -1362,3 +1362,109 @@ That gives you:
 
 If you want, next I can turn this into a more concrete draft API that matches your current `NatsStore` and `Project` traits closely, using your existing types and naming style rather than pseudo-infrastructure code.
 
+
+## Request: Document the event_modeling workflow and retained design decisions
+
+### Summary
+
+The current implementation now has enough surface area that it should be documented as an explicit workflow, not only as a design discussion.
+
+The important thing to capture is that the crate now has a real split between declaration and runtime responsibilities:
+
+- vertical slices declare consumers through `event_modeling`
+- infrastructure executes those declarations through `NatsStore`
+
+### Declaration layer
+
+The declaration layer is owned by slices and should stay focused on intent.
+
+That layer currently consists of:
+
+- `ConsumerName`
+- `ConsumerSpec<P>`
+- `Automation<P>`
+- `ReadModel<P>`
+
+A slice should declare:
+
+- the projector
+- the semantic role
+- the stable structured name
+- any execution override
+
+It should not deal with:
+
+- durable consumer creation
+- graceful shutdown wiring
+- message stream management
+- transport-specific subscription mechanics
+
+### Runtime layer
+
+The runtime layer is owned by infrastructure.
+
+That layer currently includes the `NatsStore` consumer entrypoints and helpers that:
+
+- derive durable names from `ConsumerName`
+- derive event subjects from the projector event group
+- create the durable consumer
+- run the sequential or concurrent processing path
+- own task spawning and background lifecycle
+
+This preserves the original design goal from the earlier discussion, which was to keep NATS details out of the vertical slice API.
+
+### Why the explicit role wrappers still matter
+
+It is good that the implementation kept both:
+
+- explicit role wrappers
+  - `Automation<P>`
+  - `ReadModel<P>`
+- normalized internal representation
+  - `ConsumerSpec<P>`
+
+That gives a cleaner slice-facing API while still preserving one shared runtime execution path.
+
+This was the right compromise from the design discussion because it keeps declarations intention-revealing without duplicating runtime machinery.
+
+### Naming model to document clearly
+
+The naming model should be documented explicitly.
+
+`ConsumerName` currently captures:
+
+- bounded context
+- domain
+- feature
+- consumer
+
+And produces a durable name shaped like:
+
+- `bounded_context.domain.feature.consumer`
+
+That is an important design decision because it replaces ad hoc string naming with a stable operational identity.
+
+### Which dev chat choices were carried forward
+
+The implementation should be documented as following the practical path from the earlier design discussion, especially:
+
+- keeping durable subscription creation private to infrastructure
+- using one shared runtime entrypoint
+- keeping a shared processing pipeline
+- exposing wrapper builders for ergonomics
+
+It should also explicitly note that the initial implementation intentionally skipped the intermediate `ConsumerSpec::automation(...)` and `ConsumerSpec::read_model(...)` constructor step.
+
+That is useful context because the current API shape is centered on the wrapper builders rather than constructor methods on `ConsumerSpec`.
+
+### Recommendation for the docs step
+
+I would document this in a small focused guide that explains:
+
+- declaration layer vs runtime layer
+- why `Automation` and `ReadModel` are explicit
+- how structured naming works
+- which dev chat decisions became implementation choices
+
+That documentation will make the new surface easier to use and will preserve the reasoning behind the current API shape for later refinements.
+
