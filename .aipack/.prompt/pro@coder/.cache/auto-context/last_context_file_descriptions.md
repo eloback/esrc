@@ -140,6 +140,11 @@
     - Summary: Root workspace manifest for the esrc project, defining shared dependencies, workspace members (derive, opentelemetry-nats), and feature flags for NATS and KurrentDB integrations.
     - When To Use: Use this file to identify available feature flags, workspace structure, and specific dependency versions for event-sourcing and CQRS implementations.
 
+- examples/multi-slice-command-service/domain.rs
+    - Summary: Defines the domain logic for a multi-slice command service, including events, commands, errors, and aggregate state transitions for 'Signup' and 'Email' domains.
+    - When To Use: Use this file as a reference for defining domain entities and business logic in an Event Sourcing system with multiple aggregates.
+    - Types: SignupEvent, EmailEvent, SignupCommand, EmailCommand, SignupError, EmailError, SignupAggregate, EmailAggregate
+
 - src/nats.rs
     - Summary: Implementation of a NATS JetStream-backed event store, providing functionality for stream management, durable/ordered consumer creation, and lifecycle management for event-processing tasks.
     - When To Use: Use when integrating NATS as the event storage backend, specifically for initializing streams, managing read mirrors, and spawning background consumers for read models or automations.
@@ -151,6 +156,22 @@
     - When To Use: Use this file when configuring NATS command handlers for aggregates, spawning background command services, or using the NatsStore to dispatch commands.
     - Types: ReplyError, CommandReply
     - Functions: serve, spawn_service, handle_request, send_command
+
+- examples/multi-slice-command-service/send_welcome_email/mod.rs
+    - Summary: Implements the SendWelcomeEmailAutomation, which handles the side-effect of 'sending' an email by reacting to a WelcomeEmailRequested event and issuing a MarkWelcomeEmailSent command.
+    - When To Use: Include this file when examining examples of event-driven automations or process managers that coordinate actions between events and commands within the esrc framework.
+    - Types: SendWelcomeEmailAutomation
+    - Functions: setup
+
+- examples/multi-slice-command-service/queue_welcome_email/mod.rs
+    - Summary: Implements the QueueWelcomeEmailAutomation which reacts to 'SignupRequested' events by triggering commands across the Email and Signup aggregates.
+    - When To Use: Use this file as an example of how to implement cross-aggregate automations (sagas) in an event-sourced system using the esrc library.
+    - Types: QueueWelcomeEmailAutomation
+    - Functions: setup
+
+- examples/multi-slice-command-service/main.rs
+    - Summary: The main entry point for a multi-slice command service example. It orchestrates the initialization of a NATS-backed event store, registers multiple aggregates (Signup and Email), sets up event-driven automation slices, and demonstrates a basic command-processing workflow.
+    - When To Use: Refer to this file when setting up the bootstrapping logic for an application using esrc, specifically for configuring NatsStore, spawning aggregate services, and connecting automation logic.
 
 - src/event_modeling.rs
     - Summary: Defines core types and builders for modeling event consumers, including roles (Automation, ReadModel), execution policies (Sequential, Concurrent), and structured naming conventions.

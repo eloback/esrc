@@ -880,6 +880,59 @@
       "summary": "Defines ActiveTables, a project state manager that tracks open cafe tables by UUID and table number, with helper queries for active tables.",
       "when_to_use": "Use when you need to understand or modify how table open/close events are stored, queried, or projected into shared state in the cafe example."
     },
+    "examples/multi-slice-command-service/domain.rs": {
+      "file_path": "examples/multi-slice-command-service/domain.rs",
+      "hash": "cbe3b1680c6d9fe985e22568eff2c70d254df4c5a0c033781461174415ce83d3",
+      "mtime": 1774532049499842,
+      "public_functions": [],
+      "public_types": [
+        "SignupEvent",
+        "EmailEvent",
+        "SignupCommand",
+        "EmailCommand",
+        "SignupError",
+        "EmailError",
+        "SignupAggregate",
+        "EmailAggregate"
+      ],
+      "summary": "Defines the domain logic for a multi-slice command service, including events, commands, errors, and aggregate state transitions for 'Signup' and 'Email' domains.",
+      "when_to_use": "Use this file as a reference for defining domain entities and business logic in an Event Sourcing system with multiple aggregates."
+    },
+    "examples/multi-slice-command-service/main.rs": {
+      "file_path": "examples/multi-slice-command-service/main.rs",
+      "hash": "25a71b0eadd005810c09dae964d2e497e1e67fea75be9459d41a893ef19855d8",
+      "mtime": 1774534091621449,
+      "public_functions": [],
+      "public_types": [],
+      "summary": "The main entry point for a multi-slice command service example. It orchestrates the initialization of a NATS-backed event store, registers multiple aggregates (Signup and Email), sets up event-driven automation slices, and demonstrates a basic command-processing workflow.",
+      "when_to_use": "Refer to this file when setting up the bootstrapping logic for an application using esrc, specifically for configuring NatsStore, spawning aggregate services, and connecting automation logic."
+    },
+    "examples/multi-slice-command-service/queue_welcome_email/mod.rs": {
+      "file_path": "examples/multi-slice-command-service/queue_welcome_email/mod.rs",
+      "hash": "a1c7d8d1dbf9d1ae7e023c8c8484e52b77ab0a97a8e6d9818a4d2eb03ce05a0c",
+      "mtime": 1774533971127503,
+      "public_functions": [
+        "setup"
+      ],
+      "public_types": [
+        "QueueWelcomeEmailAutomation"
+      ],
+      "summary": "Implements the QueueWelcomeEmailAutomation which reacts to 'SignupRequested' events by triggering commands across the Email and Signup aggregates.",
+      "when_to_use": "Use this file as an example of how to implement cross-aggregate automations (sagas) in an event-sourced system using the esrc library."
+    },
+    "examples/multi-slice-command-service/send_welcome_email/mod.rs": {
+      "file_path": "examples/multi-slice-command-service/send_welcome_email/mod.rs",
+      "hash": "70340f49d867eec50a56b794669be48e1bb6b77876f3e721ad9a06a514045c87",
+      "mtime": 1774533880082859,
+      "public_functions": [
+        "setup"
+      ],
+      "public_types": [
+        "SendWelcomeEmailAutomation"
+      ],
+      "summary": "Implements the SendWelcomeEmailAutomation, which handles the side-effect of 'sending' an email by reacting to a WelcomeEmailRequested event and issuing a MarkWelcomeEmailSent command.",
+      "when_to_use": "Include this file when examining examples of event-driven automations or process managers that coordinate actions between events and commands within the esrc framework."
+    },
     "examples/zero_copy/main.rs": {
       "file_path": "examples/zero_copy/main.rs",
       "hash": "8670e9986c2a1d284e0dc65ad5c8feb3534ab74fc5d69e3a295046aa2d840e12",
