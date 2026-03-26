@@ -10,7 +10,6 @@ mod domain;
 
 use std::time::Duration;
 
-use esrc::event::command_service::CommandError;
 use esrc::event::replay::ReplayOneExt;
 use esrc::nats::NatsStore;
 use tokio::time::sleep;
@@ -51,14 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .request(subject.clone(), payload.into())
             .await
             .expect("PlaceOrder request failed");
-
-        if reply.payload.is_empty() {
-            println!("[client] PlaceOrder succeeded for {order_id}");
-        } else {
-            let err: CommandError =
-                serde_json::from_slice(&reply.payload).expect("deserialize error");
-            panic!("[client] PlaceOrder failed: {err}");
-        }
+        dbg!("PlaceOrder reply: {:?}", reply);
 
         sleep(Duration::from_millis(200)).await;
 
@@ -82,13 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .await
             .expect("CompleteOrder request failed");
 
-        if reply.payload.is_empty() {
-            println!("[client] CompleteOrder succeeded for {order_id}");
-        } else {
-            let err: CommandError =
-                serde_json::from_slice(&reply.payload).expect("deserialize error");
-            panic!("[client] CompleteOrder failed: {err}");
-        }
+        dbg!("PlaceOrder reply: {:?}", reply);
 
         sleep(Duration::from_millis(200)).await;
 

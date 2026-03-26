@@ -15,7 +15,7 @@ pub mod subscribe;
 /// Truncate (delete) old events from an event store.
 pub mod truncate;
 
-pub use command_service::{CommandError, CommandErrorKind, CommandService};
+pub use command_service::{CommandClient, CommandService};
 pub use publish::{Publish, PublishExt};
 pub use replay::{Replay, ReplayExt, ReplayOne, ReplayOneExt};
 pub use subscribe::{Subscribe, SubscribeExt};
