@@ -6,6 +6,9 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{error, event_modeling::ComponentName};
 
+/// In-memory query handler helper for View-based live projections.
+pub mod in_memory;
+
 /// A query that can be executed against a read model.
 ///
 /// Defines the association between a query enum, its target read model,

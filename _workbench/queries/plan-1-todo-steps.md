@@ -1,21 +1,5 @@
 # Plan 1 - Todo Steps
 
-## Step - In-memory QueryHandler helper for View-based live projections
-      status: not_started
-time-created: 2026-03-26 15:39:52
-
-- Create a simple utility that materializes a `View` from an event stream (replay + subscribe) and serves queries against the live in-memory state.
-- This should be a concrete `QueryHandler` implementation that:
-  - Holds a `View` instance internally (behind appropriate synchronization).
-  - Implements `get_by_id` and `handle` against the in-memory state.
-- Design considerations:
-  - The user mentioned "simpler utility with good UX", not a full managed runtime component.
-  - The `View` trait is `Default + Send` and has an `apply` method. The helper needs to replay events to build initial state and then subscribe for updates.
-  - The helper should be generic over the `View` type and the storage mechanism (e.g., a `HashMap<Id, V>` keyed by some ID extractor).
-  - Consider how the user provides the ID extraction logic (e.g., a closure or trait method that maps an event to an aggregate ID).
-- Module placement: likely `src/query/in_memory.rs` or a new section in `src/query.rs` depending on size. The user said they would split later, so starting in `src/query.rs` or a submodule is fine.
-- References: see `src/view.rs` for the `View` trait, and `src/query.rs` for `QueryHandler`.
-
 ## Step - NATS KV-backed QueryHandler implementation
       status: not_started
 time-created: 2026-03-26 15:39:52
