@@ -25,6 +25,8 @@ pub mod convert;
 pub mod envelope;
 #[doc(hidden)]
 pub mod event;
+/// NATS-backed query service support for `NatsStore`.
+pub mod query_service;
 
 pub use envelope::NatsEnvelope;
 

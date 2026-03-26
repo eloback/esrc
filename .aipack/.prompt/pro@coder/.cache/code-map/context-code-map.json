@@ -1102,8 +1102,8 @@
     },
     "src/event_modeling.rs": {
       "file_path": "src/event_modeling.rs",
-      "hash": "2b2b8d156ddf893159b961cae04d7e07dce50a40144d8408ecb3e257adea1f28",
-      "mtime": 1774548470735568,
+      "hash": "f8a9c970739249136f78f6536a6def1524e3de4e5fdda33724d78cca783f17d3",
+      "mtime": 1774548946471666,
       "public_functions": [],
       "public_types": [
         "Automation",
@@ -1339,8 +1339,8 @@
     },
     "src/query.rs": {
       "file_path": "src/query.rs",
-      "hash": "57afaf776d5a53e7b62779516d714880e45d24997726899e03b2b2733c8b9f2e",
-      "mtime": 1774548544687818,
+      "hash": "634dc92a2e40ffea11c20d49a080ffb92292257db01c6d8e0165523c405d3994",
+      "mtime": 1774548946471666,
       "public_functions": [
         "QuerySpec::new",
         "QuerySpec::name",
@@ -1354,10 +1354,12 @@
         "Query",
         "QueryHandler",
         "QueryTransport",
-        "QuerySpec"
+        "QuerySpec",
+        "QueryService",
+        "QueryClient"
       ],
-      "summary": "Defines the core traits and types for declaring, handling, and configuring queries against read models in an event-sourced architecture.",
-      "when_to_use": "Use this file when defining domain-specific queries, implementing handlers for read models, or configuring query transport specifications for infrastructure exposure."
+      "summary": "Defines traits and types for declaring, handling, serving, and invoking queries against read models, providing infrastructure for remote query execution via transports like NATS.",
+      "when_to_use": "Use this file when defining domain-specific queries, implementing read model handlers, or configuring query services and clients for distributed communication."
     },
     "src/version.rs": {
       "file_path": "src/version.rs",

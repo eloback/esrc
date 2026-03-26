@@ -247,19 +247,19 @@
     - Types: SendWelcomeEmailAutomation
     - Functions: setup
 
-- src/event_modeling.rs
-    - Summary: Defines core types and builders for modeling event consumers, including roles (Automation, ReadModel), execution policies (Sequential, Concurrent), and structured component naming (ComponentName).
-    - When To Use: Use when defining event consumers and their execution policies, or when establishing structured component identities across bounded contexts.
-    - Types: Automation, ComponentName, ConsumerRole, ConsumerSpec, ExecutionPolicy, ReadModel
-
 - src/lib.rs
     - Summary: Crate root for the esrc event-sourcing library, defining the core module structure and re-exporting primary types such as Aggregate, Envelope, Error, Event, EventGroup, and View.
     - When To Use: Use this file to understand the library's organization, available modules, and feature-gated backend implementations for NATS and Kurrentdb.
     - Types: Aggregate, Envelope, Error, Event, EventGroup, View
 
+- src/event_modeling.rs
+    - Summary: Defines core types and builders for modeling event consumers, including roles (Automation, ReadModel), execution policies (Sequential, Concurrent), and structured component naming (ComponentName).
+    - When To Use: Use when defining event consumers and their execution policies, or when establishing structured component identities across bounded contexts.
+    - Types: Automation, ComponentName, ConsumerRole, ConsumerSpec, ExecutionPolicy, ReadModel
+
 - src/query.rs
-    - Summary: Defines the core traits and types for declaring, handling, and configuring queries against read models in an event-sourced architecture.
-    - When To Use: Use this file when defining domain-specific queries, implementing handlers for read models, or configuring query transport specifications for infrastructure exposure.
-    - Types: Query, QueryHandler, QueryTransport, QuerySpec
+    - Summary: Defines traits and types for declaring, handling, serving, and invoking queries against read models, providing infrastructure for remote query execution via transports like NATS.
+    - When To Use: Use this file when defining domain-specific queries, implementing read model handlers, or configuring query services and clients for distributed communication.
+    - Types: Query, QueryHandler, QueryTransport, QuerySpec, QueryService, QueryClient
     - Functions: QuerySpec::new, QuerySpec::name, QuerySpec::transport, QuerySpec::handler, QuerySpec::handler_mut, QuerySpec::into_handler, QuerySpec::with_transport
 
