@@ -295,3 +295,22 @@ Based on your round 4 answers, you've pushed back on `QueryStore` as a separate 
    
    My recommendation: defer to a follow-up step after the core traits are in place.
    - ANSWER: yes defer this too
+
+### Follow-up Questions (Round 6)
+
+All previous design decisions are well-converged. A few final clarifications before the summary:
+
+1. **Transport enum variants**: You said `QuerySpec` should carry transport hints (NATS service API, HTTP, etc.). For the initial implementation, which transport(s) should be supported? Just NATS request-reply (matching the `CommandService`/`CommandClient` pattern)? Or also HTTP? If HTTP, should the framework generate handlers for a specific HTTP framework (e.g., axum), or just expose a generic interface? My recommendation: start with NATS request-reply only, and add HTTP later.
+- ANSWER: only nats request-reply for now
+
+2. **QuerySpec naming**: Should `QuerySpec` reuse `ConsumerName` for its identity (since the query and read model consumer are part of the same vertical slice), or should it have its own naming type (e.g., `QueryName`)? Using `ConsumerName` keeps things unified but might be semantically confusing since a query handler is not really a "consumer."
+- ANSWER: rename the ConsumerName to component name or component scope.
+
+3. **Query service pattern**: For NATS transport, should the query layer follow the same `CommandService`/`CommandClient` pattern with a `QueryService` trait (serves queries over NATS request-reply) and a `QueryClient` trait (sends queries remotely)? This would let a service expose its read models over NATS, and other services query them via the client. The `QueryService` would deserialize incoming query requests, dispatch to the `QueryHandler`, and send back serialized results.
+- ANSWER: yes
+
+4. **Query serialization bounds**: The `Query` trait has `type ReadModel: Send` and `type Response: Send`. For transport over NATS, both the query enum and the response need to be serializable. Should we add `Serialize + DeserializeOwned` bounds on the `Query` trait itself, or only on the transport-specific traits/methods (like `QueryService`/`QueryClient`)? My recommendation: keep `Query` trait minimal (just `Send`), and add serde bounds only on transport methods, matching how `CommandService` adds serde bounds at the method level.
+- ANSWER: add the trait bounds to the transport traits only.
+
+5. **Query module structure**: You confirmed `src/query.rs`. Given that we will have `Query` trait, `QueryHandler` trait, `QuerySpec`, and a transport hint enum, should this be a single file or a module directory (`src/query/mod.rs`, `src/query/spec.rs`, etc.)? My recommendation: start as a single `src/query.rs` file and split later if it grows.
+- ANSWER: start simple, i'll manually split later
