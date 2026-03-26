@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use esrc::{
     event::CommandClient,
-    event_modeling::{Automation, ConsumerName},
+    event_modeling::{Automation, ComponentName},
     nats::NatsStore,
 };
 use tracing::instrument;
@@ -52,7 +52,7 @@ impl esrc::project::Project for SendWelcomeEmailAutomation {
 pub fn setup(store: NatsStore) {
     store.spawn_automation(
         Automation::new(
-            ConsumerName::new("examples", "email", "delivery", "send-welcome-email"),
+            ComponentName::new("examples", "email", "delivery", "send-welcome-email"),
             SendWelcomeEmailAutomation {
                 store: store.clone(),
             },

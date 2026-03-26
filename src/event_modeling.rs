@@ -29,56 +29,56 @@ pub enum ExecutionPolicy {
     },
 }
 
-/// A structured consumer identity derived from slice-oriented naming segments.
+/// A structured component identity derived from slice-oriented naming segments.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ConsumerName {
+pub struct ComponentName {
     bounded_context: &'static str,
     domain: &'static str,
     feature: &'static str,
-    consumer: &'static str,
+    component: &'static str,
 }
 
-impl ConsumerName {
-    /// Create a new structured consumer identity.
+impl ComponentName {
+    /// Create a new structured component identity.
     pub const fn new(
         bounded_context: &'static str,
         domain: &'static str,
         feature: &'static str,
-        consumer: &'static str,
+        component: &'static str,
     ) -> Self {
         Self {
             bounded_context,
             domain,
             feature,
-            consumer,
+            component,
         }
     }
 
-    /// The bounded context segment of this consumer identity.
+    /// The bounded context segment of this component identity.
     pub const fn bounded_context(&self) -> &'static str {
         self.bounded_context
     }
 
-    /// The domain segment of this consumer identity.
+    /// The domain segment of this component identity.
     pub const fn domain(&self) -> &'static str {
         self.domain
     }
 
-    /// The feature segment of this consumer identity.
+    /// The feature segment of this component identity.
     pub const fn feature(&self) -> &'static str {
         self.feature
     }
 
-    /// The consumer segment of this consumer identity.
-    pub const fn consumer(&self) -> &'static str {
-        self.consumer
+    /// The component segment of this component identity.
+    pub const fn component(&self) -> &'static str {
+        self.component
     }
 
     /// Returns the stable durable consumer name.
     pub fn durable_name(&self) -> String {
         format!(
             "{}_{}_{}_{}",
-            self.bounded_context, self.domain, self.feature, self.consumer
+            self.bounded_context, self.domain, self.feature, self.component
         )
     }
 
@@ -91,7 +91,7 @@ impl ConsumerName {
 /// A normalized consumer declaration that can later be executed by infrastructure.
 #[derive(Clone, Debug)]
 pub struct ConsumerSpec<P> {
-    name: ConsumerName,
+    name: ComponentName,
     role: ConsumerRole,
     execution_policy: ExecutionPolicy,
     projector: P,
@@ -99,7 +99,7 @@ pub struct ConsumerSpec<P> {
 
 impl<P> ConsumerSpec<P> {
     /// Create a new consumer specification with the given role defaults.
-    pub fn new(name: ConsumerName, role: ConsumerRole, projector: P) -> Self {
+    pub fn new(name: ComponentName, role: ConsumerRole, projector: P) -> Self {
         Self {
             name,
             role,
@@ -109,7 +109,7 @@ impl<P> ConsumerSpec<P> {
     }
 
     /// Returns the structured name for this consumer.
-    pub fn name(&self) -> &ConsumerName {
+    pub fn name(&self) -> &ComponentName {
         &self.name
     }
 
@@ -153,7 +153,7 @@ pub struct Automation<P> {
 
 impl<P> Automation<P> {
     /// Create a new automation declaration with automation defaults.
-    pub fn new(name: ConsumerName, projector: P) -> Self {
+    pub fn new(name: ComponentName, projector: P) -> Self {
         Self {
             spec: ConsumerSpec::new(name, ConsumerRole::Automation, projector),
         }
@@ -189,7 +189,7 @@ pub struct ReadModel<P> {
 
 impl<P> ReadModel<P> {
     /// Create a new read model declaration with read model defaults.
-    pub fn new(name: ConsumerName, projector: P) -> Self {
+    pub fn new(name: ComponentName, projector: P) -> Self {
         Self {
             spec: ConsumerSpec::new(name, ConsumerRole::ReadModel, projector),
         }

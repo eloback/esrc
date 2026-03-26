@@ -1,6 +1,6 @@
 use esrc::{
     event::CommandClient,
-    event_modeling::{Automation, ConsumerName},
+    event_modeling::{Automation, ComponentName},
     nats::NatsStore,
 };
 use tracing::instrument;
@@ -54,7 +54,7 @@ impl esrc::project::Project for QueueWelcomeEmailAutomation {
 
 pub fn setup(store: NatsStore) {
     store.spawn_automation(Automation::new(
-        ConsumerName::new("examples", "signup", "onboarding", "queue-welcome-email"),
+        ComponentName::new("examples", "signup", "onboarding", "queue-welcome-email"),
         QueueWelcomeEmailAutomation {
             store: store.clone(),
         },

@@ -1,16 +1,5 @@
 # Plan 1 - Todo Steps
 
-## Step - Rename ConsumerName to ComponentName in event_modeling.rs
-      status: not_started
-time-created: 2026-03-26 14:58:37
-
-- Rename the `ConsumerName` struct to `ComponentName` in `src/event_modeling.rs`.
-- Rename the `consumer` field to `component` (and update the associated `consumer()` method to `component()`).
-- Update `durable_name()` and `slice_path()` to use the new field name.
-- Update all references in `ConsumerSpec`, `Automation`, `ReadModel` builders within the same file.
-- Keep `ConsumerRole`, `ConsumerSpec`, `Automation`, and `ReadModel` names unchanged.
-- Update all usages across the codebase: `src/nats.rs`, `src/nats/command_service.rs`, example files, and any other files that reference `ConsumerName` or the `consumer` field/method.
-
 ## Step - Create src/query.rs with Query, QueryHandler, QueryTransport, and QuerySpec
       status: not_started
 time-created: 2026-03-26 14:58:37
