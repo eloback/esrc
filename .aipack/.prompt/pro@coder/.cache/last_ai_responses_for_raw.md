@@ -1,63 +1,146 @@
 ====
->   Info: Duration: 26s | ~$0.1206 | Prompt Tokens: 18,401 (cached: 0, cache_creation: 0) | Completion Tokens: 1,142 
+>   Info: Duration: 31s | ~$0.1613 | Prompt Tokens: 23,547 (cached: 0, cache_creation: 0) | Completion Tokens: 1,744 
 >  Model: claude-opus-4-6 | Adapter: Anthropic
->  Files: Context Files: 8 | Working Files: 0 | Knowledge Files: 1
+>  Files: Context Files: 5 | Working Files: 0 | Knowledge Files: 1
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
-I've reviewed all your answers across the 6 rounds of Q&A. The design has converged well. Let me ask a few final clarifying questions before summarizing:
+I've reviewed all your answers across rounds 1-7. The design is fully converged with no ambiguities remaining. There are no more questions to ask.
+
+Let me summarize the feature in the dev chat.
 
 <FILE_CHANGES>
 
 <FILE_PATCH file_path="_workbench/queries/dev-chat.md">
 @@
- - ANSWER: start simple, i'll manually split later
+   - ANSWER: you are right, i think we are ready know, summarize the changes, while i prepare the for the next step
 +
-+### Follow-up Questions (Round 7 - Final)
++### Design Summary
 +
-+The design is well-converged. Here are the last clarifications before the final summary:
++After 7 rounds of Q&A, the query framework design is finalized. Here is the consolidated summary of all decisions.
 +
-+1. **Renaming `ConsumerName` to `ComponentName`/`ComponentScope`**: You said to rename `ConsumerName`. This is a breaking change that affects `event_modeling.rs`, the `Automation` and `ReadModel` builders, and any downstream user code. Should the rename be:
-+   - `ComponentName` (mirrors the current `ConsumerName` structure exactly, just renamed)?
-+   - `ComponentScope` (implies it scopes/namespaces the component rather than naming it)?
-+   - Something else?
-+   
-+   My recommendation: `ComponentName` since it's a direct rename and keeps the same semantics. The fields (`bounded_context`, `domain`, `feature`, `consumer`) stay the same, but should the `consumer` field be renamed to something more generic (e.g., `component` or `name`) since it's now used for both consumers and query handlers?
++#### Overview
 +
-+2. **`ConsumerRole` and `ConsumerSpec` naming**: If we rename `ConsumerName` to `ComponentName`, should we also rename:
-+   - `ConsumerRole` to `ComponentRole`?
-+   - `ConsumerSpec` to `ComponentSpec`?
-+   - Or keep them as-is since they are specifically about event consumers, and `QuerySpec` is a separate spec type?
-+   
-+   My recommendation: keep `ConsumerRole` and `ConsumerSpec` as-is since they specifically describe event consumer behavior. `ComponentName` is the shared identity piece; the spec types remain domain-specific.
++The query layer extends the `esrc` crate to let developers declare how data is fetched from read models. It follows the same patterns as the existing command handling layer (`CommandService`/`CommandClient`) but for the read side.
 +
-+3. **QuerySpec transport hint type**: For the NATS request-reply transport hint, should the transport enum be:
-+   ```rust
-+   enum QueryTransport {
-+       NatsRequestReply,
-+       // future: Http, Grpc, etc.
-+   }
-+   ```
-+   Or should it just be a marker/flag for now since there's only one option? My recommendation: use an enum even with one variant, so it's extensible without breaking changes.
++#### New Module: `src/query.rs`
 +
-+4. **QueryService/QueryClient subject derivation**: For NATS request-reply, the subject for query requests needs to be derived from something. Should it follow the same pattern as `CommandService` (deriving from event/aggregate names), but instead derive from the `ComponentName` and/or the read model's event name? For example: `query.<bounded_context>.<domain>.<feature>.<consumer>` or similar?
++A single file containing the core query traits and specification types.
 +
-+5. **QueryHandler lifetime and cloning**: `Project` requires `Clone + Sync`. Should `QueryHandler` also require `Clone` (to allow spawning multiple handler tasks), or just `Send + Sync` (assuming a single handler behind an `Arc`)? My recommendation: just `Send + Sync`, since query handlers are read-only and can be shared via `Arc` without cloning.
++##### `Query` trait
 +
-+6. **Query enum and ReadModel association**: The `Query` trait has `type ReadModel: Send`. Should the `QueryHandler` trait also carry the `ReadModel` as an associated type (for consistency and to avoid mismatches), or is it sufficient to get it through `<Self::Query as Query>::ReadModel`? My recommendation: derive it through the `Query` trait to avoid redundancy.
++Defines a query enum and its associated types. Kept minimal with no serde bounds; serialization requirements are pushed to transport-specific traits.
 +
-+7. **Initial implementation scope**: For the first implementation pass, should we include:
-+   - (a) `Query` trait, `QueryHandler` trait, `QuerySpec` in `src/query.rs`
-+   - (b) Rename `ConsumerName` to `ComponentName` in `src/event_modeling.rs`
-+   - (c) `QueryService` and `QueryClient` traits (transport-agnostic, in `src/query.rs`)
-+   - (d) NATS `QueryService`/`QueryClient` implementation (in `src/nats/`)
-+   - (e) In-memory `QueryHandler` helper for `View`-based read models
-+   
-+   My recommendation: (a) + (b) + (c) first, then (d) and (e) as follow-up steps. This keeps each step focused and non-breaking.
++```rust
++/// A query that can be executed against a read model.
++trait Query: Send {
++    /// The read model this query targets.
++    type ReadModel: Send;
++    /// The response type returned by executing this query.
++    type Response: Send;
++}
++```
++
++##### `QueryHandler` trait
++
++Handles queries for a specific read model. Includes a built-in `get_by_id` method that every handler must implement, plus a `handle` method for custom query enum variants. Uses `esrc::error::Error` with `External` for domain/persistence errors (matching the command handler model). Requires `Send + Sync` (no `Clone`; sharing via `Arc` is expected).
++
++```rust
++/// Handles queries for a specific read model.
++#[trait_variant::make(Send)]
++trait QueryHandler: Send + Sync {
++    type Query: Query;
++    type Id: Send + Sync;
++
++    /// Get a single read model instance by its identifier.
++    async fn get_by_id(
++        &self,
++        id: Self::Id,
++    ) -> crate::error::Result<Option<<Self::Query as Query>::ReadModel>>;
++
++    /// Execute a custom query.
++    async fn handle(
++        &self,
++        query: Self::Query,
++    ) -> crate::error::Result<<Self::Query as Query>::Response>;
++}
++```
++
++- The `ReadModel` associated type is derived through `<Self::Query as Query>::ReadModel` to avoid redundancy.
++- `get_by_id` returns `Result<Option<ReadModel>>`, where `None` means not found.
++- No `QueryStore` abstraction; the developer picks their own storage and wires it through both their `Project` (write side) and `QueryHandler` (read side) implementations.
++
++##### `QueryTransport` enum
++
++Transport hints carried by `QuerySpec`. Extensible via new variants.
++
++```rust
++enum QueryTransport {
++    NatsRequestReply,
++    // future: Http, Grpc, etc.
++}
++```
++
++##### `QuerySpec`
++
++Analogous to `ConsumerSpec`, declares metadata about how queries are exposed. Contains:
++
++- The `QueryHandler` instance.
++- A `ComponentName` for identity (shared naming type with consumers).
++- A `QueryTransport` hint indicating how the query should be exposed.
++
++##### `QueryService` and `QueryClient` traits
++
++Transport-agnostic trait definitions (in `src/query.rs`), following the `CommandService`/`CommandClient` pattern:
++
++- `QueryService`: serves queries over the configured transport. Deserializes incoming query requests, dispatches to the `QueryHandler`, and sends back serialized results.
++- `QueryClient`: sends queries remotely and awaits results.
++- Serde bounds (`Serialize + DeserializeOwned`) are added only on these transport trait methods, not on `Query` or `QueryHandler`.
++
++#### Rename in `src/event_modeling.rs`
++
++- `ConsumerName` is renamed to `ComponentName`.
++- The `consumer` field is renamed to `component` (or `name`), since `ComponentName` is now shared across consumers and query handlers.
++- `ConsumerRole`, `ConsumerSpec`, `Automation`, and `ReadModel` builders keep their current names since they specifically describe event consumer behavior.
++
++#### Subject Derivation for NATS
++
++Query request subjects are derived from `ComponentName` segments: `query.<bounded_context>.<domain>.<feature>.<component>`.
++
++#### What Is NOT Included in the Initial Implementation
++
++The following are deferred to follow-up steps:
++
++- NATS `QueryService`/`QueryClient` concrete implementation (in `src/nats/`).
++- In-memory `QueryHandler` helper for `View`-based live projections.
++- NATS KV-backed `QueryHandler` implementation.
++- Vertical slice helper/builder that composes a `ConsumerSpec` + `QuerySpec`.
++- Caching layer (decorator pattern, e.g., `CachedQueryHandler<H>`).
++- Pagination/sorting helper types (e.g., `PaginatedQueryResult<RM>`).
++
++#### Key Design Decisions Reference
++
++| Decision | Choice |
++|---|---|
++| `get_by_id` location | Built-in method on `QueryHandler` |
++| Storage abstraction (`QueryStore`) | Dropped; developer manages their own storage |
++| Error type | `esrc::error::Error` with `External` for domain errors |
++| Response type | Single `type Response` on `Query` trait; `Vec<ReadModel>` recommended default |
++| Serde bounds | Transport traits only, not on `Query`/`QueryHandler` |
++| `QueryHandler` bounds | `Send + Sync` (no `Clone`) |
++| `ReadModel` association | Derived through `Query` trait, not duplicated on `QueryHandler` |
++| Transport hints | `QueryTransport` enum on `QuerySpec` |
++| Naming identity | `ComponentName` (renamed from `ConsumerName`), shared across consumers and query handlers |
++| Consumer-specific types | `ConsumerRole`, `ConsumerSpec` keep current names |
++| Query enum per read model | One enum per read model |
++| Module placement | `src/query.rs` (single file, split later if needed) |
++| Initial transport | NATS request-reply only |
++| Caching | Deferred; decorator pattern later |
++| Vertical slice helper | Deferred |
 </FILE_PATCH>
 
 </FILE_CHANGES>
 
 <suggested_git_command>
-git commit -a -m ". dev-chat - Add round 7 final clarification questions for query framework"
+git commit -a -m ". queries/dev-chat - Finalize query framework design summary after 7 Q&A rounds"
 </suggested_git_command>
 
