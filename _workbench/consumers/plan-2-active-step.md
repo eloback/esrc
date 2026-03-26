@@ -1,19 +1,15 @@
-## Step - define the DynProject replacement direction and compile-safe abstraction
+## Step - implement the new projector execution abstraction and remove DynProject compile errors
       status: active
 time-created: 2026-03-26 07:00:52
-time-current: 2026-03-26 07:04:25
+time-current: 2026-03-26 07:07:19
 
-Document the intended replacement direction for the current `DynProject` design, focusing on a compile-safe abstraction that better matches the projector execution domain.
+Replace the current `DynProject` implementation with the compile-safe abstraction defined in the previous step, updating the relevant runtime and declaration code so the crate builds correctly again.
 
-- Evaluate whether the runtime should use boxed projector values directly, a new object-safe trait tailored to consumer execution, or another erased projector model that avoids the current generic/object-safety issues.
+- Update the projector execution flow used by consumer declarations and `NatsStore` runtime helpers.
 
-- Define the responsibilities and constraints for the replacement abstraction, including:
-  - clone or factory behavior for per-message or per-task projector usage
-  - access to the event group names needed by consumer startup
-  - async message handling compatibility with the typed `Context` flow
-  - compatibility with sequential and concurrent NATS consumer execution
+- Ensure the implementation preserves the existing declaration-layer ergonomics where possible, while fixing object-safety, associated type, and async dispatch problems in the current design.
 
-- Capture the chosen direction in a way that subsequent implementation steps can reference without ambiguity.
+- Remove or adapt the existing `DynProject` machinery only as needed to support the new execution model cleanly.
 
 References: see the retained event modeling design context in `plan-3-done-steps.md`, step `Step - integrate event_modeling declarations with NatsStore consumer startup`.
 
@@ -75,4 +71,27 @@ References: see the retained event modeling design context in `plan-3-done-steps
   - `event_modeling` should depend on the declaration shape only, not on a dynamic projector trait.
   - `NatsStore` should become the owner of the generic execution logic for `P: Project + Clone + Send + Sync + 'static`.
   - `project.rs` should retain `Context` and `Project`, while removing or adapting only the `DynProject` machinery that caused the compile-safety issues.
+
+### sub-step - replace dynproject runtime usage with generic projector execution
+time-current: 2026-03-26 07:07:19
+
+#### User ask
+
+following the plan rules, implement the next step of the plan.
+
+#### AI Answer
+
+Implemented the runtime shift away from `DynProject` by making the NATS consumer execution path generic over concrete `Project` types.
+
+- Removed the `DynProject` dependency from declaration construction in `event_modeling`.
+
+- Removed the `DynProject` trait machinery from `project.rs`, while preserving `Context` and `Project`.
+
+- Updated `NatsStore` startup and consumer execution helpers to:
+  - derive event names from `P::EventGroup`
+  - keep a single mutable projector for sequential execution
+  - clone a projector per in-flight task for concurrent execution
+  - build typed `Context` values directly from `NatsEnvelope`
+
+- Preserved the declaration-layer API shape of `ConsumerSpec<P>`, `Automation<P>`, and `ReadModel<P>`, while moving execution concerns fully into generic runtime helpers.
 

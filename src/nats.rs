@@ -14,7 +14,7 @@ use tracing::instrument;
 
 use crate::error;
 use crate::event_modeling::{Automation, ConsumerSpec, ExecutionPolicy, ReadModel};
-use crate::project::DynProject;
+use crate::project::Project;
 
 /// NATS-backed command service support for `NatsStore`.
 pub mod command_service;
@@ -208,10 +208,18 @@ impl NatsStore {
     #[instrument(skip_all, level = "debug")]
     pub async fn run_consumer<P>(&self, spec: ConsumerSpec<P>) -> error::Result<()>
     where
-        P: DynProject + 'static,
+        P: for<'de> Project<
+                EventGroup = <P as Project>::EventGroup,
+                Error = <P as Project>::Error,
+            > + Send
+            + Sync
+            + Clone
+            + 'static,
+        P::EventGroup: crate::event::EventGroup + Send,
+        P::Error: std::error::Error + Send + Sync + 'static,
     {
         let durable_name = spec.name().durable_name();
-        let mut names = spec.projector().event_group().names();
+        let mut names = <P::EventGroup as crate::event::EventGroup>::names().collect::<Vec<_>>();
         names.sort();
 
         let subjects = names
@@ -246,7 +254,15 @@ impl NatsStore {
     /// reporting inside infrastructure while letting startup code stay concise.
     pub fn spawn_consumer<P>(&self, spec: ConsumerSpec<P>)
     where
-        P: DynProject + 'static,
+        P: for<'de> Project<
+                EventGroup = <P as Project>::EventGroup,
+                Error = <P as Project>::Error,
+            > + Send
+            + Sync
+            + Clone
+            + 'static,
+        P::EventGroup: crate::event::EventGroup + Send,
+        P::Error: std::error::Error + Send + Sync + 'static,
     {
         let store = self.clone();
         self.graceful_shutdown.task_tracker.spawn(async move {
@@ -260,7 +276,15 @@ impl NatsStore {
     /// Spawn an automation declaration onto the store task tracker.
     pub fn spawn_automation<P>(&self, automation: Automation<P>)
     where
-        P: DynProject + 'static,
+        P: for<'de> Project<
+                EventGroup = <P as Project>::EventGroup,
+                Error = <P as Project>::Error,
+            > + Send
+            + Sync
+            + Clone
+            + 'static,
+        P::EventGroup: crate::event::EventGroup + Send,
+        P::Error: std::error::Error + Send + Sync + 'static,
     {
         self.spawn_consumer(automation.into_spec());
     }
@@ -268,7 +292,15 @@ impl NatsStore {
     /// Spawn a read model declaration onto the store task tracker.
     pub fn spawn_read_model<P>(&self, read_model: ReadModel<P>)
     where
-        P: DynProject + 'static,
+        P: for<'de> Project<
+                EventGroup = <P as Project>::EventGroup,
+                Error = <P as Project>::Error,
+            > + Send
+            + Sync
+            + Clone
+            + 'static,
+        P::EventGroup: crate::event::EventGroup + Send,
+        P::Error: std::error::Error + Send + Sync + 'static,
     {
         self.spawn_consumer(read_model.into_spec());
     }

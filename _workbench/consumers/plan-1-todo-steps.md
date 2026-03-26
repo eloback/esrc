@@ -1,18 +1,4 @@
 
-## Step - implement the new projector execution abstraction and remove DynProject compile errors
-      status: not_started
-time-created: 2026-03-26 07:00:52
-
-Replace the current `DynProject` implementation with the compile-safe abstraction defined in the previous step, updating the relevant runtime and declaration code so the crate builds correctly again.
-
-- Update the projector execution flow used by consumer declarations and `NatsStore` runtime helpers.
-
-- Ensure the implementation preserves the existing declaration-layer ergonomics where possible, while fixing object-safety, associated type, and async dispatch problems in the current design.
-
-- Remove or adapt the existing `DynProject` machinery only as needed to support the new execution model cleanly.
-
-References: see the definition in `plan-2-active-step.md` or `plan-3-done-steps.md`, step `Step - define the DynProject replacement direction and compile-safe abstraction`.
-
 ## Step - validate consumer declaration integration and document the updated projector model
       status: not_started
 time-created: 2026-03-26 07:00:52

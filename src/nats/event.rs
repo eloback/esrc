@@ -10,7 +10,7 @@ use super::{NatsEnvelope, NatsStore};
 use crate::error::{self, Error};
 use crate::event::{Event, EventGroup, Publish, Replay, ReplayOne, Sequence, Subscribe, Truncate};
 use crate::event_modeling::ConsumerSpec;
-use crate::project::DynProject;
+use crate::project::{Context, Project};
 use crate::version::SerializeVersion;
 
 impl Publish for NatsStore {
@@ -153,12 +153,24 @@ pub mod custom {
 }
 
 impl NatsStore {
-    async fn process_consumer_message(
-        mut projector: Box<dyn DynProject>,
+    async fn process_consumer_message<P>(
+        projector: &mut P,
         message: error::Result<NatsEnvelope>,
-    ) -> error::Result<()> {
+    ) -> error::Result<()>
+    where
+        P: for<'de> Project<
+                EventGroup = <P as Project>::EventGroup,
+                Error = <P as Project>::Error,
+            > + Send
+            + Sync,
+        P::EventGroup: EventGroup + Send,
+        P::Error: std::error::Error + Send + Sync + 'static,
+    {
         let envelope = message?;
-        projector.project_dyn(&envelope).await?;
+        let context = Context::<NatsEnvelope, P::EventGroup>::try_with_envelope(&envelope)?;
+        Project::project(projector, context)
+            .await
+            .map_err(|e| Error::External(e.into()))?;
         envelope.ack().await;
         Ok(())
     }
@@ -170,10 +182,19 @@ impl NatsStore {
     ) -> error::Result<()>
     where
         S: Stream<Item = error::Result<NatsEnvelope>> + Send + Unpin,
-        P: DynProject + 'static,
+        P: for<'de> Project<
+                EventGroup = <P as Project>::EventGroup,
+                Error = <P as Project>::Error,
+            > + Send
+            + Sync
+            + Clone
+            + 'static,
+        P::EventGroup: EventGroup + Send,
+        P::Error: std::error::Error + Send + Sync + 'static,
     {
+        let mut projector = spec.into_projector();
         while let Some(message) = stream.next().await {
-            Self::process_consumer_message(Box::new(spec.projector().clone()), message).await?;
+            Self::process_consumer_message(&mut projector, message).await?;
         }
 
         Ok(())
@@ -187,17 +208,25 @@ impl NatsStore {
     ) -> error::Result<()>
     where
         S: Stream<Item = error::Result<NatsEnvelope>> + Send,
-        P: DynProject + 'static,
+        P: for<'de> Project<
+                EventGroup = <P as Project>::EventGroup,
+                Error = <P as Project>::Error,
+            > + Send
+            + Sync
+            + Clone
+            + 'static,
+        P::EventGroup: EventGroup + Send,
+        P::Error: std::error::Error + Send + Sync + 'static,
     {
         let durable_name = spec.name().durable_name();
 
         stream
             .for_each_concurrent(Some(max_in_flight), move |message| {
                 let durable_name = durable_name.clone();
-                let projector = Box::new(spec.projector().clone()) as Box<dyn DynProject>;
+                let mut projector = spec.projector().clone();
 
                 async move {
-                    if let Err(error) = Self::process_consumer_message(projector, message).await {
+                    if let Err(error) = Self::process_consumer_message(&mut projector, message).await {
                         tracing::error!(consumer = %durable_name, ?error, "Error processing message");
                     }
                 }
