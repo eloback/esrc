@@ -1,69 +1,63 @@
 ====
->   Info: Duration: 27s | ~$0.1564 | Prompt Tokens: 23,727 (cached: 0, cache_creation: 0) | Completion Tokens: 1,509 
+>   Info: Duration: 26s | ~$0.1206 | Prompt Tokens: 18,401 (cached: 0, cache_creation: 0) | Completion Tokens: 1,142 
 >  Model: claude-opus-4-6 | Adapter: Anthropic
->  Files: Context Files: 7 | Working Files: 0 | Knowledge Files: 1
+>  Files: Context Files: 8 | Working Files: 0 | Knowledge Files: 1
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
-
-
-Looking at all 5 rounds of Q&A, I believe the design is well-converged. Let me review your latest answers and check if anything needs further clarification.
-
-**Review of Round 5 answers:**
-
-1. ✅ **Dropping QueryStore** - Confirmed. Clean architecture: `Project` (write) + `QueryHandler` (read), no framework storage abstraction.
-
-2. ✅ **get_by_id on QueryHandler** - Option A confirmed. Built-in method on `QueryHandler`.
-
-3. ✅ **QueryHandler trait shape** - Confirmed as good.
-
-4. ✅ **Transport hints on QuerySpec** - Clarified: transport hints *should* be declared in `QuerySpec` (user tells framework whether to expose via NATS service API, HTTP, etc.). Kurrent not supported for this feature.
-
-5. ✅ **Vertical slice helper** - Deferred.
-
-6. ✅ **NATS KV implementation** - Deferred.
-
-I do have a few remaining questions before the final summary:
-
-**Round 6 questions:**
-
-1. **Transport enum variants**: You said `QuerySpec` should carry transport hints (NATS service API, HTTP, etc.). For the initial implementation, which transport(s) should be supported? Just NATS request-reply (like `CommandService`/`CommandClient`)? Or also HTTP? If HTTP, should the framework generate handlers for a specific HTTP framework (e.g., axum), or just expose a generic interface? My recommendation: start with NATS request-reply only (matching the `CommandService` pattern), and add HTTP later.
-
-2. **QuerySpec naming**: Should `QuerySpec` reuse `ConsumerName` for its identity (since the query and read model consumer are part of the same vertical slice), or should it have its own naming type? Using `ConsumerName` keeps things unified but might be semantically confusing since a query handler isn't really a "consumer."
-
-3. **Query service pattern**: For NATS transport, should the query service follow the same `CommandService`/`CommandClient` pattern with a `QueryService` trait (serves queries) and a `QueryClient` trait (sends queries remotely)? This would let a service expose its read models over NATS, and other services query them via the client. The `QueryService` would deserialize incoming query requests, dispatch to the `QueryHandler`, and send back results.
-
-4. **Query serialization**: The `Query` trait currently has `type ReadModel: Send` and `type Response: Send`. For transport over NATS, both the query enum and the response need to be serializable. Should we add `Serialize + DeserializeOwned` bounds on the `Query` trait itself, or only on the transport-specific traits (like `QueryService`/`QueryClient`)? My recommendation: keep `Query` trait minimal (just `Send`), and add serde bounds only on transport methods (matching how `CommandService` adds bounds).
-
-5. **Query module structure**: You confirmed `src/query.rs`. Given that we'll have `Query` trait, `QueryHandler` trait, `QuerySpec`, and transport enum, should this be a single file or a module directory (`src/query/mod.rs`, `src/query/spec.rs`, etc.)? My recommendation: start as a single `src/query.rs` file and split later if it grows.
+I've reviewed all your answers across the 6 rounds of Q&A. The design has converged well. Let me ask a few final clarifying questions before summarizing:
 
 <FILE_CHANGES>
+
 <FILE_PATCH file_path="_workbench/queries/dev-chat.md">
 @@
--   - ANSWER: yes defer this too
-+   - ANSWER: yes defer this too
+ - ANSWER: start simple, i'll manually split later
 +
-+### Follow-up Questions (Round 6)
++### Follow-up Questions (Round 7 - Final)
 +
-+All previous design decisions are well-converged. A few final clarifications before the summary:
++The design is well-converged. Here are the last clarifications before the final summary:
 +
-+1. **Transport enum variants**: You said `QuerySpec` should carry transport hints (NATS service API, HTTP, etc.). For the initial implementation, which transport(s) should be supported? Just NATS request-reply (matching the `CommandService`/`CommandClient` pattern)? Or also HTTP? If HTTP, should the framework generate handlers for a specific HTTP framework (e.g., axum), or just expose a generic interface? My recommendation: start with NATS request-reply only, and add HTTP later.
-+- ANSWER:
++1. **Renaming `ConsumerName` to `ComponentName`/`ComponentScope`**: You said to rename `ConsumerName`. This is a breaking change that affects `event_modeling.rs`, the `Automation` and `ReadModel` builders, and any downstream user code. Should the rename be:
++   - `ComponentName` (mirrors the current `ConsumerName` structure exactly, just renamed)?
++   - `ComponentScope` (implies it scopes/namespaces the component rather than naming it)?
++   - Something else?
++   
++   My recommendation: `ComponentName` since it's a direct rename and keeps the same semantics. The fields (`bounded_context`, `domain`, `feature`, `consumer`) stay the same, but should the `consumer` field be renamed to something more generic (e.g., `component` or `name`) since it's now used for both consumers and query handlers?
 +
-+2. **QuerySpec naming**: Should `QuerySpec` reuse `ConsumerName` for its identity (since the query and read model consumer are part of the same vertical slice), or should it have its own naming type (e.g., `QueryName`)? Using `ConsumerName` keeps things unified but might be semantically confusing since a query handler is not really a "consumer."
-+- ANSWER:
++2. **`ConsumerRole` and `ConsumerSpec` naming**: If we rename `ConsumerName` to `ComponentName`, should we also rename:
++   - `ConsumerRole` to `ComponentRole`?
++   - `ConsumerSpec` to `ComponentSpec`?
++   - Or keep them as-is since they are specifically about event consumers, and `QuerySpec` is a separate spec type?
++   
++   My recommendation: keep `ConsumerRole` and `ConsumerSpec` as-is since they specifically describe event consumer behavior. `ComponentName` is the shared identity piece; the spec types remain domain-specific.
 +
-+3. **Query service pattern**: For NATS transport, should the query layer follow the same `CommandService`/`CommandClient` pattern with a `QueryService` trait (serves queries over NATS request-reply) and a `QueryClient` trait (sends queries remotely)? This would let a service expose its read models over NATS, and other services query them via the client. The `QueryService` would deserialize incoming query requests, dispatch to the `QueryHandler`, and send back serialized results.
-+- ANSWER:
++3. **QuerySpec transport hint type**: For the NATS request-reply transport hint, should the transport enum be:
++   ```rust
++   enum QueryTransport {
++       NatsRequestReply,
++       // future: Http, Grpc, etc.
++   }
++   ```
++   Or should it just be a marker/flag for now since there's only one option? My recommendation: use an enum even with one variant, so it's extensible without breaking changes.
 +
-+4. **Query serialization bounds**: The `Query` trait has `type ReadModel: Send` and `type Response: Send`. For transport over NATS, both the query enum and the response need to be serializable. Should we add `Serialize + DeserializeOwned` bounds on the `Query` trait itself, or only on the transport-specific traits/methods (like `QueryService`/`QueryClient`)? My recommendation: keep `Query` trait minimal (just `Send`), and add serde bounds only on transport methods, matching how `CommandService` adds serde bounds at the method level.
-+- ANSWER:
++4. **QueryService/QueryClient subject derivation**: For NATS request-reply, the subject for query requests needs to be derived from something. Should it follow the same pattern as `CommandService` (deriving from event/aggregate names), but instead derive from the `ComponentName` and/or the read model's event name? For example: `query.<bounded_context>.<domain>.<feature>.<consumer>` or similar?
 +
-+5. **Query module structure**: You confirmed `src/query.rs`. Given that we will have `Query` trait, `QueryHandler` trait, `QuerySpec`, and a transport hint enum, should this be a single file or a module directory (`src/query/mod.rs`, `src/query/spec.rs`, etc.)? My recommendation: start as a single `src/query.rs` file and split later if it grows.
-+- ANSWER:
++5. **QueryHandler lifetime and cloning**: `Project` requires `Clone + Sync`. Should `QueryHandler` also require `Clone` (to allow spawning multiple handler tasks), or just `Send + Sync` (assuming a single handler behind an `Arc`)? My recommendation: just `Send + Sync`, since query handlers are read-only and can be shared via `Arc` without cloning.
++
++6. **Query enum and ReadModel association**: The `Query` trait has `type ReadModel: Send`. Should the `QueryHandler` trait also carry the `ReadModel` as an associated type (for consistency and to avoid mismatches), or is it sufficient to get it through `<Self::Query as Query>::ReadModel`? My recommendation: derive it through the `Query` trait to avoid redundancy.
++
++7. **Initial implementation scope**: For the first implementation pass, should we include:
++   - (a) `Query` trait, `QueryHandler` trait, `QuerySpec` in `src/query.rs`
++   - (b) Rename `ConsumerName` to `ComponentName` in `src/event_modeling.rs`
++   - (c) `QueryService` and `QueryClient` traits (transport-agnostic, in `src/query.rs`)
++   - (d) NATS `QueryService`/`QueryClient` implementation (in `src/nats/`)
++   - (e) In-memory `QueryHandler` helper for `View`-based read models
++   
++   My recommendation: (a) + (b) + (c) first, then (d) and (e) as follow-up steps. This keeps each step focused and non-breaking.
 </FILE_PATCH>
+
 </FILE_CHANGES>
 
 <suggested_git_command>
-git commit -a -m ". queries/dev-chat - Add round 6 follow-up questions for query framework design"
+git commit -a -m ". dev-chat - Add round 7 final clarification questions for query framework"
 </suggested_git_command>
 
