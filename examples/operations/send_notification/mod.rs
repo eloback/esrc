@@ -9,14 +9,14 @@ use tracing::instrument;
 
 use crate::domain;
 
-const FEATURE_NAME: &str = "create_operation";
+const FEATURE_NAME: &str = "send_notification";
 
 #[derive(Clone)]
-pub struct CreateOperationAutomation {
+pub struct SendNotificationAutomation {
     store: NatsStore,
 }
 
-impl esrc::project::Project for CreateOperationAutomation {
+impl esrc::project::Project for SendNotificationAutomation {
     type EventGroup = domain::operation::OperationEvent;
     type Error = esrc::Error;
 
@@ -60,7 +60,7 @@ pub fn setup(store: NatsStore) {
             FEATURE_NAME,
             "send-notification",
         ),
-        CreateOperationAutomation {
+        SendNotificationAutomation {
             store: store.clone(),
         },
     ));

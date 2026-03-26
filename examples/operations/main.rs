@@ -7,13 +7,13 @@ use esrc::query::QueryClient;
 use tokio::signal;
 use uuid::Uuid;
 
-mod domain;
-mod create_operation;
-mod send_email;
-mod memory_operation_list;
-mod kv_operation_view;
+use crate::domain::BOUNDED_CONTEXT_NAME;
 
-pub const BOUNDED_CONTEXT: &str = "fullexample";
+mod domain;
+mod kv_operation_view;
+mod memory_operation_list;
+mod send_email;
+mod send_notification;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -27,14 +27,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let client = async_nats::connect("localhost:4222").await?;
     let jetstream = jetstream::new(client);
-    let store = NatsStore::try_new(jetstream, "esrc-full-example").await?;
+    let store = NatsStore::try_new(jetstream, BOUNDED_CONTEXT_NAME).await?;
 
     // -- Command Services --
     store.spawn_service::<domain::operation::OperationAggregate>();
     store.spawn_service::<domain::email::EmailAggregate>();
 
     // -- Automation: reacts to OperationCreated and sends an email command --
-    create_operation::setup(store.clone());
+    send_notification::setup(store.clone());
 
     // -- Read Model (in-memory): materializes a list of operations --
     memory_operation_list::setup(store.clone());
@@ -157,7 +157,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             op_id_1.to_string(),
         )
         .await?;
-    assert!(kv_op1.is_some(), "operation 1 should exist in KV read model");
+    assert!(
+        kv_op1.is_some(),
+        "operation 1 should exist in KV read model"
+    );
     let kv_op1 = kv_op1.unwrap();
     tracing::info!(id = %kv_op1.id, title = %kv_op1.title, completed = kv_op1.completed, "KV operation 1");
     assert!(kv_op1.completed, "KV operation 1 should be completed");
@@ -168,7 +171,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             op_id_2.to_string(),
         )
         .await?;
-    assert!(kv_op2.is_some(), "operation 2 should exist in KV read model");
+    assert!(
+        kv_op2.is_some(),
+        "operation 2 should exist in KV read model"
+    );
     let kv_op2 = kv_op2.unwrap();
     tracing::info!(id = %kv_op2.id, title = %kv_op2.title, completed = kv_op2.completed, "KV operation 2");
     assert!(!kv_op2.completed, "KV operation 2 should NOT be completed");
@@ -188,7 +194,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         all_emails.len()
     );
     assert!(
-        all_emails.iter().any(|e| e.recipient == "alice@example.com"),
+        all_emails
+            .iter()
+            .any(|e| e.recipient == "alice@example.com"),
         "should have sent email to alice"
     );
     assert!(
