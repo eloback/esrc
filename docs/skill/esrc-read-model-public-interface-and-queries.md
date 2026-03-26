@@ -2,11 +2,89 @@
 
 ## Goal
 
-Define the public interfaces for slice read models and queries using a stable pattern:
+Define the public interfaces for slice read models and queries using the `esrc::query` module and a stable pattern:
 
 - `generated.rs` holds generated read model structs and basic query structs.
 - `mod.rs` re-exports generated types and declares any additional custom queries.
 - Consumers and projectors can depend on these public types without importing from other slices.
+- Query enums implement `esrc::query::Query` to declare read model and response type associations.
+
+## The `Query` trait
+
+Every query enum must implement `esrc::query::Query`:
+
+```rust
+pub trait Query: Send {
+    /// The read model this query targets.
+    type ReadModel: Send;
+    /// The response type returned by executing this query.
+    type Response: Send;
+}
+```
+
+Guidelines:
+
+- `ReadModel` is the public struct from `generated.rs` (e.g. `Rede`).
+- `Response` is what the query returns; often `Vec<ReadModel>` or a custom result type.
+- The trait has no serde bounds; serialization requirements are pushed to transport-specific traits like `QueryService` and `QueryClient`.
+
+## QueryHandler
+
+Slices implement `esrc::query::QueryHandler` for their query type:
+
+```rust
+pub trait QueryHandler: Send + Sync {
+    type Query: Query;
+    type Id: Send + Sync;
+
+    async fn get_by_id(&self, id: Self::Id)
+        -> error::Result<Option<<Self::Query as Query>::ReadModel>>;
+
+    async fn handle(&self, query: Self::Query)
+        -> error::Result<<Self::Query as Query>::Response>;
+}
+```
+
+Guidelines:
+
+- `get_by_id` returns `Ok(None)` when the read model is not found.
+- `handle` dispatches custom query variants and returns the associated `Response` type.
+- Uses `esrc::error::Error` with `External` for domain/persistence errors, matching the command handler model.
+- Does not require `Clone`; sharing via `Arc` is expected.
+
+## QuerySpec and QueryService
+
+To expose queries as remote service endpoints, wrap a handler in a `QuerySpec`:
+
+```rust
+let spec = QuerySpec::new(component_name, QueryTransport::NatsRequestReply, handler);
+```
+
+Then start serving with `QueryService::serve`:
+
+```rust
+service.serve(&spec).await?;
+```
+
+The transport mapping is implementation-specific. For NATS, the request-reply subject is derived from the `ComponentName` segments: `query.<bounded_context>.<domain>.<feature>.<component>`.
+
+## QueryClient
+
+To send queries remotely, use `esrc::query::QueryClient`:
+
+```rust
+// Fetch by id
+let item: Option<Q::ReadModel> = client.get_by_id::<Queries, _>(&name, id).await?;
+
+// Custom query
+let response: Q::Response = client.query::<Queries>(&name, query).await?;
+```
+
+Guidelines:
+
+- `get_by_id` returns `Ok(None)` when the read model is not found.
+- `query` serializes the query, routes it to the endpoint derived from `ComponentName`, and deserializes the response.
+- Transport and serialization failures are mapped to `esrc::error::Error`.
 
 ## Required generated interface file
 
@@ -42,27 +120,41 @@ Guidelines:
 
 ## Exposing additional queries
 
-When a slice needs a more complex query than what is generated:
+When a slice needs a more complex query than what is generated, declare it in `<slice_folder>/mod.rs` so it is exposed alongside generated queries.
 
-- Declare it in `<slice_folder>/mod.rs` so it is exposed alongside generated queries.
-
-Pattern:
+Pattern for the query enum:
 
 - `pub enum Queries` groups all public query options for the slice.
 - Include a `Default` variant that contains the generated query type.
+- The enum must implement `esrc::query::Query` with the appropriate `ReadModel` and `Response` types.
 
 Example pattern:
 
-- `pub enum Queries { Default { query: RedeQuery }, ByMaster { query: RedeByMasterQuery } }`
-- `pub struct RedeByMasterQuery { pub master_id: Uuid }`
+```rust
+pub enum Queries {
+    Default { query: RedeQuery },
+    ByMaster { query: RedeByMasterQuery },
+}
+
+pub struct RedeByMasterQuery {
+    pub master_id: Uuid,
+}
+
+impl esrc::query::Query for Queries {
+    type ReadModel = Rede;
+    type Response = Vec<Rede>;
+}
+```
 
 Guidelines:
 
 - Use `enum Queries` when:
   - you want a single query entry point in transport layers.
   - you want to keep query routing explicit.
+  - you need a single `Query` impl that covers all variants for the same read model.
 - Use distinct query structs for clarity and stable evolution.
 - Keep query types serializable because they are often used by http routes, message queues, or rpc layers.
+- If different variants return different response shapes, consider separate query enums each with their own `Query` impl.
 
 ## How read model code should use these types
 
@@ -78,10 +170,17 @@ Common approaches:
 - Persistent view:
   - store in database, query by fields based on `RedeQuery` or custom queries.
 
+When implementing `QueryHandler`:
+
+- Wire `get_by_id` to the primary lookup for the read model.
+- Wire `handle` to dispatch each `Queries` variant to the appropriate filtering/lookup logic.
+- Return public `generated.rs` types, not internal storage types.
+
 Avoid:
 
 - Returning internal storage types directly, always return the public interface types.
 - Having multiple competing public query entry points across files.
+- Implementing `QueryHandler` for internal types that are not the declared `Query` enum.
 
 ## Compatibility and evolution
 
@@ -100,8 +199,17 @@ Guidelines:
   - renaming fields
   - changing types
   - removing query variants
+- Adding a new variant to `Queries` is additive and safe.
+- Changing associated types on the `Query` impl (`ReadModel`, `Response`) is a breaking change.
 
 ## Testing approach
 
 - Unit test query filtering logic using `RedeQuery` and any custom queries.
 - If queries are used in transports, add contract tests for serialization and routing.
+- Integration test `QueryHandler` implementations:
+  - `get_by_id` returns `None` for missing entries.
+  - `handle` correctly dispatches each variant.
+- If the backend is NATS, integration tests should include:
+  - starting the query service with `QueryService::serve`
+  - sending queries with `QueryClient::query` and `QueryClient::get_by_id`
+  - verifying correct deserialization of responses

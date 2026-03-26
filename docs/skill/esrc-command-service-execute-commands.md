@@ -2,7 +2,7 @@
 
 ## Goal
 
-Send commands to an aggregate command service using `esrc::event::command_service::CommandClient` so that:
+Send commands to an aggregate command service using `CommandClient` from `esrc::event::command_service` so that:
 
 - A slice can trigger state changes through aggregates.
 - Errors are correctly mapped and handled.
@@ -21,7 +21,7 @@ In esrc, command handling follows:
   - `process(&self, command) -> Result<Event, Error>`
   - `apply(self, event) -> Self`
 
-A command service implementation is responsible for:
+A `CommandService` implementation (`esrc::event::command_service::CommandService`) is responsible for:
 
 - Receiving a serialized command.
 - Reconstructing aggregate state by replaying events.
@@ -29,12 +29,34 @@ A command service implementation is responsible for:
 - Persisting the produced event with optimistic concurrency.
 - Replying with success or error.
 
-A command client is responsible for:
+The `serve` method signature:
+
+```rust
+fn serve<A>(&self) -> impl Future<Output = error::Result<()>> + Send
+where
+    A: Aggregate + Send + Sync + 'static,
+    A::Event: SerializeVersion + DeserializeVersion,
+    A::Command: DeserializeOwned + Send,
+    A::Error: std::error::Error + Serialize + DeserializeOwned + Send + Sync + 'static;
+```
+
+A `CommandClient` implementation (`esrc::event::command_service::CommandClient`) is responsible for:
 
 - Serializing `A::Command`.
 - Routing to the service endpoint for aggregate `A` and `Uuid`.
 - Decoding reply payload.
 - Mapping failures to `crate::error::Error`.
+
+The `send_command` method signature:
+
+```rust
+async fn send_command<A>(&self, id: uuid::Uuid, command: A::Command) -> error::Result<()>
+where
+    A: Aggregate + Send + Sync + 'static,
+    A::Event: SerializeVersion + DeserializeVersion,
+    A::Command: Serialize + Send,
+    A::Error: std::error::Error + Serialize + DeserializeOwned + Send + Sync + 'static;
+```
 
 ## When a slice should send a command
 
@@ -59,6 +81,9 @@ A slice should not send commands when:
 ### Requirements
 
 - You have a type that implements `CommandClient`, for example a store client.
+- The aggregate's `Event` must implement `SerializeVersion + DeserializeVersion`.
+- The aggregate's `Command` must implement `Serialize + Send`.
+- The aggregate's `Error` must implement `std::error::Error + Serialize + DeserializeOwned + Send + Sync + 'static`.
 
 ### Call pattern
 

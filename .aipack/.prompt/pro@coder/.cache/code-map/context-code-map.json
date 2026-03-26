@@ -2,10 +2,10 @@
   "file_map": {
     "Cargo.toml": {
       "file_path": "Cargo.toml",
-      "hash": "e8b913c6e8e47bd4c1750a535485a294f06dd20f70b70cf7191f167002668568",
-      "mtime": 1774551865261148,
-      "summary": "Workspace manifest and package configuration for esrc, a library providing primitives for event sourcing and CQRS systems.",
-      "when_to_use": "When needing to check dependency versions, feature flag definitions, or the structure of the workspace including its sub-crates (derive, opentelemetry-nats)."
+      "hash": "f249f96ece74bc8d23c02d20166e196a59126b16275a6a44ec85adce6ee8d13e",
+      "mtime": 1774561665500242,
+      "summary": "Root manifest and workspace configuration for the esrc project, managing shared dependencies, sub-crates (derive and opentelemetry-nats), and feature flags for event-sourcing and CQRS functionality.",
+      "when_to_use": "Refer to this file to check available feature flags (nats, derive, opentelemetry), workspace structure, or the versions of external dependencies like tokio, async-nats, and serde."
     },
     "derive/Cargo.toml": {
       "file_path": "derive/Cargo.toml",
@@ -173,6 +173,66 @@
       "public_types": [],
       "summary": "Integration tests for the DeserializeVersion and SerializeVersion derive macros, covering versioned deserialization, lifetime handling, and version migration using previous_version attributes.",
       "when_to_use": "Include this file when you need to understand or verify the implementation and behavior of event versioning macros, especially regarding how multiple versions of a struct are handled during deserialization."
+    },
+    "docs/skill/esrc-command-service-execute-commands.md": {
+      "file_path": "docs/skill/esrc-command-service-execute-commands.md",
+      "hash": "422590cee00539db1d68c5086c82cef6cb797d2659c6902dbfba57c8f8f51f2c",
+      "mtime": 1774535997702190,
+      "public_functions": [
+        "send_command"
+      ],
+      "public_types": [
+        "CommandClient",
+        "Aggregate"
+      ],
+      "summary": "A guide on using esrc::event::command_service::CommandClient to send commands to aggregates. It explains the command execution model, error mapping, architectural best practices for slices, and testing strategies.",
+      "when_to_use": "Use this file when a slice needs to trigger state changes via aggregates, coordinate workflows, or implement automation that reacts to events by sending commands."
+    },
+    "docs/skill/esrc-event-modeling-create-consumers-automations-and-read-models.md": {
+      "file_path": "docs/skill/esrc-event-modeling-create-consumers-automations-and-read-models.md",
+      "hash": "e687f4a02c287d22bbdf4adfb128824b301efaa948d869738141d0d148c7a1ed",
+      "mtime": 1774535997702172,
+      "public_functions": [
+        "ConsumerName::new",
+        "Automation::new",
+        "ReadModel::new",
+        "max_concurrency",
+        "with_execution_policy",
+        "into_spec"
+      ],
+      "public_types": [
+        "ConsumerName",
+        "ConsumerRole",
+        "ExecutionPolicy",
+        "ConsumerSpec",
+        "Automation",
+        "ReadModel",
+        "Project"
+      ],
+      "summary": "This documentation outlines the process for declaring event-driven consumers (Automations and Read Models) using the esrc::event_modeling framework. It details naming conventions, execution policies, and the implementation of the Project trait for vertical slices.",
+      "when_to_use": "Refer to this file when implementing side-effect-heavy workflows (Automations) or state-materializing consumers (Read Models) within an event-sourced architecture."
+    },
+    "docs/skill/esrc-read-model-public-interface-and-queries.md": {
+      "file_path": "docs/skill/esrc-read-model-public-interface-and-queries.md",
+      "hash": "a7587bd17ee3f2673308b680669303892c8811df67443590a6c0e6226c9082fc",
+      "mtime": 1774535997702203,
+      "public_functions": [],
+      "public_types": [],
+      "summary": "Documentation of the standard pattern for defining slice read models and queries, focusing on the use of generated.rs for data structures and mod.rs for custom query extensions.",
+      "when_to_use": "Use this guide when implementing or modifying a slice's read model interface, defining public query structures, or establishing the boundary between internal storage and public API types."
+    },
+    "docs/skill/esrc-slice-constants-and-module-layout.md": {
+      "file_path": "docs/skill/esrc-slice-constants-and-module-layout.md",
+      "hash": "a809986bec6dd3477a245f3b21973bd641f9ee5ad561c7138984d165561e4be7",
+      "mtime": 1774535997701283,
+      "public_functions": [],
+      "public_types": [
+        "BOUNDED_CONTEXT_NAME",
+        "DOMAIN_NAME",
+        "FEATURE_NAME"
+      ],
+      "summary": "Defines the architectural standards for vertical slice layouts and mandatory constants (BOUNDED_CONTEXT_NAME, DOMAIN_NAME, FEATURE_NAME) within an esrc-based project to ensure module isolation and consistent instrumentation.",
+      "when_to_use": "Refer to this when implementing new features, setting up bounded contexts, or organizing domain modules to ensure the project structure adheres to standardized naming and isolation rules."
     },
     "examples/basic-query-service/domain.rs": {
       "file_path": "examples/basic-query-service/domain.rs",
@@ -715,24 +775,23 @@
     },
     "src/lib.rs": {
       "file_path": "src/lib.rs",
-      "hash": "614217d47a11766efe9f82cbd0094a7d2ba54d05ed29a5a1eba10b4916be856e",
-      "mtime": 1774553168469517,
+      "hash": "7baf0b99e97e5a29f5dcda52c31c0c65e6ce6e9575b4354ae42a6856647c7487",
+      "mtime": 1774561990460074,
       "public_functions": [],
       "public_types": [
         "Aggregate",
         "Envelope",
         "Error",
         "Event",
-        "EventGroup",
-        "View"
+        "EventGroup"
       ],
-      "summary": "The crate root for the esrc library, defining the core module structure and re-exporting primary traits and types for event sourcing, including aggregates, envelopes, and views.",
-      "when_to_use": "Include this file to understand the overall architecture of the library, identify available sub-modules (like NATS or Kurrent integrations), or see the main public API entry points."
+      "summary": "The crate root for the esrc library, defining the core module structure and re-exporting primary traits and types for event sourcing, including aggregates, envelopes, and event types.",
+      "when_to_use": "Include this file to understand the overall architecture of the library, identify available sub-modules (like NATS), or see the main public API entry points."
     },
     "src/nats.rs": {
       "file_path": "src/nats.rs",
-      "hash": "b6ac56a83a2fadeacee02497e145a0c8ea24d386e18e65785eaaaadeeb63f040",
-      "mtime": 1774554937248097,
+      "hash": "0f351f96b621fb97bd92ca0725b48c830d88b343ab20a0de5b59ddcff04c1d12",
+      "mtime": 1774561685726349,
       "public_functions": [
         "try_new",
         "enable_mirror",
@@ -751,13 +810,13 @@
         "GracefulShutdown",
         "NatsEnvelope"
       ],
-      "summary": "Provides a NATS JetStream-backed event store implementation, handling stream configuration, consumer management, and graceful task lifecycle tracking.",
-      "when_to_use": "Use this file to initialize a NATS event store or to spawn background tasks for consumers, automations, and read model projections."
+      "summary": "Implementation of a NATS JetStream-backed event store, providing stream management, consumer orchestration, and graceful shutdown handling for background tasks.",
+      "when_to_use": "Use this file to initialize the NATS event store or to spawn background tasks for event consumers, automations, and read model projections."
     },
     "src/nats/command_service.rs": {
       "file_path": "src/nats/command_service.rs",
-      "hash": "67bd98d1ff7571bfa62b96a0d7b8f01f59f7933abd76a0e5c806f0f6ed5d35ea",
-      "mtime": 1774560437464751,
+      "hash": "debe66a82488a35ce6636c1a8dab495c1e687b7f3ed7f5881e167a3c10655a77",
+      "mtime": 1774561457427953,
       "public_functions": [
         "serve",
         "spawn_service",
