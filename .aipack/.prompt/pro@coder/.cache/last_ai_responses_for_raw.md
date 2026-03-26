@@ -1,98 +1,49 @@
 ====
->   Info: Duration: 16s | ~$0.0844 | Prompt Tokens: 27,477 (cached: 0) | Completion Tokens: 1,050 
+>   Info: Duration: 12s | ~$0.0805 | Prompt Tokens: 29,234 (cached: 0) | Completion Tokens: 492 
 >  Model: gpt-5.4 (gpt-5.4-2026-03-05) | Adapter: OpenAIResp
 >  Files: Context Files: 9 | Working Files: 0 | Knowledge Files: 1
 >   Note: write_mode is true, so content below this line will **NOT** be included in next run/prompt.
 
 <suggested_git_command>
-git add -A . && git commit -m ". event_modeling - add todo plan for consumer declaration feature"
+git add -A . && git commit -m ". consumers - extend todo plan with multi-slice command service example step"
 </suggested_git_command>
 
 <FILE_CHANGES>
-<FILE_NEW file_path="_workbench/consumers/plan-1-todo-steps.md">
-## Step - define the event_modeling module surface and consumer declaration model
-      status: not_started
-time-created: 2026-03-26 06:00:43
-
-Create the new `event_modeling` module plan and define the initial public API surface for consumer declarations. This step should introduce the core declaration concepts discussed in the dev chat, with explicit support for consumer roles such as automation and read model, and stable slice-oriented naming based on bounded context, domain, and feature.
-
-- Define the planned types and responsibilities for:
-  - consumer identity and naming
-  - automation and read model declaration builders
-  - a normalized internal consumer specification
-  - execution policy defaults and overrides
-
-- Capture the intended naming model so durable identities are derived from structured slice information instead of ad hoc strings.
-
-- Favor the direction described in `_workbench/consumers/dev-chat.md`, request `Expand the consumer declaration design with code examples`, especially step 5 of `My recommended practical path`, while intentionally skipping step 4 for now.
-
-## Step - implement the event_modeling module with declaration types and builders
-      status: not_started
-time-created: 2026-03-26 06:00:43
-
-Add the new `event_modeling` module and implement the declaration-facing types needed by vertical slices.
-
-- Create the module files and expose them from the crate.
-- Implement the declaration model planned in the previous step, including:
-  - consumer role representation
-  - execution policy representation
-  - structured consumer naming using bounded context, domain, and feature
-  - normalized consumer specification
-  - ergonomic `Automation` and `ReadModel` builders
-
-- Keep the implementation focused on declaration and normalization primitives, without wiring runtime execution yet.
-
-References: see the definition in `plan-2-active-step.md` or `plan-3-done-steps.md`, step `Step - define the event_modeling module surface and consumer declaration model`.
-
-## Step - integrate event_modeling declarations with NatsStore consumer startup
-      status: not_started
-time-created: 2026-03-26 06:00:43
-
-Implement a runtime entrypoint on `NatsStore` that accepts the new event modeling consumer specification and executes it using the existing `Project` pipeline.
-
-- Add a shared consumer startup entrypoint that resolves the durable name from the structured declaration.
-- Keep durable subscription creation as an infrastructure detail.
-- Reuse a single message-processing pipeline for envelope conversion, typed context creation, projector execution, error mapping, and ack handling.
-
-- Support execution policies for:
-  - sequential processing
-  - concurrent processing with bounded in-flight work
-
-- Preserve infrastructure ownership of lifecycle concerns such as subscription creation and graceful shutdown wiring.
-
-References: see the definition in `plan-2-active-step.md` or `plan-3-done-steps.md`, step `Step - define the event_modeling module surface and consumer declaration model`.
-
-## Step - expose ergonomic spawning helpers for automation and read model consumers
-      status: not_started
-time-created: 2026-03-26 06:00:43
-
-Add high-level helpers that make startup code concise while keeping runtime ownership in infrastructure.
-
-- Provide ergonomic methods or patterns for launching declared consumers with `NatsStore`.
-- Ensure the API keeps vertical slice code focused on declaration intent rather than transport details.
-- Align defaults with the semantics discussed in the dev chat:
-  - automations favor concurrent execution
-  - read models favor sequential execution
-
-- Keep the helpers compatible with the structured naming model based on bounded context, domain, and feature.
-
-References: see the definition in `plan-2-active-step.md` or `plan-3-done-steps.md`, step `Step - define the event_modeling module surface and consumer declaration model`.
-
-## Step - document the event_modeling workflow and dev chat decisions
-      status: not_started
-time-created: 2026-03-26 06:00:43
-
-Document how vertical slices should declare consumers with the new `event_modeling` module, and record the key decisions carried forward from the dev chat.
-
-- Explain the distinction between:
-  - declaration layer owned by slices
-  - runtime layer owned by infrastructure
-
-- Document why automation and read model remain explicit concepts while sharing a normalized internal consumer specification.
-- Document the structured naming approach using bounded context, domain, and feature.
-- Summarize the intentional implementation choices taken from `_workbench/consumers/dev-chat.md`, including favoring step 5 of `My recommended practical path` and skipping step 4 for the initial implementation.
-
-References: see the definition in `plan-2-active-step.md` or `plan-3-done-steps.md`, step `Step - define the event_modeling module surface and consumer declaration model`.
-</FILE_NEW>
+<FILE_PATCH file_path="_workbench/consumers/plan-1-todo-steps.md">
+@@
+ ## Step - expose ergonomic spawning helpers for automation and read model consumers
+       status: not_started
+ time-created: 2026-03-26 06:00:43
+ 
+ Add high-level helpers that make startup code concise while keeping runtime ownership in infrastructure.
+@@
+ 
+ References: see the definition in `plan-2-active-step.md` or `plan-3-done-steps.md`, step `Step - define the event_modeling module surface and consumer declaration model`.
++
++## Step - add a multi-slice example for command services and automation chaining
++      status: not_started
++time-created: 2026-03-26 06:07:23
++
++Create an example that declares at least two vertical slices and demonstrates the intended end-to-end workflow for the new consumer declaration model.
++
++- The example should:
++  - declare at least two slices
++  - start the `CommandService`
++  - execute at least one command manually
++  - have automations listen to the published event stream and trigger new commands
++  - keep running until ctrl-c is pressed
++
++- Keep the example aligned with the declaration layer and runtime layer split established by the earlier `event_modeling` steps, so the example validates the intended slice-facing ergonomics rather than exposing transport wiring directly.
++
++- Ensure the example is sequenced after the runtime and spawning helper work, since it depends on those pieces being available and should serve as a realistic usage reference.
++
++References: see the definition in `plan-2-active-step.md` or `plan-3-done-steps.md`, step `Step - define the event_modeling module surface and consumer declaration model`.
+ 
+ ## Step - document the event_modeling workflow and dev chat decisions
+       status: not_started
+ time-created: 2026-03-26 06:00:43
+ 
+ Document how vertical slices should declare consumers with the new `event_modeling` module, and record the key decisions carried forward from the dev chat.
+</FILE_PATCH>
 </FILE_CHANGES>
 
