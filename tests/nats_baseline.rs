@@ -24,6 +24,7 @@ enum CounterEvent {
 #[derive(Default)]
 struct Counter {
     value: u64,
+    applied: Vec<u64>,
 }
 
 enum CounterCommand {}
@@ -43,7 +44,10 @@ impl Aggregate for Counter {
 
     fn apply(mut self, event: &Self::Event) -> Self {
         match event {
-            CounterEvent::Added(value) => self.value += value,
+            CounterEvent::Added(value) => {
+                self.value += value;
+                self.applied.push(*value);
+            },
         }
         self
     }
@@ -89,6 +93,11 @@ async fn concurrent_replay_baseline_preserves_events_and_cleans_up() -> Result<(
         p95.as_micros(),
         p99.as_micros(),
     );
+    anyhow::ensure!(
+        measurements.consumer_delta == 0,
+        "aggregate replay created {} consumers; expected zero",
+        measurements.consumer_delta
+    );
 
     Ok(())
 }
@@ -123,6 +132,10 @@ async fn run_scenario(
             anyhow::ensure!(
                 aggregate.value == 6,
                 "replay produced the wrong aggregate value"
+            );
+            anyhow::ensure!(
+                aggregate.applied == [1, 2, 3],
+                "replay produced the wrong aggregate event order"
             );
             anyhow::ensure!(
                 u64::from(Root::last_sequence(&aggregate)) == u64::from(sequence),
