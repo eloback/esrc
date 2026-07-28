@@ -17,9 +17,8 @@ use crate::version::DeserializeVersion;
 /// Fields derived from the subject name and various NATS headers will be parsed
 /// upon creation and stored alongside the original message.
 ///
-/// When the envelope is dropped the message is automatically acked, and any error
-/// is ignored, so the user may want to hold a reference of the message if they need
-/// to manually ack or nack it.
+/// Messages consumed by a durable automation must be acknowledged explicitly after
+/// their application effect succeeds.
 pub struct NatsEnvelope {
     id: Uuid,
     sequence: u64,
@@ -90,9 +89,9 @@ impl NatsEnvelope {
         opentelemetry_nats::attach_span_context(&self.message);
     }
 
-    /// ack the message asynchronously, ignoring any error
-    pub async fn ack(self) {
-        let _ = self.message.ack().await;
+    /// Acknowledge the message and wait for server confirmation.
+    pub async fn ack(self) -> error::Result<()> {
+        self.message.double_ack().await.map_err(Error::Internal)
     }
 }
 

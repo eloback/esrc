@@ -1,4 +1,5 @@
-use async_nats::header::NATS_EXPECTED_LAST_SUBJECT_SEQUENCE;
+use async_nats::header::{NATS_EXPECTED_LAST_SUBJECT_SEQUENCE, NATS_MESSAGE_ID};
+use async_nats::jetstream::context::PublishErrorKind;
 use futures::{Stream, StreamExt};
 use tracing::instrument;
 use uuid::Uuid;
@@ -24,13 +25,23 @@ impl Publish for NatsStore {
     {
         let subject = NatsSubject::Aggregate(E::name().into(), id).into_string(self.prefix);
         let payload = serde_json::to_string(&event).map_err(|e| Error::Format(e.into()))?;
+        let last_sequence = u64::from(last_sequence);
+        let message_id = header::event_message_id(
+            &subject,
+            last_sequence,
+            E::version(),
+            event._type(),
+            payload.as_bytes(),
+            metadata.as_ref(),
+        );
 
         let mut headers = header::new();
         headers.append(VERSION_KEY, E::version().to_string());
         headers.append(
             NATS_EXPECTED_LAST_SUBJECT_SEQUENCE,
-            u64::from(last_sequence).to_string(),
+            last_sequence.to_string(),
         );
+        headers.append(NATS_MESSAGE_ID, message_id.as_str());
         headers.append(EVENT_TYPE, event._type().to_string());
 
         if let Some(extra) = metadata {
@@ -43,9 +54,33 @@ impl Publish for NatsStore {
 
         let ack = self
             .context
-            .publish_with_headers(subject, headers, payload.into())
+            .publish_with_headers(subject.clone(), headers, payload.into())
             .await?;
-        Ok(Sequence::from(ack.await?.sequence))
+        match ack.await {
+            Ok(ack) => Ok(Sequence::from(ack.sequence)),
+            Err(publish_error) if publish_error.kind() == PublishErrorKind::WrongLastSequence => {
+                let previous = self
+                    .stream
+                    .get_last_raw_message_by_subject(&subject)
+                    .await
+                    .ok();
+                let is_exact_retry = previous.as_ref().is_some_and(|message| {
+                    message.headers.get(NATS_MESSAGE_ID).map(|id| id.as_str())
+                        == Some(message_id.as_str())
+                });
+
+                if is_exact_retry {
+                    Ok(Sequence::from(
+                        previous
+                            .expect("exact retry has a previous message")
+                            .sequence,
+                    ))
+                } else {
+                    Err(publish_error.into())
+                }
+            },
+            Err(publish_error) => Err(publish_error.into()),
+        }
     }
 
     async fn publish_without_occ<E>(
@@ -93,9 +128,10 @@ impl Replay for NatsStore {
         let subjects = G::names()
             .map(|n| NatsSubject::Event(n.into()).into_string(self.prefix))
             .collect();
-        let consumer = self
-            .ordered_consumer(subjects, first_sequence.into())
-            .await?;
+        let start_sequence = u64::from(first_sequence)
+            .checked_add(1)
+            .ok_or(Error::Invalid)?;
+        let consumer = self.ordered_consumer(subjects, start_sequence).await?;
 
         let pending = consumer.cached_info().num_pending as usize;
         Ok(consumer
@@ -116,9 +152,10 @@ impl ReplayOne for NatsStore {
         first_sequence: Sequence,
     ) -> error::Result<impl Stream<Item = error::Result<Self::Envelope>> + Send> {
         let subject = NatsSubject::Aggregate(E::name().into(), id).into_string(self.prefix);
-        let consumer = self
-            .ordered_consumer(vec![subject], first_sequence.into())
-            .await?;
+        let start_sequence = u64::from(first_sequence)
+            .checked_add(1)
+            .ok_or(Error::Invalid)?;
+        let consumer = self.ordered_consumer(vec![subject], start_sequence).await?;
 
         let pending = consumer.cached_info().num_pending as usize;
         Ok(consumer
@@ -203,7 +240,7 @@ pub mod event_model {
                 .project(context)
                 .await
                 .map_err(|e| Error::External(e.into()))?;
-            envelope.ack().await;
+            envelope.ack().await?;
             Ok(())
         }
     }
@@ -287,9 +324,9 @@ pub mod event_model {
             headers.append(VERSION_KEY, E::version().to_string());
             headers.append(EVENT_TYPE, event._type().to_string());
 
-            let _ack = self
-                .context
+            self.context
                 .publish_with_headers(subject, headers, payload.into())
+                .await?
                 .await?;
             Ok(())
         }

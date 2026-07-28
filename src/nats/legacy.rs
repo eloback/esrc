@@ -107,6 +107,9 @@ async fn process_legacy_message<P: LegacyProject>(
         .project(event, headers)
         .await
         .map_err(|e| error::Error::External(e.into()))?;
-    let _ = envelope.ack().await;
+    envelope
+        .double_ack()
+        .await
+        .map_err(error::Error::Internal)?;
     Ok(())
 }

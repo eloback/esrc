@@ -3,7 +3,7 @@ use futures::{StreamExt, TryStreamExt};
 use serde::{Deserialize, Serialize};
 use std::error::Error as StdError;
 use time::OffsetDateTime;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 /// Represents a dead letter message with metadata about the failure
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -311,14 +311,11 @@ where
                 delivery_count,
             );
 
-            if let Err(e) = store.store_dead_letter(dead_letter_msg).await {
-                error!("Failed to store dead letter message: {:?}", e);
-            } else {
-                info!(
-                    "Stored dead letter message: stream={}, consumer={}, seq={}",
-                    stream_name, consumer_name, stream_seq
-                );
-            }
+            store.store_dead_letter(dead_letter_msg).await?;
+            info!(
+                "Stored dead letter message: stream={}, consumer={}, seq={}",
+                stream_name, consumer_name, stream_seq
+            );
         },
         Err(e) => {
             warn!(
@@ -338,14 +335,12 @@ where
                 None,
             );
 
-            if let Err(e) = store.store_dead_letter(dead_letter_msg).await {
-                error!("Failed to store dead letter message from advisory: {:?}", e);
-            }
+            store.store_dead_letter(dead_letter_msg).await?;
         },
     }
 
-    // Acknowledge the advisory message
-    let _ = advisory_msg.ack().await;
+    // Confirm the advisory only after the dead-letter record is stored.
+    advisory_msg.double_ack().await?;
 
     Ok(())
 }
