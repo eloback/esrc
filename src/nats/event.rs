@@ -1,10 +1,9 @@
 use async_nats::header::NATS_EXPECTED_LAST_SUBJECT_SEQUENCE;
-use async_nats::HeaderMap;
 use futures::{Stream, StreamExt};
 use tracing::instrument;
 use uuid::Uuid;
 
-use super::header::{EVENT_TYPE, METADATA_PREFIX, VERSION_KEY};
+use super::header::{self, EVENT_TYPE, METADATA_PREFIX, VERSION_KEY};
 use super::subject::NatsSubject;
 use super::{NatsEnvelope, NatsStore};
 use crate::error::{self, Error};
@@ -26,13 +25,7 @@ impl Publish for NatsStore {
         let subject = NatsSubject::Aggregate(E::name().into(), id).into_string(self.prefix);
         let payload = serde_json::to_string(&event).map_err(|e| Error::Format(e.into()))?;
 
-        let mut headers: HeaderMap = {
-            if cfg!(feature = "opentelemetry") {
-                opentelemetry_nats::NatsHeaderInjector::default_with_span().into()
-            } else {
-                HeaderMap::new()
-            }
-        };
+        let mut headers = header::new();
         headers.append(VERSION_KEY, E::version().to_string());
         headers.append(
             NATS_EXPECTED_LAST_SUBJECT_SEQUENCE,
@@ -67,13 +60,7 @@ impl Publish for NatsStore {
         let subject = NatsSubject::Aggregate(E::name().into(), id).into_string(self.prefix);
         let payload = serde_json::to_string(&event).map_err(|e| Error::Format(e.into()))?;
 
-        let mut headers: HeaderMap = {
-            if cfg!(feature = "opentelemetry") {
-                opentelemetry_nats::NatsHeaderInjector::default_with_span().into()
-            } else {
-                HeaderMap::new()
-            }
-        };
+        let mut headers = header::new();
         headers.append(VERSION_KEY, E::version().to_string());
         headers.append(EVENT_TYPE, event._type().to_string());
 
@@ -296,13 +283,7 @@ pub mod event_model {
             let subject = NatsSubject::Aggregate(E::name().into(), id).into_string(self.prefix);
             let payload = serde_json::to_string(&event).map_err(|e| Error::Format(e.into()))?;
 
-            let mut headers: HeaderMap = {
-                if cfg!(feature = "opentelemetry") {
-                    opentelemetry_nats::NatsHeaderInjector::default_with_span().into()
-                } else {
-                    HeaderMap::new()
-                }
-            };
+            let mut headers = header::new();
             headers.append(VERSION_KEY, E::version().to_string());
             headers.append(EVENT_TYPE, event._type().to_string());
 

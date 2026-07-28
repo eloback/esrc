@@ -80,7 +80,7 @@ impl Envelope for KurrentEnvelope {
         &self.name
     }
 
-    fn get_metadata(&self, key: &str) -> Option<&str> {
+    fn get_metadata(&self, _key: &str) -> Option<&str> {
         unimplemented!()
     }
 

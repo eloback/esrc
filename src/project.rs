@@ -49,14 +49,17 @@ pub struct Context<'de, E, G> {
 ///     last_updated: String,
 /// }
 ///
-/// impl<'de> Project<'de> for FooProjector {
+/// impl Project for FooProjector {
 ///     type EventGroup = FooEvent;
 ///     type Error = FooError;
 ///
-///     async fn project<E: Envelope>(
+///     async fn project<'de, E>(
 ///         &mut self,
 ///         context: Context<'de, E, Self::EventGroup>,
-///     ) -> Result<(), Self::Error> {
+///     ) -> Result<(), Self::Error>
+///     where
+///         E: Envelope + Sync,
+///     {
 ///         match *context {
 ///             FooEvent::Created(count) => self.created_sum += count,
 ///             FooEvent::Updated(ref message) => self.last_updated = message.clone(),

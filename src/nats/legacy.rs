@@ -93,6 +93,7 @@ async fn process_legacy_message<P: LegacyProject>(
 ) -> error::Result<()> {
     let envelope = message?;
     // propagate otel span if exists
+    #[cfg(feature = "opentelemetry")]
     opentelemetry_nats::attach_span_context(&envelope);
 
     // extract headers and event

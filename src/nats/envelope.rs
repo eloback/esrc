@@ -85,7 +85,8 @@ impl NatsEnvelope {
     /// Attach the current OpenTelemetry span context to the message headers, if any.
     pub fn attach_span_context(&self) {
         // propagate otel span if exists
-        tracing::Span::current().record("nats.message.sequence", &self.sequence);
+        tracing::Span::current().record("nats.message.sequence", self.sequence);
+        #[cfg(feature = "opentelemetry")]
         opentelemetry_nats::attach_span_context(&self.message);
     }
 

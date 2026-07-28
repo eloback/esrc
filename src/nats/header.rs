@@ -1,8 +1,20 @@
-use async_nats::{HeaderValue, Message};
+use async_nats::{HeaderMap, HeaderValue, Message};
 
 pub const VERSION_KEY: &str = "Esrc-Version";
 pub const EVENT_TYPE: &str = "Esrc-Event-Type";
 pub const METADATA_PREFIX: &str = "xn-";
+
+pub fn new() -> HeaderMap {
+    #[cfg(feature = "opentelemetry")]
+    {
+        opentelemetry_nats::NatsHeaderInjector::default_with_span().into()
+    }
+
+    #[cfg(not(feature = "opentelemetry"))]
+    {
+        HeaderMap::new()
+    }
+}
 
 pub fn get<'a>(message: &'a Message, key: &str) -> Option<&'a str> {
     message

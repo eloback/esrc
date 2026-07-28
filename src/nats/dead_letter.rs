@@ -161,6 +161,7 @@ impl DeadLetterMessage {
     }
 
     /// Create a dead letter message from advisory message data
+    #[allow(clippy::too_many_arguments)]
     pub fn from_advisory(
         stream: String,
         consumer: String,

@@ -143,16 +143,18 @@ impl NatsStore {
         self.graceful_shutdown.task_tracker.clone()
     }
 
-    ///
+    /// Cancel registered automation streams and wait for their tracked tasks to finish.
     pub async fn wait_graceful_shutdown(self) {
-        let mut exit_rx = self
-            .graceful_shutdown
-            .exit_rx
-            .lock()
-            .expect("lock to not be poisoned");
-        while let Some(trigger) = exit_rx.try_recv().ok() {
-            println!("triggering graceful shutdown");
-            trigger.cancel();
+        {
+            let mut exit_rx = self
+                .graceful_shutdown
+                .exit_rx
+                .lock()
+                .expect("lock to not be poisoned");
+            while let Ok(trigger) = exit_rx.try_recv() {
+                println!("triggering graceful shutdown");
+                trigger.cancel();
+            }
         }
         self.graceful_shutdown.task_tracker.close();
         self.graceful_shutdown.task_tracker.wait().await;
