@@ -9,8 +9,8 @@ pub struct FooEvent;
 pub struct BarEvent;
 
 #[derive(Debug, Deserialize, PartialEq)]
-pub struct LifetimeEvent<'a> {
-    pub local_name: &'a str,
+pub struct OwnedEvent {
+    pub local_name: String,
 }
 
 impl Event for FooEvent {
@@ -43,20 +43,19 @@ impl DeserializeVersion for BarEvent {
     }
 }
 
-impl<'a> Event for LifetimeEvent<'a> {
+impl Event for OwnedEvent {
     fn name() -> &'static str {
-        "Lifetime"
+        "Owned"
     }
 }
 
-impl<'a> DeserializeVersion for LifetimeEvent<'a> {
+impl DeserializeVersion for OwnedEvent {
     fn deserialize_version<'de, D>(_deserializer: D, _version: usize) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
-        'de: 'a,
     {
-        Ok(LifetimeEvent {
-            local_name: "LocalLifetime",
+        Ok(OwnedEvent {
+            local_name: "LocalOwned".to_owned(),
         })
     }
 }
