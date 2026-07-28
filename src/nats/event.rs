@@ -1,5 +1,6 @@
 use async_nats::header::{NATS_EXPECTED_LAST_SUBJECT_SEQUENCE, NATS_MESSAGE_ID};
 use async_nats::jetstream::context::PublishErrorKind;
+use async_nats::jetstream::stream::{LastRawMessageErrorKind, Stream as JetStream};
 use futures::{Stream, StreamExt};
 use tracing::instrument;
 use uuid::Uuid;
@@ -155,15 +156,65 @@ impl ReplayOne for NatsStore {
         let start_sequence = u64::from(first_sequence)
             .checked_add(1)
             .ok_or(Error::Invalid)?;
-        let consumer = self.ordered_consumer(vec![subject], start_sequence).await?;
+        let stream = self.reader_stream().clone();
+        let last_sequence = match stream.get_last_raw_message_by_subject(&subject).await {
+            Ok(message) if message.sequence >= start_sequence => Some(message.sequence),
+            Ok(_) => None,
+            Err(error) if error.kind() == LastRawMessageErrorKind::NoMessageFound => None,
+            Err(error) => return Err(Error::Internal(error.into())),
+        };
 
-        let pending = consumer.cached_info().num_pending as usize;
-        Ok(consumer
-            .messages()
-            .await?
-            .take(pending)
-            .map(|m| NatsEnvelope::try_from_message(self.prefix, m?)))
+        Ok(futures::stream::try_unfold(
+            RawReplayState {
+                stream,
+                subject,
+                next_sequence: last_sequence.map(|_| start_sequence),
+                last_sequence,
+                prefix: self.prefix,
+            },
+            next_raw_replay_message,
+        ))
     }
+}
+
+struct RawReplayState {
+    stream: JetStream,
+    subject: String,
+    next_sequence: Option<u64>,
+    last_sequence: Option<u64>,
+    prefix: &'static str,
+}
+
+async fn next_raw_replay_message(
+    mut state: RawReplayState,
+) -> error::Result<Option<(NatsEnvelope, RawReplayState)>> {
+    let (Some(next_sequence), Some(last_sequence)) = (state.next_sequence, state.last_sequence)
+    else {
+        return Ok(None);
+    };
+
+    let message = state
+        .stream
+        .get_first_raw_message_by_subject(&state.subject, next_sequence)
+        .await
+        .map_err(|error| Error::Internal(error.into()))?;
+    if message.sequence < next_sequence || message.sequence > last_sequence {
+        return Err(Error::Internal(
+            std::io::Error::other(format!(
+                "aggregate replay returned stream sequence {} outside the captured range {next_sequence}..={last_sequence}",
+                message.sequence
+            ))
+            .into(),
+        ));
+    }
+
+    state.next_sequence = if message.sequence == last_sequence {
+        None
+    } else {
+        Some(message.sequence.checked_add(1).ok_or(Error::Invalid)?)
+    };
+    let envelope = NatsEnvelope::try_from_stream_message(state.prefix, message)?;
+    Ok(Some((envelope, state)))
 }
 
 impl Subscribe for NatsStore {
