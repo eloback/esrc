@@ -20,6 +20,7 @@ proc-macro2 = "1.0"
 quote = "1.0"
 serde = "1.0"
 serde_json = "1.0"
+sha2 = "0.10"
 syn = "2.0"
 thiserror = "2.0"
 tokio = { version = "1.41", features = ["rt"] }
@@ -49,7 +50,7 @@ edition.workspace = true
 [features]
 default = ["derive", "nats", "opentelemetry"]
 derive = ["dep:esrc-derive"]
-nats = ["dep:async-nats", "dep:serde_json"]
+nats = ["dep:async-nats", "dep:serde_json", "dep:sha2"]
 kurrent = ["dep:kurrentdb", "dep:serde_json"]
 opentelemetry = ["opentelemetry-nats"]
 
@@ -62,6 +63,7 @@ opentelemetry-nats = { path = "./crates/opentelemetry-nats", optional = true }
 futures.workspace = true
 serde.workspace = true
 serde_json = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
 thiserror.workspace = true
 tracing.workspace = true
 trait-variant.workspace = true

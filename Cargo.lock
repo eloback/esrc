@@ -476,6 +476,7 @@ dependencies = [
  "opentelemetry-nats",
  "serde",
  "serde_json",
+ "sha2",
  "stream-cancel",
  "thiserror 2.0.18",
  "time",
