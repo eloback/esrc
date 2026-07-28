@@ -1,4 +1,3 @@
-/// NOTE: this doesnt work anymore since i simplified the lifetimes.
 use async_nats::jetstream;
 use esrc::event::SubscribeExt;
 use esrc::nats::NatsStore;
@@ -7,10 +6,8 @@ use esrc::version::{DeserializeVersion, SerializeVersion};
 use esrc::{Envelope, Event};
 use serde::{Deserialize, Serialize};
 
-// Events can take advantage of serde's zero-copy deserialization, where
-// lifetimes in an event will be tied to the lifetime of the source Envelope.
-// The exact support for this depends on the serialization format of the event
-// store backend (for example, the NATS backend uses JSON).
+// Event payloads are owned because DeserializeVersion requires deserialization
+// to work for any input lifetime.
 #[derive(Event, Deserialize, DeserializeVersion, Serialize, SerializeVersion)]
 #[esrc(serde(version = 1))]
 enum ZeroCopyEvent {
@@ -24,9 +21,6 @@ struct NamePrinter;
 #[derive(Debug, thiserror::Error)]
 enum NamePrinterError {}
 
-// The lifetime of the Project trait refers to the lifetime of the source
-// Envelope; when used with the Subscribe extensions, this is an HRTB lifetime
-// as the Envelope only exists within a single subscription iteration.
 impl Project for NamePrinter {
     type EventGroup = ZeroCopyEvent;
     type Error = NamePrinterError;
