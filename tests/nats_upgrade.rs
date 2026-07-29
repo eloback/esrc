@@ -110,26 +110,27 @@ async fn last_sequence(store: &NatsStore) -> Result<Sequence> {
 }
 
 async fn replay_values(store: &NatsStore) -> Result<(Vec<u64>, String)> {
-    let replay = tokio::time::timeout(
-        OPERATION_TIMEOUT,
-        store.replay_one::<UpgradeEvent>(AGGREGATE_ID, Sequence::new()),
-    )
+    tokio::time::timeout(OPERATION_TIMEOUT, async {
+        let replay = store
+            .replay_one::<UpgradeEvent>(AGGREGATE_ID, Sequence::new())
+            .await?;
+        futures::pin_mut!(replay);
+
+        let mut values = Vec::new();
+        let mut hasher = Sha256::new();
+        while let Some(envelope) = replay.next().await {
+            let envelope = envelope?;
+            let sequence = u64::from(envelope.sequence());
+            let UpgradeEvent::Added(value) = envelope.deserialize()?;
+            hasher.update(sequence.to_be_bytes());
+            hasher.update(value.to_be_bytes());
+            values.push(value);
+        }
+
+        Ok((values, format!("{:x}", hasher.finalize())))
+    })
     .await
-    .context("upgrade-fixture replay request timed out")??;
-    futures::pin_mut!(replay);
-
-    let mut values = Vec::new();
-    let mut hasher = Sha256::new();
-    while let Some(envelope) = replay.next().await {
-        let envelope = envelope?;
-        let sequence = u64::from(envelope.sequence());
-        let UpgradeEvent::Added(value) = envelope.deserialize()?;
-        hasher.update(sequence.to_be_bytes());
-        hasher.update(value.to_be_bytes());
-        values.push(value);
-    }
-
-    Ok((values, format!("{:x}", hasher.finalize())))
+    .context("upgrade-fixture replay timed out before end-of-stream")?
 }
 
 async fn assert_values(store: &NatsStore, expected: &[u64]) -> Result<String> {

@@ -7,10 +7,10 @@ use std::time::Duration;
 use anyhow::{Context as _, Result};
 use esrc::aggregate::Root;
 use esrc::event::event_model::{Automation, Translation};
-use esrc::event::{Publish, PublishExt, ReplayOneExt, Sequence};
+use esrc::event::{Publish, PublishExt, ReplayOne, ReplayOneExt, Sequence};
 use esrc::nats::NatsStore;
 use esrc::version::{DeserializeVersion, SerializeVersion};
-use esrc::{Aggregate, Error, Event};
+use esrc::{Aggregate, Envelope, Error, Event};
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -58,8 +58,8 @@ struct Measurements {
     write_sequence_1: u64,
     write_sequence_2: u64,
     snapshot_sequence: u64,
-    deduplicated_sequence: u64,
-    messages_after_retry: u64,
+    concurrent_sequence: u64,
+    messages_after_conflict: u64,
     translation_message_delta: u64,
 }
 
@@ -89,12 +89,12 @@ async fn event_integrity_semantics() -> Result<()> {
     cleanup_result.context("failed to delete the milestone's synthetic stream")?;
     let measurements = scenario_result?;
     println!(
-        "write_seq_1={} write_seq_2={} snapshot_seq={} dedup_seq={} messages_after_retry={} translation_delta={} ack=CONFIRMED cleanup=PASS",
+        "write_seq_1={} write_seq_2={} snapshot_seq={} concurrent_seq={} messages_after_conflict={} translation_delta={} ack=CONFIRMED cleanup=PASS",
         measurements.write_sequence_1,
         measurements.write_sequence_2,
         measurements.snapshot_sequence,
-        measurements.deduplicated_sequence,
-        measurements.messages_after_retry,
+        measurements.concurrent_sequence,
+        measurements.messages_after_conflict,
         measurements.translation_message_delta,
     );
 
@@ -151,39 +151,68 @@ async fn run_scenario(
         "snapshot refresh returned the wrong sequence"
     );
 
-    let retry_id = Uuid::now_v7();
-    let mut metadata_first = HashMap::new();
-    metadata_first.insert("zeta".to_owned(), "last".to_owned());
-    metadata_first.insert("alpha".to_owned(), "first".to_owned());
-    let deduplicated_sequence = store
-        .publish(
-            retry_id,
+    let concurrent_id = Uuid::now_v7();
+    let mut metadata = HashMap::new();
+    metadata.insert("zeta".to_owned(), "last".to_owned());
+    metadata.insert("alpha".to_owned(), "first".to_owned());
+    let mut first_caller = store.clone();
+    let mut second_caller = store.clone();
+    let (first_result, second_result) = tokio::join!(
+        first_caller.publish(
+            concurrent_id,
             Sequence::new(),
             CounterEvent::Added(7),
-            Some(metadata_first),
-        )
-        .await
-        .context("initial deduplication publish failed")?;
-
-    let mut metadata_retry = HashMap::new();
-    metadata_retry.insert("alpha".to_owned(), "first".to_owned());
-    metadata_retry.insert("zeta".to_owned(), "last".to_owned());
-    let retry_sequence = store
-        .publish(
-            retry_id,
+            Some(metadata.clone()),
+        ),
+        second_caller.publish(
+            concurrent_id,
             Sequence::new(),
             CounterEvent::Added(7),
-            Some(metadata_retry),
-        )
-        .await
-        .context("exact OCC retry failed")?;
-    anyhow::ensure!(
-        retry_sequence == deduplicated_sequence,
-        "exact retry did not return the original sequence"
+            Some(metadata),
+        ),
     );
+    let mut concurrent_sequence = None;
+    let mut conflicts = 0;
+    for result in [first_result, second_result] {
+        match result {
+            Ok(sequence) => {
+                anyhow::ensure!(
+                    concurrent_sequence.replace(sequence).is_none(),
+                    "both identical concurrent OCC commands reported success"
+                );
+            },
+            Err(Error::Conflict) => conflicts += 1,
+            Err(error) => return Err(error.into()),
+        }
+    }
+    anyhow::ensure!(conflicts == 1, "exactly one OCC caller must lose");
+    let concurrent_sequence = concurrent_sequence.context("neither OCC caller succeeded")?;
+
+    {
+        let replay = store
+            .replay_one::<CounterEvent>(concurrent_id, Sequence::new())
+            .await?;
+        futures::pin_mut!(replay);
+        let envelope = replay
+            .next()
+            .await
+            .context("stored OCC event is missing")??;
+        anyhow::ensure!(
+            envelope.sequence() == concurrent_sequence,
+            "replayed OCC event has the wrong sequence"
+        );
+        anyhow::ensure!(
+            matches!(envelope.deserialize()?, CounterEvent::Added(7)),
+            "replayed OCC event has the wrong value"
+        );
+        anyhow::ensure!(
+            replay.next().await.is_none(),
+            "concurrent OCC commands stored more than one event"
+        );
+    }
 
     let conflict = store
-        .publish(retry_id, Sequence::new(), CounterEvent::Added(8), None)
+        .publish(concurrent_id, Sequence::new(), CounterEvent::Added(8), None)
         .await;
     anyhow::ensure!(
         matches!(conflict, Err(Error::Conflict)),
@@ -191,10 +220,10 @@ async fn run_scenario(
     );
 
     let mut stream = context.get_stream(prefix).await?;
-    let after_retry = stream.info().await?.clone();
+    let after_conflict = stream.info().await?.clone();
     anyhow::ensure!(
-        after_retry.state.messages == 4,
-        "exact retry changed the expected stream message count"
+        after_conflict.state.messages == 4,
+        "concurrent OCC conflict changed the expected stream message count"
     );
 
     let subscriber = store.clone();
@@ -225,8 +254,8 @@ async fn run_scenario(
         write_sequence_1,
         write_sequence_2,
         snapshot_sequence: u64::from(snapshot_sequence),
-        deduplicated_sequence: u64::from(deduplicated_sequence),
-        messages_after_retry: after_retry.state.messages,
+        concurrent_sequence: u64::from(concurrent_sequence),
+        messages_after_conflict: after_conflict.state.messages,
         translation_message_delta,
     })
 }
