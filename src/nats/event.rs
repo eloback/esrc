@@ -1,5 +1,4 @@
-use async_nats::header::{NATS_EXPECTED_LAST_SUBJECT_SEQUENCE, NATS_MESSAGE_ID};
-use async_nats::jetstream::context::PublishErrorKind;
+use async_nats::header::NATS_EXPECTED_LAST_SUBJECT_SEQUENCE;
 use async_nats::jetstream::stream::{LastRawMessageErrorKind, Stream as JetStream};
 use futures::{Stream, StreamExt};
 use tracing::instrument;
@@ -27,22 +26,12 @@ impl Publish for NatsStore {
         let subject = NatsSubject::Aggregate(E::name().into(), id).into_string(self.prefix);
         let payload = serde_json::to_string(&event).map_err(|e| Error::Format(e.into()))?;
         let last_sequence = u64::from(last_sequence);
-        let message_id = header::event_message_id(
-            &subject,
-            last_sequence,
-            E::version(),
-            event._type(),
-            payload.as_bytes(),
-            metadata.as_ref(),
-        );
-
         let mut headers = header::new();
         headers.append(VERSION_KEY, E::version().to_string());
         headers.append(
             NATS_EXPECTED_LAST_SUBJECT_SEQUENCE,
             last_sequence.to_string(),
         );
-        headers.append(NATS_MESSAGE_ID, message_id.as_str());
         headers.append(EVENT_TYPE, event._type().to_string());
 
         if let Some(extra) = metadata {
@@ -55,33 +44,10 @@ impl Publish for NatsStore {
 
         let ack = self
             .context
-            .publish_with_headers(subject.clone(), headers, payload.into())
+            .publish_with_headers(subject, headers, payload.into())
             .await?;
-        match ack.await {
-            Ok(ack) => Ok(Sequence::from(ack.sequence)),
-            Err(publish_error) if publish_error.kind() == PublishErrorKind::WrongLastSequence => {
-                let previous = self
-                    .stream
-                    .get_last_raw_message_by_subject(&subject)
-                    .await
-                    .ok();
-                let is_exact_retry = previous.as_ref().is_some_and(|message| {
-                    message.headers.get(NATS_MESSAGE_ID).map(|id| id.as_str())
-                        == Some(message_id.as_str())
-                });
-
-                if is_exact_retry {
-                    Ok(Sequence::from(
-                        previous
-                            .expect("exact retry has a previous message")
-                            .sequence,
-                    ))
-                } else {
-                    Err(publish_error.into())
-                }
-            },
-            Err(publish_error) => Err(publish_error.into()),
-        }
+        let ack = ack.await?;
+        Ok(Sequence::from(ack.sequence))
     }
 
     async fn publish_without_occ<E>(
