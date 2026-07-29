@@ -28,8 +28,9 @@ in
       rust.enable = false;
     };
     languages.rust = {
-      channel = "stable";
       enable = true;
+      channel = "stable";
+      version = "1.93.0";
     };
     git-hooks.hooks = {
       rustfmt = {
