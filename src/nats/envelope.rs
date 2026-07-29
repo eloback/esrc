@@ -1,4 +1,4 @@
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
 
 use async_nats::{jetstream, HeaderMap};
 use serde_json::Deserializer;
@@ -23,7 +23,7 @@ pub struct NatsEnvelope {
     id: Uuid,
     sequence: u64,
 
-    timestamp: i64,
+    timestamp: SystemTime,
 
     name: String,
     version: usize,
@@ -67,7 +67,7 @@ impl NatsEnvelope {
             // Parse the sequence and timestamp from the message early since
             // retrieving the messaeg info can return an error.
             let info = message.info().map_err(Error::Internal)?;
-            (info.stream_sequence, info.published.unix_timestamp())
+            (info.stream_sequence, info.published.into())
         };
         let message_headers = message
             .headers
@@ -115,7 +115,7 @@ impl NatsEnvelope {
         Ok(Self {
             id,
             sequence: message.sequence,
-            timestamp: message.time.unix_timestamp(),
+            timestamp: message.time.into(),
             name: name.into_owned(),
             version,
             message_headers,
@@ -155,7 +155,7 @@ impl Envelope for NatsEnvelope {
     }
 
     fn timestamp(&self) -> SystemTime {
-        UNIX_EPOCH + Duration::from_secs(self.timestamp as u64)
+        self.timestamp
     }
 
     fn name(&self) -> &str {
