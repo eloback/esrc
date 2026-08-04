@@ -10,6 +10,8 @@ pub mod envelope;
 pub mod error;
 /// Traits and helpers for the core Event type and event store implementations.
 pub mod event;
+/// Convenient imports for building applications with esrc.
+pub mod prelude;
 /// Process events and perform side effects for Events outside of an Aggregate.
 pub mod project;
 /// (De)Serialize types with extra version information for upcasting.

@@ -13,6 +13,9 @@ use tracing::instrument;
 
 use crate::error;
 
+/// The NATS client version used by this event-store backend.
+pub use async_nats;
+
 #[doc(hidden)]
 pub mod convert;
 /// Use a Jetstream message as an esrc Envelope.
