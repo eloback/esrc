@@ -1,12 +1,13 @@
-use esrc::envelope::TryFromEnvelope;
-use esrc::event::Event;
-use esrc::version::DeserializeVersion;
+use esrc::envelope::TryFromEnvelope as TryFromEnvelopeTrait;
+use esrc::event::Event as EventTrait;
+use esrc::version::DeserializeVersion as DeserializeVersionTrait;
 use esrc_derive::TryFromEnvelope;
 
+#[allow(dead_code)]
 mod fixtures;
 
 use fixtures::envelope::EmptyEnvelope;
-use fixtures::event::{BarEvent, FooEvent, LifetimeEvent};
+use fixtures::event::{BarEvent, FooEvent, OwnedEvent};
 
 #[test]
 #[allow(unused)]
@@ -44,20 +45,20 @@ fn try_from_envelope_ignore() {
 
 #[test]
 #[allow(unused)]
-fn try_from_envelope_lifetime() {
+fn try_from_envelope_generic() {
     #[derive(Debug, PartialEq, TryFromEnvelope)]
-    enum TestGroup<'de, T>
+    enum TestGroup<T>
     where
-        T: Event + DeserializeVersion,
+        T: EventTrait + DeserializeVersionTrait,
     {
         Other(T),
-        Lifetime(LifetimeEvent<'de>),
+        Owned(OwnedEvent),
     }
 
-    let envelope = EmptyEnvelope::new(LifetimeEvent::name());
+    let envelope = EmptyEnvelope::new(OwnedEvent::name());
 
-    let expected = TestGroup::<FooEvent>::Lifetime(LifetimeEvent {
-        local_name: "LocalLifetime",
+    let expected = TestGroup::<FooEvent>::Owned(OwnedEvent {
+        local_name: "LocalOwned".to_owned(),
     });
     let actual = TestGroup::<FooEvent>::try_from_envelope(&envelope).unwrap();
 

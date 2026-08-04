@@ -1,4 +1,4 @@
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
 
 use async_nats::{jetstream, HeaderMap};
 use serde_json::Deserializer;
@@ -17,20 +17,27 @@ use crate::version::DeserializeVersion;
 /// Fields derived from the subject name and various NATS headers will be parsed
 /// upon creation and stored alongside the original message.
 ///
-/// When the envelope is dropped the message is automatically acked, and any error
-/// is ignored, so the user may want to hold a reference of the message if they need
-/// to manually ack or nack it.
+/// Messages consumed by a durable automation must be acknowledged explicitly after
+/// their application effect succeeds.
 pub struct NatsEnvelope {
     id: Uuid,
     sequence: u64,
 
-    timestamp: i64,
+    timestamp: SystemTime,
 
     name: String,
     version: usize,
 
     message_headers: HeaderMap,
-    message: jetstream::Message,
+    message: NatsMessage,
+}
+
+// Keep consumer deliveries inline as they were before stored-message replay was added. Boxing the
+// larger variant would add an allocation to every durable automation delivery.
+#[allow(clippy::large_enum_variant)]
+enum NatsMessage {
+    Delivery(jetstream::Message),
+    Stored(jetstream::message::StreamMessage),
 }
 
 impl NatsEnvelope {
@@ -60,7 +67,7 @@ impl NatsEnvelope {
             // Parse the sequence and timestamp from the message early since
             // retrieving the messaeg info can return an error.
             let info = message.info().map_err(Error::Internal)?;
-            (info.stream_sequence, info.published.unix_timestamp())
+            (info.stream_sequence, info.published.into())
         };
         let message_headers = message
             .headers
@@ -78,20 +85,63 @@ impl NatsEnvelope {
             version,
 
             message_headers,
-            message,
+            message: NatsMessage::Delivery(message),
+        })
+    }
+
+    /// Attempt to convert a message retrieved directly from a stream into an Envelope instance.
+    ///
+    /// Stored messages are not consumer deliveries and therefore cannot be acknowledged.
+    #[instrument(skip_all, level = "trace")]
+    pub(super) fn try_from_stream_message(
+        expected_prefix: &str,
+        message: jetstream::message::StreamMessage,
+    ) -> error::Result<Self> {
+        let NatsSubject::Aggregate(name, id) =
+            NatsSubject::try_from_str(expected_prefix, message.subject.as_str())?
+        else {
+            return Err(Error::Invalid);
+        };
+
+        let version = message
+            .headers
+            .get(VERSION_KEY)
+            .ok_or(Error::Invalid)?
+            .as_str()
+            .parse::<usize>()
+            .map_err(|e| Error::Format(e.into()))?;
+        let message_headers = message.headers.clone();
+
+        Ok(Self {
+            id,
+            sequence: message.sequence,
+            timestamp: message.time.into(),
+            name: name.into_owned(),
+            version,
+            message_headers,
+            message: NatsMessage::Stored(message),
         })
     }
 
     /// Attach the current OpenTelemetry span context to the message headers, if any.
     pub fn attach_span_context(&self) {
         // propagate otel span if exists
-        tracing::Span::current().record("nats.message.sequence", &self.sequence);
-        opentelemetry_nats::attach_span_context(&self.message);
+        tracing::Span::current().record("nats.message.sequence", self.sequence);
+        #[cfg(feature = "opentelemetry")]
+        if let NatsMessage::Delivery(message) = &self.message {
+            opentelemetry_nats::attach_span_context(message);
+        }
     }
 
-    /// ack the message asynchronously, ignoring any error
-    pub async fn ack(self) {
-        let _ = self.message.ack().await;
+    /// Acknowledge a consumer-delivered message and wait for server confirmation.
+    ///
+    /// Consumer-free messages returned by replay have no delivery to acknowledge and return
+    /// [`Error::Invalid`].
+    pub async fn ack(self) -> error::Result<()> {
+        match self.message {
+            NatsMessage::Delivery(message) => message.double_ack().await.map_err(Error::Internal),
+            NatsMessage::Stored(_) => Err(Error::Invalid),
+        }
     }
 }
 
@@ -105,7 +155,7 @@ impl Envelope for NatsEnvelope {
     }
 
     fn timestamp(&self) -> SystemTime {
-        UNIX_EPOCH + Duration::from_secs(self.timestamp as u64)
+        self.timestamp
     }
 
     fn name(&self) -> &str {
@@ -128,7 +178,11 @@ impl Envelope for NatsEnvelope {
             return Err(Error::Invalid);
         }
 
-        let mut deserializer = Deserializer::from_slice(&self.message.payload);
+        let payload = match &self.message {
+            NatsMessage::Delivery(message) => &message.payload,
+            NatsMessage::Stored(message) => &message.payload,
+        };
+        let mut deserializer = Deserializer::from_slice(payload);
         E::deserialize_version(&mut deserializer, self.version).map_err(|e| Error::Format(e.into()))
     }
 }

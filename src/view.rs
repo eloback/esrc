@@ -7,7 +7,8 @@
 ///
 /// # Example
 /// ```rust
-/// # use esrc::{Event, View};
+/// # use esrc::view::View;
+/// # use esrc::Event;
 /// #
 /// #[derive(Event)]
 /// enum CounterEvent {

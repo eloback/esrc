@@ -41,15 +41,15 @@ Some of these capabilities are gated behind crate feature flags:
      combines applying a command to an Aggregate and writing the created event.
    * [`event::Replay`]: Retrieve a stream of Event history for a specific
      Aggregate, or for all Aggregates across a set of events. Extension traits
-	 also allow an Aggregate instance to be constructed as the stream is read,
-	 and allow these past events to be Projected as described in step (7).
+     also allow an Aggregate instance to be constructed as the stream is read,
+     and allow these past events to be Projected as described in step (7).
    * [`event::Subscribe`]: Listen to a stream of new events as they are written
      to the event store. An extension trait also allows these new events to be
-	 Projected as they come in, as described in step (7).
+     Projected as they come in, as described in step (7).
    * [`event::Truncate`]: Remove old Events. If an event stream becomes too
      large, old events can be deleted. The Aggregate state after applying these
-	 events should be persisted first (snapshotting), so that remaining events
-	 can still be replayed correctly.
+     events should be persisted first (snapshotting), so that remaining events
+     can still be replayed correctly.
 7. Construct read models from these events. The [`project::Project`] trait
    allows a callback to be defined that can process events of a specific type.
 
@@ -58,6 +58,4 @@ Some of these capabilities are gated behind crate feature flags:
 * `examples/cafe` provides an simplified implementation of the Edument CQRS
   tutorial at https://cqrs.nu/tutorial/Design. Involves writing events to a
   store and projecting them into a read model.
-* `examples/zero_copy` shows how serde zero-copy deserialization can be used
-  when encoding and decoding event data. Involves defining Event and Project
-  types with lifetime annotations.
+* `examples/zero_copy` shows an owned event payload and a Project implementation.

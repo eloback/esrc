@@ -1,9 +1,12 @@
 use std::marker::PhantomData;
 
-use esrc::version::{DeserializeVersion, SerializeVersion};
+use esrc::version::{
+    DeserializeVersion as DeserializeVersionTrait, SerializeVersion as SerializeVersionTrait,
+};
 use esrc_derive::{DeserializeVersion, SerializeVersion};
 use serde::{Deserialize, Serialize};
 
+#[allow(dead_code)]
 mod fixtures;
 use fixtures::version::unit_deserializer;
 
@@ -22,7 +25,7 @@ fn deserialize_version() {
         }
     }
 
-    impl SerializeVersion for TestEvent {
+    impl SerializeVersionTrait for TestEvent {
         fn version() -> usize {
             1
         }
@@ -42,22 +45,22 @@ fn deserialize_version_lifetime() {
     #[derive(Debug, DeserializeVersion, PartialEq, Serialize)]
     struct TestEvent<'a>(PhantomData<&'a ()>);
 
-    impl<'a, 'de: 'a> Deserialize<'de> for TestEvent<'a> {
+    impl<'a, 'de> Deserialize<'de> for TestEvent<'a> {
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where
             D: serde::Deserializer<'de>,
         {
-            Ok(TestEvent(PhantomData::default()))
+            Ok(TestEvent(PhantomData))
         }
     }
 
-    impl<'a> SerializeVersion for TestEvent<'a> {
+    impl<'a> SerializeVersionTrait for TestEvent<'a> {
         fn version() -> usize {
             2
         }
     }
 
-    let expected = TestEvent(PhantomData::default());
+    let expected = TestEvent(PhantomData);
     let actual = TestEvent::deserialize_version(unit_deserializer(), 2);
 
     assert_eq!(expected, actual.unwrap());
@@ -73,43 +76,43 @@ fn deserialize_version_previous() {
     #[esrc(serde(previous_version = "TestEvent1"))]
     struct TestEvent2<'a>(usize, PhantomData<&'a ()>);
 
-    impl<'a, 'de: 'a> Deserialize<'de> for TestEvent1<'a> {
+    impl<'a, 'de> Deserialize<'de> for TestEvent1<'a> {
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where
             D: serde::Deserializer<'de>,
         {
-            Ok(TestEvent1(11, PhantomData::default()))
+            Ok(TestEvent1(11, PhantomData))
         }
     }
 
-    impl<'a, 'de: 'a> Deserialize<'de> for TestEvent2<'a> {
+    impl<'a, 'de> Deserialize<'de> for TestEvent2<'a> {
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where
             D: serde::Deserializer<'de>,
         {
-            Ok(TestEvent2(22, PhantomData::default()))
+            Ok(TestEvent2(22, PhantomData))
         }
     }
 
-    impl<'a> SerializeVersion for TestEvent1<'a> {
+    impl<'a> SerializeVersionTrait for TestEvent1<'a> {
         fn version() -> usize {
             1
         }
     }
 
-    impl<'a> SerializeVersion for TestEvent2<'a> {
+    impl<'a> SerializeVersionTrait for TestEvent2<'a> {
         fn version() -> usize {
             2
         }
     }
 
     impl<'a> From<TestEvent1<'a>> for TestEvent2<'a> {
-        fn from(value: TestEvent1) -> Self {
-            TestEvent2(44, PhantomData::default())
+        fn from(_value: TestEvent1) -> Self {
+            TestEvent2(44, PhantomData)
         }
     }
 
-    let expected = TestEvent2(44, PhantomData::default());
+    let expected = TestEvent2(44, PhantomData);
     let actual = TestEvent2::deserialize_version(unit_deserializer(), 1);
 
     assert_eq!(expected, actual.unwrap());

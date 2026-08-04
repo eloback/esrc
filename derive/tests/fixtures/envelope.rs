@@ -36,6 +36,10 @@ impl Envelope for EmptyEnvelope {
         self.name
     }
 
+    fn get_metadata(&self, _key: &str) -> Option<&str> {
+        None
+    }
+
     fn deserialize<E>(&self) -> error::Result<E>
     where
         E: DeserializeVersion,

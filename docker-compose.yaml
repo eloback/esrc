@@ -1,0 +1,89 @@
+name: esrc-nats
+
+x-nats-common: &nats-common
+  image: nats:2.14.3-alpine
+  restart: unless-stopped
+  stop_grace_period: 30s
+  healthcheck:
+    test:
+      - CMD
+      - wget
+      - --quiet
+      - --output-document=-
+      - http://127.0.0.1:8222/healthz?js-enabled-only=true
+    interval: 5s
+    timeout: 3s
+    retries: 12
+    start_period: 10s
+  networks:
+    - nats
+
+services:
+  nats-1:
+    <<: *nats-common
+    hostname: nats-1
+    command:
+      - --name=nats-1
+      - --jetstream
+      - --store_dir=/data/jetstream
+      - --http_port=8222
+      - --user=esrc
+      - --pass=esrc-local
+      - --client_advertise=127.0.0.1:4222
+      - --cluster_name=esrc-local
+      - --cluster=nats://route:route-local@nats-1:6222
+      - --routes=nats://route:route-local@nats-2:6222,nats://route:route-local@nats-3:6222
+    ports:
+      - 127.0.0.1:4222:4222
+      - 127.0.0.1:8222:8222
+    volumes:
+      - nats-1-data:/data/jetstream
+
+  nats-2:
+    <<: *nats-common
+    hostname: nats-2
+    command:
+      - --name=nats-2
+      - --jetstream
+      - --store_dir=/data/jetstream
+      - --http_port=8222
+      - --user=esrc
+      - --pass=esrc-local
+      - --client_advertise=127.0.0.1:4223
+      - --cluster_name=esrc-local
+      - --cluster=nats://route:route-local@nats-2:6222
+      - --routes=nats://route:route-local@nats-1:6222,nats://route:route-local@nats-3:6222
+    ports:
+      - 127.0.0.1:4223:4222
+      - 127.0.0.1:8223:8222
+    volumes:
+      - nats-2-data:/data/jetstream
+
+  nats-3:
+    <<: *nats-common
+    hostname: nats-3
+    command:
+      - --name=nats-3
+      - --jetstream
+      - --store_dir=/data/jetstream
+      - --http_port=8222
+      - --user=esrc
+      - --pass=esrc-local
+      - --client_advertise=127.0.0.1:4224
+      - --cluster_name=esrc-local
+      - --cluster=nats://route:route-local@nats-3:6222
+      - --routes=nats://route:route-local@nats-1:6222,nats://route:route-local@nats-2:6222
+    ports:
+      - 127.0.0.1:4224:4222
+      - 127.0.0.1:8224:8222
+    volumes:
+      - nats-3-data:/data/jetstream
+
+networks:
+  nats:
+    driver: bridge
+
+volumes:
+  nats-1-data:
+  nats-2-data:
+  nats-3-data:

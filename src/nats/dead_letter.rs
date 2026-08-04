@@ -2,8 +2,9 @@ use async_nats::jetstream::Message;
 use futures::{StreamExt, TryStreamExt};
 use serde::{Deserialize, Serialize};
 use std::error::Error as StdError;
+use std::time::SystemTime;
 use time::OffsetDateTime;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 /// Represents a dead letter message with metadata about the failure
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -99,7 +100,7 @@ impl DeadLetterMessage {
         // Extract timestamp from message info, fallback to current time if unavailable
         let timestamp = message
             .info()
-            .map(|info| info.published)
+            .map(|info| nats_datetime_to_offset(info.published))
             .unwrap_or_else(|_| OffsetDateTime::now_utc());
 
         Self {
@@ -145,7 +146,7 @@ impl DeadLetterMessage {
         };
 
         // Extract timestamp from message time
-        let timestamp = message.time;
+        let timestamp = nats_datetime_to_offset(message.time);
 
         Self {
             subject: message.subject.to_string(),
@@ -161,6 +162,7 @@ impl DeadLetterMessage {
     }
 
     /// Create a dead letter message from advisory message data
+    #[allow(clippy::too_many_arguments)]
     pub fn from_advisory(
         stream: String,
         consumer: String,
@@ -183,6 +185,11 @@ impl DeadLetterMessage {
             delivery_count,
         }
     }
+}
+
+fn nats_datetime_to_offset(datetime: async_nats::datetime::DateTime) -> OffsetDateTime {
+    let system_time: SystemTime = datetime.into();
+    system_time.into()
 }
 
 impl crate::nats::NatsStore {
@@ -310,14 +317,11 @@ where
                 delivery_count,
             );
 
-            if let Err(e) = store.store_dead_letter(dead_letter_msg).await {
-                error!("Failed to store dead letter message: {:?}", e);
-            } else {
-                info!(
-                    "Stored dead letter message: stream={}, consumer={}, seq={}",
-                    stream_name, consumer_name, stream_seq
-                );
-            }
+            store.store_dead_letter(dead_letter_msg).await?;
+            info!(
+                "Stored dead letter message: stream={}, consumer={}, seq={}",
+                stream_name, consumer_name, stream_seq
+            );
         },
         Err(e) => {
             warn!(
@@ -337,14 +341,28 @@ where
                 None,
             );
 
-            if let Err(e) = store.store_dead_letter(dead_letter_msg).await {
-                error!("Failed to store dead letter message from advisory: {:?}", e);
-            }
+            store.store_dead_letter(dead_letter_msg).await?;
         },
     }
 
-    // Acknowledge the advisory message
-    let _ = advisory_msg.ack().await;
+    // Confirm the advisory only after the dead-letter record is stored.
+    advisory_msg.double_ack().await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::nats_datetime_to_offset;
+
+    #[test]
+    fn nats_datetime_conversion_preserves_the_instant() {
+        const NANOS: i128 = 1_700_000_000_123_456_789;
+        let datetime = async_nats::datetime::from_nanos(NANOS).unwrap();
+
+        assert_eq!(
+            nats_datetime_to_offset(datetime).unix_timestamp_nanos(),
+            NANOS
+        );
+    }
 }

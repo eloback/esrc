@@ -1,11 +1,12 @@
 use std::marker::PhantomData;
 
-use esrc::event::{Event, EventGroup};
+use esrc::event::{Event as EventTrait, EventGroup as EventGroupTrait};
 use esrc_derive::{Event, EventGroup};
 
+#[allow(dead_code)]
 mod fixtures;
 
-use fixtures::event::{BarEvent, FooEvent, LifetimeEvent};
+use fixtures::event::{BarEvent, FooEvent, OwnedEvent};
 
 #[test]
 #[allow(unused)]
@@ -90,14 +91,14 @@ fn event_group_ignore() {
 
 #[test]
 #[allow(unused)]
-fn event_group_lifetime() {
+fn event_group_generic() {
     #[derive(EventGroup)]
-    enum TestGroup<'a, T: Event> {
+    enum TestGroup<T: EventTrait> {
         Foo(T),
-        Lifetime(LifetimeEvent<'a>),
+        Owned(OwnedEvent),
     }
 
-    let expected = ["Foo", "Lifetime"].into_iter();
+    let expected = ["Foo", "Owned"].into_iter();
     let actual = TestGroup::<FooEvent>::names();
 
     assert!(actual.eq(expected))

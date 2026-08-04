@@ -88,10 +88,11 @@ impl<T: Publish> PublishExt for T {
         let last_sequence = Root::last_sequence(&root);
 
         let aggregate = Root::into_inner(root).apply(&event);
-        self.publish::<A::Event>(id, last_sequence, event, metadata)
+        let published_sequence = self
+            .publish::<A::Event>(id, last_sequence, event, metadata)
             .await?;
 
-        Ok(Root::with_aggregate(aggregate, id, last_sequence))
+        Ok(Root::with_aggregate(aggregate, id, published_sequence))
     }
 
     #[instrument(skip_all, level = "debug")]
@@ -107,5 +108,96 @@ impl<T: Publish> PublishExt for T {
     {
         let event = root.process(command).map_err(|e| Error::External(e.into()));
         async move { self.write(root, event?, metadata).await }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde::Serialize;
+
+    use super::*;
+
+    #[derive(Serialize)]
+    struct Added(u64);
+
+    impl Event for Added {
+        fn name() -> &'static str {
+            "Added"
+        }
+    }
+
+    impl SerializeVersion for Added {
+        fn version() -> usize {
+            1
+        }
+    }
+
+    #[derive(Default)]
+    struct Counter(u64);
+
+    enum CounterCommand {}
+
+    #[derive(Debug, thiserror::Error)]
+    #[error("counter command failed")]
+    struct CounterError;
+
+    impl Aggregate for Counter {
+        type Command = CounterCommand;
+        type Event = Added;
+        type Error = CounterError;
+
+        fn process(&self, command: Self::Command) -> Result<Self::Event, Self::Error> {
+            match command {}
+        }
+
+        fn apply(mut self, event: &Self::Event) -> Self {
+            self.0 += event.0;
+            self
+        }
+    }
+
+    struct MockPublish {
+        acknowledged_sequence: Sequence,
+    }
+
+    impl Publish for MockPublish {
+        async fn publish<E>(
+            &mut self,
+            _id: Uuid,
+            _last_sequence: Sequence,
+            _event: E,
+            _metadata: Option<HashMap<String, String>>,
+        ) -> error::Result<Sequence>
+        where
+            E: Event + SerializeVersion,
+        {
+            Ok(self.acknowledged_sequence)
+        }
+
+        async fn publish_without_occ<E>(
+            &mut self,
+            _id: Uuid,
+            _event: E,
+            _metadata: Option<HashMap<String, String>>,
+        ) -> error::Result<()>
+        where
+            E: Event + SerializeVersion,
+        {
+            unreachable!("the write extension uses OCC publication")
+        }
+    }
+
+    #[tokio::test]
+    async fn write_returns_the_acknowledged_sequence() {
+        let expected_sequence = Sequence::from(42);
+        let mut publisher = MockPublish {
+            acknowledged_sequence: expected_sequence,
+        };
+        let root = Root::<Counter>::new(Uuid::nil());
+
+        let written = publisher.write(root, Added(7), None).await.unwrap();
+
+        assert_eq!(u64::from(Root::last_sequence(&written)), 42);
+        assert_eq!(written.0, 7);
     }
 }

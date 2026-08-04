@@ -1,7 +1,7 @@
 use darling::{FromDeriveInput, FromMeta};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{DeriveInput, Error, Ident, Lifetime};
+use syn::{DeriveInput, Error, Ident};
 
 #[derive(Default, FromMeta)]
 pub struct SerdeMeta {
@@ -29,17 +29,7 @@ pub fn derive_deserialize_version(input: DeriveInput) -> Result<TokenStream, Err
             Err(<D::Error as ::serde::de::Error>::custom("unknown version"))
         });
 
-    // Collect lifetime bounds so that the method-level deserializer lifetime
-    // outlives all lifetimes declared on the type (supports borrowed fields).
-    let method_lt = Lifetime::new("'__esrc_de", Span::mixed_site());
-    let lifetime_bounds = input
-        .generics
-        .lifetimes()
-        .map(|lt| {
-            let sub = &lt.lifetime;
-            quote! { #method_lt: #sub }
-        })
-        .collect::<Vec<_>>();
+    let method_lt = syn::Lifetime::new("'__esrc_de", Span::mixed_site());
 
     // Pull the type generics from the original generic data (before the new
     // lifetime was inserted), and the impl ones from the updated generics.
@@ -53,7 +43,6 @@ pub fn derive_deserialize_version(input: DeriveInput) -> Result<TokenStream, Err
             fn deserialize_version<#method_lt, D>(#deserializer: D, #version: usize) -> Result<Self, D::Error>
             where
                 D: ::serde::Deserializer<#method_lt>,
-                #(#lifetime_bounds,)*
             {
                 if #version == <Self as ::esrc::version::SerializeVersion>::version() {
                     <Self as ::serde::Deserialize>::deserialize(#deserializer)
