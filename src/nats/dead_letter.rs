@@ -1,3 +1,8 @@
+use async_nats::jetstream::consumer::pull::Config as ConsumerConfig;
+use async_nats::jetstream::consumer::{AckPolicy, DeliverPolicy};
+use async_nats::jetstream::stream::{
+    Config as StreamConfig, DiscardPolicy, RetentionPolicy, StorageType, Stream as JetStream,
+};
 use async_nats::jetstream::Message;
 use futures::{StreamExt, TryStreamExt};
 use serde::{Deserialize, Serialize};
@@ -208,21 +213,18 @@ impl crate::nats::NatsStore {
     where
         D: DeadLetterStore + Clone + 'static,
     {
-        let max_deliveries_subject = format!(
-            "$JS.EVENT.ADVISORY.CONSUMER.MAX_DELIVERIES.{}.{}",
-            stream_name, consumer_name
-        );
-        let terminated_subject = format!(
-            "$JS.EVENT.ADVISORY.CONSUMER.MSG_TERMINATED.{}.{}",
-            stream_name, consumer_name
-        );
-
-        let subjects = vec![max_deliveries_subject, terminated_subject];
-
-        // Create a consumer for advisory messages
-        let advisory_consumer = self
-            .durable_consumer(durable_name.to_string(), subjects)
+        let source_stream = self.context.get_stream(stream_name).await?;
+        let advisory_stream = self
+            .dead_letter_advisory_stream(stream_name, consumer_name)
             .await?;
+        let mut consumer_config: ConsumerConfig = self.durable_consumer_options.clone();
+        consumer_config.filter_subject = String::new();
+        consumer_config.filter_subjects = advisory_subjects(stream_name, consumer_name);
+        consumer_config.durable_name = Some(durable_name.to_string());
+        consumer_config.deliver_policy = DeliverPolicy::All;
+        consumer_config.ack_policy = AckPolicy::Explicit;
+
+        let advisory_consumer = advisory_stream.create_consumer(consumer_config).await?;
 
         let messages = advisory_consumer
             .messages()
@@ -240,7 +242,7 @@ impl crate::nats::NatsStore {
         let store = dead_letter_store.clone();
         let stream_name = stream_name.to_string();
         let consumer_name = consumer_name.to_string();
-        let nats_stream = self.stream.clone();
+        let nats_stream = source_stream;
 
         self.graceful_shutdown.task_tracker.spawn(async move {
             let mut incoming = incoming;
@@ -268,6 +270,59 @@ impl crate::nats::NatsStore {
 
         Ok(())
     }
+
+    async fn dead_letter_advisory_stream(
+        &self,
+        source_stream_name: &str,
+        source_consumer_name: &str,
+    ) -> crate::error::Result<JetStream> {
+        let expected_subjects = advisory_subjects(source_stream_name, source_consumer_name);
+        let config = StreamConfig {
+            name: advisory_stream_name(source_stream_name, source_consumer_name),
+            subjects: expected_subjects.clone(),
+            retention: RetentionPolicy::WorkQueue,
+            discard: DiscardPolicy::New,
+            num_replicas: self.options.stream_replicas().count(),
+            ..Default::default()
+        };
+        let advisory_stream = super::get_or_create_validated_stream(&self.context, config).await?;
+        let actual = &advisory_stream.cached_info().config;
+
+        if actual.subjects != expected_subjects
+            || actual.retention != RetentionPolicy::WorkQueue
+            || actual.discard != DiscardPolicy::New
+            || actual.storage != StorageType::File
+            || actual.max_messages > 0
+            || actual.max_bytes > 0
+            || actual.max_messages_per_subject > 0
+            || !actual.max_age.is_zero()
+        {
+            return Err(crate::error::Error::Internal(
+                std::io::Error::other(format!(
+                    "NATS dead-letter advisory stream `{}` has incompatible subjects, retention, discard, storage, or limits",
+                    actual.name
+                ))
+                .into(),
+            ));
+        }
+
+        Ok(advisory_stream)
+    }
+}
+
+fn advisory_stream_name(source_stream_name: &str, source_consumer_name: &str) -> String {
+    format!("{source_stream_name}_DLQ_{source_consumer_name}")
+}
+
+fn advisory_subjects(source_stream_name: &str, source_consumer_name: &str) -> Vec<String> {
+    vec![
+        format!(
+            "$JS.EVENT.ADVISORY.CONSUMER.MAX_DELIVERIES.{source_stream_name}.{source_consumer_name}"
+        ),
+        format!(
+            "$JS.EVENT.ADVISORY.CONSUMER.MSG_TERMINATED.{source_stream_name}.{source_consumer_name}"
+        ),
+    ]
 }
 
 async fn process_advisory_message<D>(

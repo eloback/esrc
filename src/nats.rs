@@ -301,7 +301,7 @@ impl NatsStore {
         config.filter_subjects = subjects;
         config.durable_name = Some(name);
 
-        Ok(self.stream.create_consumer(config).await?)
+        Ok(self.reader_stream().create_consumer(config).await?)
     }
 }
 
