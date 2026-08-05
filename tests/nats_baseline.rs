@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 const CONCURRENT_READS: usize = 100;
+const PUBLISHES: usize = 100;
 const READ_TIMEOUT: Duration = Duration::from_secs(15);
 
 #[derive(Debug, Deserialize, DeserializeVersion, Event, Serialize, SerializeVersion)]
@@ -55,9 +56,15 @@ impl Aggregate for Counter {
 
 struct Measurements {
     messages: u64,
+    bytes: u64,
     replicas: usize,
+    leader: String,
+    current_followers: usize,
+    active_consumers: usize,
     consumer_delta: i64,
+    publish_latency: Vec<Duration>,
     read_latency: Vec<Duration>,
+    duration: Duration,
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -81,17 +88,30 @@ async fn concurrent_replay_baseline_preserves_events_and_cleans_up() -> Result<(
     cleanup_result.context("failed to delete the milestone's synthetic stream")?;
     let measurements = scenario_result?;
 
-    let p50 = percentile(&measurements.read_latency, 50);
-    let p95 = percentile(&measurements.read_latency, 95);
-    let p99 = percentile(&measurements.read_latency, 99);
+    let publish_p50 = percentile(&measurements.publish_latency, 50);
+    let publish_p95 = percentile(&measurements.publish_latency, 95);
+    let publish_p99 = percentile(&measurements.publish_latency, 99);
+    let replay_p50 = percentile(&measurements.read_latency, 50);
+    let replay_p95 = percentile(&measurements.read_latency, 95);
+    let replay_p99 = percentile(&measurements.read_latency, 99);
+    let consumer_creation_rate =
+        measurements.consumer_delta as f64 / measurements.duration.as_secs_f64();
     println!(
-        "reads={CONCURRENT_READS} messages={} replicas={} consumer_delta={} p50_us={} p95_us={} p99_us={} cleanup=PASS",
+        "publishes={PUBLISHES} reads={CONCURRENT_READS} messages={} bytes={} replicas={} leader={} current_followers={} active_consumers={} consumer_delta={} consumer_creation_rate_per_s={consumer_creation_rate:.2} errors=0 timeouts=0 publish_p50_us={} publish_p95_us={} publish_p99_us={} replay_p50_us={} replay_p95_us={} replay_p99_us={} duration_ms={} cleanup=PASS",
         measurements.messages,
+        measurements.bytes,
         measurements.replicas,
+        measurements.leader,
+        measurements.current_followers,
+        measurements.active_consumers,
         measurements.consumer_delta,
-        p50.as_micros(),
-        p95.as_micros(),
-        p99.as_micros(),
+        publish_p50.as_micros(),
+        publish_p95.as_micros(),
+        publish_p99.as_micros(),
+        replay_p50.as_micros(),
+        replay_p95.as_micros(),
+        replay_p99.as_micros(),
+        measurements.duration.as_millis(),
     );
     anyhow::ensure!(
         measurements.consumer_delta == 0,
@@ -107,17 +127,28 @@ async fn run_scenario(
     store: &mut NatsStore,
     prefix: &str,
 ) -> Result<Measurements> {
+    let scenario_started = Instant::now();
     let aggregate_id = Uuid::now_v7();
     let mut sequence = Sequence::new();
-    for value in [1_u64, 2, 3] {
-        sequence = store
-            .publish(aggregate_id, sequence, CounterEvent::Added(value), None)
-            .await?;
+    let mut publish_latency = Vec::with_capacity(PUBLISHES);
+    for value in 1..=PUBLISHES as u64 {
+        let publish_started = Instant::now();
+        sequence = tokio::time::timeout(
+            READ_TIMEOUT,
+            store.publish(aggregate_id, sequence, CounterEvent::Added(value), None),
+        )
+        .await
+        .context("publish acknowledgement timed out")??;
+        publish_latency.push(publish_started.elapsed());
     }
+    publish_latency.sort_unstable();
 
     let mut stream = context.get_stream(prefix).await?;
     let before = stream.info().await?.clone();
-    anyhow::ensure!(before.state.messages == 3, "expected three stored events");
+    anyhow::ensure!(
+        before.state.messages == PUBLISHES as u64,
+        "expected {PUBLISHES} stored events"
+    );
 
     let reads = (0..CONCURRENT_READS).map(|_| {
         let reader = store.clone();
@@ -130,11 +161,12 @@ async fn run_scenario(
             let elapsed = started.elapsed();
 
             anyhow::ensure!(
-                aggregate.value == 6,
+                aggregate.value == (1..=PUBLISHES as u64).sum::<u64>(),
                 "replay produced the wrong aggregate value"
             );
             anyhow::ensure!(
-                aggregate.applied == [1, 2, 3],
+                aggregate.applied.len() == PUBLISHES
+                    && aggregate.applied.iter().copied().eq(1..=PUBLISHES as u64),
                 "replay produced the wrong aggregate event order"
             );
             anyhow::ensure!(
@@ -156,11 +188,30 @@ async fn run_scenario(
         .context("consumer count does not fit in an i64")?;
     let before_consumers = i64::try_from(before.state.consumer_count)
         .context("consumer count does not fit in an i64")?;
+    let (leader, current_followers) = after.cluster.as_ref().map_or_else(
+        || ("NONE".to_owned(), 0),
+        |cluster| {
+            (
+                cluster.leader.clone().unwrap_or_else(|| "NONE".to_owned()),
+                cluster
+                    .replicas
+                    .iter()
+                    .filter(|peer| peer.current && !peer.offline)
+                    .count(),
+            )
+        },
+    );
     Ok(Measurements {
         messages: after.state.messages,
+        bytes: after.state.bytes,
         replicas: after.config.num_replicas,
+        leader,
+        current_followers,
+        active_consumers: after.state.consumer_count,
         consumer_delta: after_consumers - before_consumers,
+        publish_latency,
         read_latency,
+        duration: scenario_started.elapsed(),
     })
 }
 
