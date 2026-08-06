@@ -15,6 +15,7 @@ use tokio_util::task::TaskTracker;
 use tracing::instrument;
 
 use crate::error;
+use crate::event::event_model::ViewProjectorIdentity;
 
 /// The NATS client version used by this event-store backend.
 pub use async_nats;
@@ -41,7 +42,8 @@ mod subject;
 use subject::NatsSubject;
 
 const DEFAULT_ACK_WAIT: Duration = Duration::from_secs(30);
-const VIEW_PROJECTOR_METADATA_KEY: &str = "esrc-view-projector";
+const VIEW_PROJECTOR_ID_METADATA_KEY: &str = "esrc-view-projector-id";
+const VIEW_PROJECTOR_VERSION_METADATA_KEY: &str = "esrc-view-projector-version";
 
 /// Supported replication policies for a NATS event stream.
 ///
@@ -103,7 +105,7 @@ pub struct NatsStreamReplicaMismatch {
     actual: usize,
 }
 
-/// A durable view consumer is already assigned to another projector type.
+/// A durable view consumer is assigned to another logical projector identity or version.
 #[derive(Debug, thiserror::Error)]
 #[error("NATS view consumer `{durable}` is assigned to projector `{actual}`, not `{expected}`")]
 pub struct NatsViewConsumerIdentityMismatch {
@@ -334,12 +336,12 @@ impl NatsStore {
     }
 
     #[instrument(skip_all, level = "debug")]
-    async fn view_durable_consumer<P>(
+    async fn view_durable_consumer(
         &self,
         name: String,
         subjects: Vec<String>,
+        identity: &ViewProjectorIdentity,
     ) -> error::Result<Consumer<ConsumerConfig>> {
-        let identity = std::any::type_name::<P>();
         let config = view_consumer_config(
             self.durable_consumer_options.clone(),
             name.clone(),
@@ -350,9 +352,7 @@ impl NatsStore {
         let existing = stream.get_or_create_consumer(&name, config.clone()).await?;
         validate_view_consumer(&name, &existing.cached_info().config, &config, identity)?;
 
-        // Preserve the historical update behavior after validating identity. This also adopts a
-        // same-filter legacy durable by adding the marker without deleting its acknowledgement
-        // state.
+        // Preserve the historical update behavior after validating the stable logical identity.
         let consumer = stream.create_consumer(config.clone()).await?;
         validate_view_consumer(&name, &consumer.cached_info().config, &config, identity)?;
 
@@ -374,7 +374,7 @@ fn view_consumer_config(
     config: ConsumerConfig,
     name: String,
     subjects: Vec<String>,
-    projector_identity: &str,
+    projector_identity: &ViewProjectorIdentity,
 ) -> ConsumerConfig {
     let mut config = durable_consumer_config(config, name, subjects);
     config.ack_policy = AckPolicy::Explicit;
@@ -384,8 +384,12 @@ fn view_consumer_config(
         config.ack_wait = DEFAULT_ACK_WAIT;
     }
     config.metadata.insert(
-        VIEW_PROJECTOR_METADATA_KEY.to_owned(),
-        projector_identity.to_owned(),
+        VIEW_PROJECTOR_ID_METADATA_KEY.to_owned(),
+        projector_identity.id().to_owned(),
+    );
+    config.metadata.insert(
+        VIEW_PROJECTOR_VERSION_METADATA_KEY.to_owned(),
+        projector_identity.version().to_string(),
     );
     config
 }
@@ -394,26 +398,33 @@ fn validate_view_consumer(
     durable: &str,
     existing: &BaseConsumerConfig,
     expected_config: &ConsumerConfig,
-    expected_identity: &str,
+    expected_identity: &ViewProjectorIdentity,
 ) -> error::Result<()> {
-    match existing.metadata.get(VIEW_PROJECTOR_METADATA_KEY) {
-        Some(actual) if actual != expected_identity => {
-            return Err(view_identity_mismatch(
-                durable,
-                expected_identity,
-                actual.clone(),
-            ));
-        },
-        None if normalized_base_filters(existing) != normalized_filters(expected_config) => {
-            return Err(view_identity_mismatch(
-                durable,
-                expected_identity,
-                "<unmarked consumer with different filters>".to_owned(),
-            ));
-        },
-        _ => {},
+    let expected = identity_label(expected_identity);
+    let expected_version = expected_identity.version().to_string();
+    let actual_id = existing.metadata.get(VIEW_PROJECTOR_ID_METADATA_KEY);
+    let actual_version = existing.metadata.get(VIEW_PROJECTOR_VERSION_METADATA_KEY);
+    if actual_id.map(String::as_str) != Some(expected_identity.id())
+        || actual_version.map(String::as_str) != Some(expected_version.as_str())
+    {
+        let actual = match (actual_id, actual_version) {
+            (Some(id), Some(version)) => format!("{id}@{version}"),
+            _ => "<missing stable projector identity>".to_owned(),
+        };
+        return Err(view_identity_mismatch(durable, &expected, actual));
+    }
+    if normalized_base_filters(existing) != normalized_filters(expected_config) {
+        return Err(view_identity_mismatch(
+            durable,
+            &expected,
+            format!("{expected} with different filters"),
+        ));
     }
     Ok(())
+}
+
+fn identity_label(identity: &ViewProjectorIdentity) -> String {
+    format!("{}@{}", identity.id(), identity.version())
 }
 
 fn normalized_filters(config: &ConsumerConfig) -> Vec<&str> {
@@ -484,8 +495,10 @@ mod tests {
 
     use super::{
         effective_ack_wait, validate_view_consumer, view_consumer_config, NatsStoreOptions,
-        NatsStreamReplicas, DEFAULT_ACK_WAIT, VIEW_PROJECTOR_METADATA_KEY,
+        NatsStreamReplicas, DEFAULT_ACK_WAIT, VIEW_PROJECTOR_ID_METADATA_KEY,
+        VIEW_PROJECTOR_VERSION_METADATA_KEY,
     };
+    use crate::event::event_model::ViewProjectorIdentity;
 
     #[test]
     fn default_options_preserve_one_replica() {
@@ -519,7 +532,7 @@ mod tests {
             },
             "view-name".to_owned(),
             vec!["events.a.*".to_owned(), "events.b.*".to_owned()],
-            "tests::Projector",
+            &ViewProjectorIdentity::new("orders-summary", 1),
         );
 
         assert_eq!(config.durable_name.as_deref(), Some("view-name"));
@@ -530,8 +543,12 @@ mod tests {
         assert_eq!(config.max_ack_pending, 1);
         assert_eq!(config.max_deliver, -1);
         assert_eq!(
-            config.metadata.get(VIEW_PROJECTOR_METADATA_KEY),
-            Some(&"tests::Projector".to_owned())
+            config.metadata.get(VIEW_PROJECTOR_ID_METADATA_KEY),
+            Some(&"orders-summary".to_owned())
+        );
+        assert_eq!(
+            config.metadata.get(VIEW_PROJECTOR_VERSION_METADATA_KEY),
+            Some(&"1".to_owned())
         );
     }
 
@@ -541,7 +558,7 @@ mod tests {
             ConsumerConfig::default(),
             "view-name".to_owned(),
             vec!["events.a.*".to_owned()],
-            "tests::Projector",
+            &ViewProjectorIdentity::new("orders-summary", 1),
         );
 
         assert_eq!(config.ack_wait, DEFAULT_ACK_WAIT);
@@ -563,51 +580,60 @@ mod tests {
     }
 
     #[test]
-    fn view_identity_validation_rejects_marked_conflicts_and_unsafe_legacy_filters() {
+    fn view_identity_validation_rejects_id_version_metadata_and_filter_conflicts() {
+        let identity = ViewProjectorIdentity::new("orders-summary", 2);
         let expected = view_consumer_config(
             ConsumerConfig::default(),
             "view-name".to_owned(),
             vec!["events.a.*".to_owned()],
-            "tests::ExpectedProjector",
+            &identity,
         );
-        let mut marked_conflict = async_nats::jetstream::consumer::Config {
+        let mut id_conflict = async_nats::jetstream::consumer::Config {
+            filter_subjects: expected.filter_subjects.clone(),
+            metadata: expected.metadata.clone(),
+            ..Default::default()
+        };
+        id_conflict.metadata.insert(
+            VIEW_PROJECTOR_ID_METADATA_KEY.to_owned(),
+            "other-summary".to_owned(),
+        );
+        assert!(validate_view_consumer("view-name", &id_conflict, &expected, &identity).is_err());
+
+        let mut version_conflict = async_nats::jetstream::consumer::Config {
+            filter_subjects: expected.filter_subjects.clone(),
+            metadata: expected.metadata.clone(),
+            ..Default::default()
+        };
+        version_conflict.metadata.insert(
+            VIEW_PROJECTOR_VERSION_METADATA_KEY.to_owned(),
+            "3".to_owned(),
+        );
+        assert!(
+            validate_view_consumer("view-name", &version_conflict, &expected, &identity).is_err()
+        );
+
+        let missing_metadata = async_nats::jetstream::consumer::Config {
             filter_subjects: expected.filter_subjects.clone(),
             ..Default::default()
         };
-        marked_conflict.metadata.insert(
-            VIEW_PROJECTOR_METADATA_KEY.to_owned(),
-            "tests::OtherProjector".to_owned(),
+        assert!(
+            validate_view_consumer("view-name", &missing_metadata, &expected, &identity).is_err()
         );
-        assert!(validate_view_consumer(
-            "view-name",
-            &marked_conflict,
-            &expected,
-            "tests::ExpectedProjector"
-        )
-        .is_err());
 
-        let unsafe_legacy = async_nats::jetstream::consumer::Config {
+        let different_filters = async_nats::jetstream::consumer::Config {
             filter_subjects: vec!["events.b.*".to_owned()],
+            metadata: expected.metadata.clone(),
             ..Default::default()
         };
-        assert!(validate_view_consumer(
-            "view-name",
-            &unsafe_legacy,
-            &expected,
-            "tests::ExpectedProjector"
-        )
-        .is_err());
+        assert!(
+            validate_view_consumer("view-name", &different_filters, &expected, &identity).is_err()
+        );
 
-        let compatible_legacy = async_nats::jetstream::consumer::Config {
+        let matching = async_nats::jetstream::consumer::Config {
             filter_subjects: expected.filter_subjects.clone(),
+            metadata: expected.metadata.clone(),
             ..Default::default()
         };
-        assert!(validate_view_consumer(
-            "view-name",
-            &compatible_legacy,
-            &expected,
-            "tests::ExpectedProjector"
-        )
-        .is_ok());
+        assert!(validate_view_consumer("view-name", &matching, &expected, &identity).is_ok());
     }
 }

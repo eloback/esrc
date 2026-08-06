@@ -234,7 +234,10 @@ pub mod event_model {
     use stream_cancel::Valved;
 
     use crate::{
-        event::event_model::{Automation, Translation, ViewAutomation},
+        event::event_model::{
+            Automation, Translation, ViewAutomation, ViewProjectorIdentity,
+            DEFAULT_VIEW_PROJECTOR_VERSION,
+        },
         project::{Context, Project},
         Envelope,
     };
@@ -385,11 +388,28 @@ pub mod event_model {
     }
 
     impl ViewAutomation for NatsStore {
-        #[instrument(skip_all, level = "debug")]
         async fn start_view_automation<P>(
             &self,
             projector: P,
             feature_name: &str,
+        ) -> error::Result<()>
+        where
+            P: Project + 'static,
+        {
+            self.start_view_automation_with_identity(
+                projector,
+                feature_name,
+                ViewProjectorIdentity::new(feature_name, DEFAULT_VIEW_PROJECTOR_VERSION),
+            )
+            .await
+        }
+
+        #[instrument(skip_all, level = "debug")]
+        async fn start_view_automation_with_identity<P>(
+            &self,
+            projector: P,
+            feature_name: &str,
+            identity: ViewProjectorIdentity,
         ) -> error::Result<()>
         where
             P: Project + 'static,
@@ -403,7 +423,7 @@ pub mod event_model {
                     .collect()
             };
             let consumer = self
-                .view_durable_consumer::<P>(feature_name.to_owned(), subjects)
+                .view_durable_consumer(feature_name.to_owned(), subjects, &identity)
                 .await?;
             let consumer_config = &consumer.cached_info().config;
             let ack_wait = effective_ack_wait(consumer_config.ack_wait, &consumer_config.backoff);
