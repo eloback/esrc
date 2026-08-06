@@ -7,11 +7,13 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context as _, Result};
 use async_nats::jetstream::consumer::pull::Config as ConsumerConfig;
+use async_nats::jetstream::consumer::{AckPolicy, DeliverPolicy};
 use esrc::event::event_model::{Translation, ViewAutomation, ViewProjectorIdentity};
 use esrc::nats::NatsStore;
 use esrc::project::{Context, Project};
 use esrc::version::{DeserializeVersion, SerializeVersion};
 use esrc::{Envelope, Event};
+use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
@@ -521,6 +523,108 @@ async fn different_rust_types_can_share_one_explicit_logical_identity() -> Resul
     anyhow::ensure!(
         marker_version.as_deref() == Some("1"),
         "durable was not marked with the projector version"
+    );
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires NATS_URL, NATS_USER, and NATS_PASSWORD for an isolated JetStream test cluster"]
+async fn matching_unmarked_view_durable_is_adopted_without_losing_progress() -> Result<()> {
+    let context = connect().await?;
+    let prefix = leaked_prefix("MILESTONE0020ADOPTION");
+    let durable = format!("view-adoption-{}", Uuid::now_v7().simple());
+    let store = NatsStore::try_new(context.clone(), prefix).await?;
+    let stream = context.get_stream(prefix).await?;
+    let legacy_consumer = stream
+        .create_consumer(ConsumerConfig {
+            durable_name: Some(durable.clone()),
+            deliver_policy: DeliverPolicy::New,
+            ack_policy: AckPolicy::Explicit,
+            ack_wait: Duration::from_secs(30),
+            max_deliver: -1,
+            max_ack_pending: 1,
+            filter_subjects: vec![format!("{prefix}.{}.*", ViewEvent::name())],
+            ..Default::default()
+        })
+        .await?;
+
+    let mut publisher = store.clone();
+    publisher
+        .publish_to_automation(Uuid::now_v7(), ViewEvent::Applied(1))
+        .await?;
+    let mut messages = legacy_consumer.messages().await?;
+    let message = tokio::time::timeout(OPERATION_TIMEOUT, messages.next())
+        .await
+        .context("timed out reading the legacy consumer")?
+        .context("legacy consumer ended before returning its event")??;
+    message
+        .ack()
+        .await
+        .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+    drop(messages);
+    wait_for_ack_floor(&context, prefix, &durable, 1).await?;
+
+    let state = Arc::new(ProbeState::default());
+    let runner = start_view(
+        store.clone(),
+        ProbeProjector {
+            state: state.clone(),
+            delay: Duration::ZERO,
+            fail_once_on: None,
+        },
+        durable.clone(),
+    );
+    wait_for_waiting_pulls(&context, prefix, &durable, 1).await?;
+
+    let mut adopted = context
+        .get_stream(prefix)
+        .await?
+        .get_consumer::<ConsumerConfig>(&durable)
+        .await
+        .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+    let adopted_info = adopted.info().await?.clone();
+    let marker_id = adopted_info
+        .config
+        .metadata
+        .get("esrc-view-projector-id")
+        .cloned();
+    let marker_version = adopted_info
+        .config
+        .metadata
+        .get("esrc-view-projector-version")
+        .cloned();
+    let ack_floor_after_adoption = adopted_info.ack_floor.consumer_sequence;
+
+    publisher
+        .publish_to_automation(Uuid::now_v7(), ViewEvent::Applied(2))
+        .await?;
+    wait_for_applied(&state, 1).await?;
+    wait_for_ack_floor(&context, prefix, &durable, 2).await?;
+    let applied = state.applied();
+
+    stop_views([runner]).await;
+    context.delete_stream(prefix).await?;
+    println!(
+        "unmarked_adopted={} version_matches={} ack_floor_before=1 ack_floor_after_adoption={ack_floor_after_adoption} post_adoption_effects={} cleanup=PASS",
+        marker_id.as_deref() == Some(durable.as_str()),
+        marker_version.as_deref() == Some("1"),
+        applied.len()
+    );
+    anyhow::ensure!(
+        marker_id.as_deref() == Some(durable.as_str()),
+        "unmarked durable did not receive the stable projector ID"
+    );
+    anyhow::ensure!(
+        marker_version.as_deref() == Some("1"),
+        "unmarked durable did not receive projector version 1"
+    );
+    anyhow::ensure!(
+        ack_floor_after_adoption == 1,
+        "consumer progress changed while installing projector metadata"
+    );
+    anyhow::ensure!(
+        applied == [(2, 2)],
+        "post-adoption processing replayed or skipped an event: {applied:?}"
     );
     Ok(())
 }
