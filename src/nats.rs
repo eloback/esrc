@@ -349,6 +349,8 @@ impl NatsStore {
             identity,
         );
         let stream = self.reader_stream();
+        // Claim a missing durable atomically; strict creation also accepts an existing consumer
+        // only when its complete configuration already matches.
         let strict_error = match stream.create_consumer_strict(config.clone()).await {
             Ok(consumer) => {
                 validate_view_consumer(&name, &consumer.cached_info().config, &config, identity)?;
@@ -357,14 +359,19 @@ impl NatsStore {
             Err(error) => error,
         };
 
+        // A strict mismatch may be a legacy consumer eligible for in-place adoption. Preserve the
+        // original strict error when no consumer exists rather than masking the creation failure.
         let current = match stream.get_consumer::<ConsumerConfig>(&name).await {
             Ok(consumer) => consumer,
             Err(_) => return Err(strict_error.into()),
         };
         let current_config = &current.cached_info().config;
+        // Reject different filters or projector ownership before mutating durable state.
         validate_view_consumer_for_update(&name, current_config, &config, identity)?;
 
         let mut update_config = config.clone();
+        // Updating replaces the consumer configuration, so retain metadata not owned by this
+        // framework while allowing the expected projector identity above to take precedence.
         for (key, value) in &current_config.metadata {
             update_config
                 .metadata
@@ -372,6 +379,7 @@ impl NatsStore {
                 .or_insert_with(|| value.clone());
         }
         let consumer = stream.update_consumer(update_config).await?;
+        // Validate the server-returned state instead of assuming the requested update was applied.
         validate_view_consumer(&name, &consumer.cached_info().config, &config, identity)?;
 
         Ok(consumer)
