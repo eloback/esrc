@@ -1,7 +1,10 @@
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use async_nats::jetstream::consumer::pull::{Config as ConsumerConfig, OrderedConfig};
-use async_nats::jetstream::consumer::{Consumer, DeliverPolicy};
+use async_nats::jetstream::consumer::{
+    AckPolicy, Config as BaseConsumerConfig, Consumer, DeliverPolicy,
+};
 use async_nats::jetstream::stream::{
     Config as StreamConfig, DiscardPolicy, Source as StreamMirror, Stream as JetStream,
 };
@@ -36,6 +39,9 @@ mod header;
 mod subject;
 
 use subject::NatsSubject;
+
+const DEFAULT_ACK_WAIT: Duration = Duration::from_secs(30);
+const VIEW_PROJECTOR_METADATA_KEY: &str = "esrc-view-projector";
 
 /// Supported replication policies for a NATS event stream.
 ///
@@ -95,6 +101,32 @@ pub struct NatsStreamReplicaMismatch {
     stream: String,
     expected: usize,
     actual: usize,
+}
+
+/// A durable view consumer is already assigned to another projector type.
+#[derive(Debug, thiserror::Error)]
+#[error("NATS view consumer `{durable}` is assigned to projector `{actual}`, not `{expected}`")]
+pub struct NatsViewConsumerIdentityMismatch {
+    durable: String,
+    expected: String,
+    actual: String,
+}
+
+impl NatsViewConsumerIdentityMismatch {
+    /// Return the durable consumer name that had the conflicting assignment.
+    pub fn durable(&self) -> &str {
+        &self.durable
+    }
+
+    /// Return the projector identity required by this application instance.
+    pub fn expected(&self) -> &str {
+        &self.expected
+    }
+
+    /// Return the projector identity stored on the durable consumer.
+    pub fn actual(&self) -> &str {
+        &self.actual
+    }
 }
 
 impl NatsStreamReplicaMismatch {
@@ -296,13 +328,130 @@ impl NatsStore {
         name: String,
         subjects: Vec<String>,
     ) -> error::Result<Consumer<ConsumerConfig>> {
-        let mut config = self.durable_consumer_options.clone();
-
-        config.filter_subjects = subjects;
-        config.durable_name = Some(name);
+        let config = durable_consumer_config(self.durable_consumer_options.clone(), name, subjects);
 
         Ok(self.reader_stream().create_consumer(config).await?)
     }
+
+    #[instrument(skip_all, level = "debug")]
+    async fn view_durable_consumer<P>(
+        &self,
+        name: String,
+        subjects: Vec<String>,
+    ) -> error::Result<Consumer<ConsumerConfig>> {
+        let identity = std::any::type_name::<P>();
+        let config = view_consumer_config(
+            self.durable_consumer_options.clone(),
+            name.clone(),
+            subjects,
+            identity,
+        );
+        let stream = self.reader_stream();
+        let existing = stream.get_or_create_consumer(&name, config.clone()).await?;
+        validate_view_consumer(&name, &existing.cached_info().config, &config, identity)?;
+
+        // Preserve the historical update behavior after validating identity. This also adopts a
+        // same-filter legacy durable by adding the marker without deleting its acknowledgement
+        // state.
+        let consumer = stream.create_consumer(config.clone()).await?;
+        validate_view_consumer(&name, &consumer.cached_info().config, &config, identity)?;
+
+        Ok(consumer)
+    }
+}
+
+fn durable_consumer_config(
+    mut config: ConsumerConfig,
+    name: String,
+    subjects: Vec<String>,
+) -> ConsumerConfig {
+    config.filter_subjects = subjects;
+    config.durable_name = Some(name);
+    config
+}
+
+fn view_consumer_config(
+    config: ConsumerConfig,
+    name: String,
+    subjects: Vec<String>,
+    projector_identity: &str,
+) -> ConsumerConfig {
+    let mut config = durable_consumer_config(config, name, subjects);
+    config.ack_policy = AckPolicy::Explicit;
+    config.max_ack_pending = 1;
+    config.max_deliver = -1;
+    if config.ack_wait.is_zero() {
+        config.ack_wait = DEFAULT_ACK_WAIT;
+    }
+    config.metadata.insert(
+        VIEW_PROJECTOR_METADATA_KEY.to_owned(),
+        projector_identity.to_owned(),
+    );
+    config
+}
+
+fn validate_view_consumer(
+    durable: &str,
+    existing: &BaseConsumerConfig,
+    expected_config: &ConsumerConfig,
+    expected_identity: &str,
+) -> error::Result<()> {
+    match existing.metadata.get(VIEW_PROJECTOR_METADATA_KEY) {
+        Some(actual) if actual != expected_identity => {
+            return Err(view_identity_mismatch(
+                durable,
+                expected_identity,
+                actual.clone(),
+            ));
+        },
+        None if normalized_base_filters(existing) != normalized_filters(expected_config) => {
+            return Err(view_identity_mismatch(
+                durable,
+                expected_identity,
+                "<unmarked consumer with different filters>".to_owned(),
+            ));
+        },
+        _ => {},
+    }
+    Ok(())
+}
+
+fn normalized_filters(config: &ConsumerConfig) -> Vec<&str> {
+    let mut filters = config
+        .filter_subjects
+        .iter()
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+    if !config.filter_subject.is_empty() {
+        filters.push(&config.filter_subject);
+    }
+    filters.sort_unstable();
+    filters
+}
+
+fn normalized_base_filters(config: &BaseConsumerConfig) -> Vec<&str> {
+    let mut filters = config
+        .filter_subjects
+        .iter()
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+    if !config.filter_subject.is_empty() {
+        filters.push(&config.filter_subject);
+    }
+    filters.sort_unstable();
+    filters
+}
+
+fn view_identity_mismatch(durable: &str, expected: &str, actual: String) -> error::Error {
+    error::Error::Internal(Box::new(NatsViewConsumerIdentityMismatch {
+        durable: durable.to_owned(),
+        expected: expected.to_owned(),
+        actual,
+    }))
+}
+
+fn effective_ack_wait(ack_wait: Duration, backoff: &[Duration]) -> Duration {
+    backoff.first().copied().unwrap_or(ack_wait)
 }
 
 async fn get_or_create_validated_stream(
@@ -328,7 +477,15 @@ async fn get_or_create_validated_stream(
 
 #[cfg(test)]
 mod tests {
-    use super::{NatsStoreOptions, NatsStreamReplicas};
+    use std::time::Duration;
+
+    use async_nats::jetstream::consumer::pull::Config as ConsumerConfig;
+    use async_nats::jetstream::consumer::{AckPolicy, DeliverPolicy};
+
+    use super::{
+        effective_ack_wait, validate_view_consumer, view_consumer_config, NatsStoreOptions,
+        NatsStreamReplicas, DEFAULT_ACK_WAIT, VIEW_PROJECTOR_METADATA_KEY,
+    };
 
     #[test]
     fn default_options_preserve_one_replica() {
@@ -346,5 +503,111 @@ mod tests {
             NatsStreamReplicas::Three
         );
         assert_eq!(NatsStreamReplicas::Three.count(), 3);
+    }
+
+    #[test]
+    fn view_consumers_are_single_flight_and_retry_without_skipping() {
+        let ack_wait = Duration::from_secs(7);
+        let config = view_consumer_config(
+            ConsumerConfig {
+                ack_policy: AckPolicy::None,
+                ack_wait,
+                max_ack_pending: 99,
+                max_deliver: 3,
+                deliver_policy: DeliverPolicy::New,
+                ..Default::default()
+            },
+            "view-name".to_owned(),
+            vec!["events.a.*".to_owned(), "events.b.*".to_owned()],
+            "tests::Projector",
+        );
+
+        assert_eq!(config.durable_name.as_deref(), Some("view-name"));
+        assert_eq!(config.filter_subjects, ["events.a.*", "events.b.*"]);
+        assert_eq!(config.deliver_policy, DeliverPolicy::New);
+        assert_eq!(config.ack_policy, AckPolicy::Explicit);
+        assert_eq!(config.ack_wait, ack_wait);
+        assert_eq!(config.max_ack_pending, 1);
+        assert_eq!(config.max_deliver, -1);
+        assert_eq!(
+            config.metadata.get(VIEW_PROJECTOR_METADATA_KEY),
+            Some(&"tests::Projector".to_owned())
+        );
+    }
+
+    #[test]
+    fn view_consumers_make_the_server_ack_wait_default_explicit() {
+        let config = view_consumer_config(
+            ConsumerConfig::default(),
+            "view-name".to_owned(),
+            vec!["events.a.*".to_owned()],
+            "tests::Projector",
+        );
+
+        assert_eq!(config.ack_wait, DEFAULT_ACK_WAIT);
+    }
+
+    #[test]
+    fn view_progress_uses_the_first_backoff_as_the_effective_ack_wait() {
+        let first_backoff = Duration::from_millis(250);
+        let config = ConsumerConfig {
+            ack_wait: Duration::from_secs(30),
+            backoff: vec![first_backoff, Duration::from_secs(1)],
+            ..Default::default()
+        };
+
+        assert_eq!(
+            effective_ack_wait(config.ack_wait, &config.backoff),
+            first_backoff
+        );
+    }
+
+    #[test]
+    fn view_identity_validation_rejects_marked_conflicts_and_unsafe_legacy_filters() {
+        let expected = view_consumer_config(
+            ConsumerConfig::default(),
+            "view-name".to_owned(),
+            vec!["events.a.*".to_owned()],
+            "tests::ExpectedProjector",
+        );
+        let mut marked_conflict = async_nats::jetstream::consumer::Config {
+            filter_subjects: expected.filter_subjects.clone(),
+            ..Default::default()
+        };
+        marked_conflict.metadata.insert(
+            VIEW_PROJECTOR_METADATA_KEY.to_owned(),
+            "tests::OtherProjector".to_owned(),
+        );
+        assert!(validate_view_consumer(
+            "view-name",
+            &marked_conflict,
+            &expected,
+            "tests::ExpectedProjector"
+        )
+        .is_err());
+
+        let unsafe_legacy = async_nats::jetstream::consumer::Config {
+            filter_subjects: vec!["events.b.*".to_owned()],
+            ..Default::default()
+        };
+        assert!(validate_view_consumer(
+            "view-name",
+            &unsafe_legacy,
+            &expected,
+            "tests::ExpectedProjector"
+        )
+        .is_err());
+
+        let compatible_legacy = async_nats::jetstream::consumer::Config {
+            filter_subjects: expected.filter_subjects.clone(),
+            ..Default::default()
+        };
+        assert!(validate_view_consumer(
+            "view-name",
+            &compatible_legacy,
+            &expected,
+            "tests::ExpectedProjector"
+        )
+        .is_ok());
     }
 }

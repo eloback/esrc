@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use super::header::{self, EVENT_TYPE, METADATA_PREFIX, VERSION_KEY};
 use super::subject::NatsSubject;
-use super::{NatsEnvelope, NatsStore};
+use super::{effective_ack_wait, NatsEnvelope, NatsStore};
 use crate::error::{self, Error};
 use crate::event::{Event, EventGroup, Publish, Replay, ReplayOne, Sequence, Subscribe, Truncate};
 use crate::version::SerializeVersion;
@@ -260,6 +260,41 @@ pub mod event_model {
             envelope.ack().await?;
             Ok(())
         }
+
+        /// Process one live-view delivery while renewing its acknowledgement lease.
+        async fn process_view_message<P: Project>(
+            projector: &mut P,
+            message: Result<NatsEnvelope, Error>,
+            ack_wait: std::time::Duration,
+        ) -> error::Result<()> {
+            let envelope = message?;
+            envelope.attach_span_context();
+            tracing::Span::current().record("aggregate", envelope.name());
+            {
+                let context = Context::try_with_envelope(&envelope)?;
+                let projection = projector.project(context);
+                tokio::pin!(projection);
+
+                let progress_interval =
+                    std::cmp::max(ack_wait / 3, std::time::Duration::from_millis(1));
+                let mut progress = tokio::time::interval(progress_interval);
+                progress.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+                progress.tick().await;
+
+                loop {
+                    tokio::select! {
+                        result = &mut projection => {
+                            result.map_err(|error| Error::External(error.into()))?;
+                            break;
+                        }
+                        _ = progress.tick() => envelope.in_progress().await?,
+                    }
+                }
+            }
+
+            envelope.ack().await?;
+            Ok(())
+        }
     }
 
     impl Automation for NatsStore {
@@ -359,10 +394,23 @@ pub mod event_model {
         where
             P: Project + 'static,
         {
-            let stream = pin!(
-                self.durable_subscribe::<P::EventGroup>(feature_name)
-                    .await?
-            );
+            let subjects = {
+                let mut names = P::EventGroup::names().collect::<Vec<_>>();
+                names.sort();
+                names
+                    .into_iter()
+                    .map(|name| NatsSubject::Event(name.into()).into_string(self.prefix))
+                    .collect()
+            };
+            let consumer = self
+                .view_durable_consumer::<P>(feature_name.to_owned(), subjects)
+                .await?;
+            let consumer_config = &consumer.cached_info().config;
+            let ack_wait = effective_ack_wait(consumer_config.ack_wait, &consumer_config.backoff);
+            let stream = pin!(consumer
+                .messages()
+                .await?
+                .map(|message| NatsEnvelope::try_from_message(self.prefix, message?)));
             let (exit, mut incoming) = Valved::new(stream);
             self.graceful_shutdown
                 .exit_tx
@@ -371,10 +419,11 @@ pub mod event_model {
                 .await
                 .expect("should be able to send graceful trigger");
 
+            let mut projector = projector;
             while let Some(message) = incoming.next().await {
-                let projector = projector.clone();
-
-                if let Err(e) = NatsStore::process_message(&projector, message).await {
+                if let Err(e) =
+                    NatsStore::process_view_message(&mut projector, message, ack_wait).await
+                {
                     tracing::error!("Error processing message: {:?}", e);
                 }
             }
