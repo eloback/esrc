@@ -7,8 +7,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context as _, Result};
 use async_nats::jetstream::consumer::pull::Config as ConsumerConfig;
-use async_nats::jetstream::consumer::{AckPolicy, DeliverPolicy};
-use esrc::event::event_model::{Translation, ViewAutomation};
+use esrc::event::event_model::{Translation, ViewAutomation, ViewProjectorIdentity};
 use esrc::nats::NatsStore;
 use esrc::project::{Context, Project};
 use esrc::version::{DeserializeVersion, SerializeVersion};
@@ -410,7 +409,7 @@ async fn one_view_runner_retains_its_mutable_projector_state() -> Result<()> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires NATS_URL, NATS_USER, and NATS_PASSWORD for an isolated JetStream test cluster"]
-async fn different_projector_types_cannot_share_one_view_durable() -> Result<()> {
+async fn different_projector_identity_or_version_cannot_share_one_view_durable() -> Result<()> {
     let context = connect().await?;
     let prefix = leaked_prefix("MILESTONE0016IDENTITY");
     let durable = format!("view-identity-{}", Uuid::now_v7().simple());
@@ -425,48 +424,54 @@ async fn different_projector_types_cannot_share_one_view_durable() -> Result<()>
     let first = start_view(first_store, first_projector, durable.clone());
     wait_for_consumer(&context, prefix, &durable).await?;
 
-    let result = tokio::time::timeout(
+    let id_mismatch = tokio::time::timeout(
         Duration::from_millis(500),
-        second_store.start_view_automation(ConflictingProjector { state }, &durable),
+        second_store.start_view_automation_with_identity(
+            ConflictingProjector {
+                state: state.clone(),
+            },
+            &durable,
+            ViewProjectorIdentity::new("another-logical-view", 1),
+        ),
+    )
+    .await;
+    let version_mismatch = tokio::time::timeout(
+        Duration::from_millis(500),
+        second_store.start_view_automation_with_identity(
+            ConflictingProjector { state },
+            &durable,
+            ViewProjectorIdentity::new(durable.clone(), 2),
+        ),
     )
     .await;
     first.abort();
     let _ = first.await;
     context.delete_stream(prefix).await?;
     println!(
-        "same_durable=true different_projector_types=true rejected_before_binding={} cleanup=PASS",
-        matches!(result, Ok(Err(_)))
+        "same_durable=true id_mismatch_rejected={} version_mismatch_rejected={} cleanup=PASS",
+        matches!(id_mismatch, Ok(Err(_))),
+        matches!(version_mismatch, Ok(Err(_)))
     );
     anyhow::ensure!(
-        matches!(result, Ok(Err(_))),
-        "conflicting projector did not fail closed"
+        matches!(id_mismatch, Ok(Err(_))),
+        "conflicting projector ID did not fail closed"
+    );
+    anyhow::ensure!(
+        matches!(version_mismatch, Ok(Err(_))),
+        "conflicting projector version did not fail closed"
     );
     Ok(())
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires NATS_URL, NATS_USER, and NATS_PASSWORD for an isolated JetStream test cluster"]
-async fn matching_legacy_view_durable_is_marked_without_losing_progress() -> Result<()> {
+async fn different_rust_types_can_share_one_explicit_logical_identity() -> Result<()> {
     let context = connect().await?;
     let prefix = leaked_prefix("MILESTONE0016LEGACY");
     let durable = format!("view-legacy-{}", Uuid::now_v7().simple());
     let store = NatsStore::try_new(context.clone(), prefix).await?;
-    let stream = context.get_stream(prefix).await?;
-    stream
-        .create_consumer(ConsumerConfig {
-            durable_name: Some(durable.clone()),
-            deliver_policy: DeliverPolicy::New,
-            ack_policy: AckPolicy::Explicit,
-            ack_wait: Duration::from_secs(30),
-            max_deliver: -1,
-            max_ack_pending: 1,
-            filter_subjects: vec![format!("{prefix}.{}.*", ViewEvent::name())],
-            ..Default::default()
-        })
-        .await?;
-
     let state = Arc::new(ProbeState::default());
-    let runner = start_view(
+    let first = start_view(
         store.clone(),
         ProbeProjector {
             state: state.clone(),
@@ -475,13 +480,19 @@ async fn matching_legacy_view_durable_is_marked_without_losing_progress() -> Res
         },
         durable.clone(),
     );
-    wait_for_waiting_pulls(&context, prefix, &durable, 1).await?;
-    let mut publisher = store;
-    publisher
-        .publish_to_automation(Uuid::now_v7(), ViewEvent::Applied(1))
-        .await?;
-    wait_for_applied(&state, 1).await?;
-    wait_for_ack_floor(&context, prefix, &durable, 1).await?;
+    wait_for_consumer(&context, prefix, &durable).await?;
+    let second_store = store.clone();
+    let second_durable = durable.clone();
+    let second = tokio::spawn(async move {
+        second_store
+            .start_view_automation_with_identity(
+                ConflictingProjector { state },
+                &second_durable,
+                ViewProjectorIdentity::new(second_durable.clone(), 1),
+            )
+            .await
+    });
+    wait_for_waiting_pulls(&context, prefix, &durable, 2).await?;
 
     let mut consumer = context
         .get_stream(prefix)
@@ -490,21 +501,27 @@ async fn matching_legacy_view_durable_is_marked_without_losing_progress() -> Res
         .await
         .map_err(|error| anyhow::anyhow!(error.to_string()))?;
     let info = consumer.info().await?;
-    let marker = info.config.metadata.get("esrc-view-projector").cloned();
-    let ack_floor = info.ack_floor.consumer_sequence;
-    stop_views([runner]).await;
+    let marker_id = info.config.metadata.get("esrc-view-projector-id").cloned();
+    let marker_version = info
+        .config
+        .metadata
+        .get("esrc-view-projector-version")
+        .cloned();
+    stop_views([first, second]).await;
     context.delete_stream(prefix).await?;
     println!(
-        "legacy_marker_present={} marker_matches={} ack_floor={ack_floor} effects={} cleanup=PASS",
-        marker.is_some(),
-        marker.as_deref() == Some(std::any::type_name::<ProbeProjector>()),
-        state.applied().len()
+        "different_rust_types=true stable_id_matches={} version_matches={} waiting_pulls=2 cleanup=PASS",
+        marker_id.as_deref() == Some(durable.as_str()),
+        marker_version.as_deref() == Some("1")
     );
     anyhow::ensure!(
-        marker.as_deref() == Some(std::any::type_name::<ProbeProjector>()),
-        "legacy durable was not marked with the intended projector identity"
+        marker_id.as_deref() == Some(durable.as_str()),
+        "durable was not marked with the stable logical projector ID"
     );
-    anyhow::ensure!(ack_floor == 1, "legacy durable progress was not retained");
+    anyhow::ensure!(
+        marker_version.as_deref() == Some("1"),
+        "durable was not marked with the projector version"
+    );
     Ok(())
 }
 
