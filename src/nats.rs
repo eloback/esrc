@@ -349,11 +349,29 @@ impl NatsStore {
             identity,
         );
         let stream = self.reader_stream();
-        let existing = stream.get_or_create_consumer(&name, config.clone()).await?;
-        validate_view_consumer(&name, &existing.cached_info().config, &config, identity)?;
+        let strict_error = match stream.create_consumer_strict(config.clone()).await {
+            Ok(consumer) => {
+                validate_view_consumer(&name, &consumer.cached_info().config, &config, identity)?;
+                return Ok(consumer);
+            },
+            Err(error) => error,
+        };
 
-        // Preserve the historical update behavior after validating the stable logical identity.
-        let consumer = stream.create_consumer(config.clone()).await?;
+        let current = match stream.get_consumer::<ConsumerConfig>(&name).await {
+            Ok(consumer) => consumer,
+            Err(_) => return Err(strict_error.into()),
+        };
+        let current_config = &current.cached_info().config;
+        validate_view_consumer_for_update(&name, current_config, &config, identity)?;
+
+        let mut update_config = config.clone();
+        for (key, value) in &current_config.metadata {
+            update_config
+                .metadata
+                .entry(key.clone())
+                .or_insert_with(|| value.clone());
+        }
+        let consumer = stream.update_consumer(update_config).await?;
         validate_view_consumer(&name, &consumer.cached_info().config, &config, identity)?;
 
         Ok(consumer)
@@ -407,12 +425,11 @@ fn validate_view_consumer(
     let filters_match = normalized_base_filters(existing) == normalized_filters(expected_config);
 
     match (actual_id, actual_version) {
-        (None, None) if filters_match => return Ok(()),
         (None, None) => {
             return Err(view_identity_mismatch(
                 durable,
                 &expected,
-                "<unmarked consumer with different filters>".to_owned(),
+                "<unmarked consumer; explicit migration required>".to_owned(),
             ));
         },
         (Some(id), Some(version))
@@ -446,6 +463,27 @@ fn validate_view_consumer(
         &expected,
         "<partial stable projector identity>".to_owned(),
     ))
+}
+
+fn validate_view_consumer_for_update(
+    durable: &str,
+    existing: &BaseConsumerConfig,
+    expected_config: &ConsumerConfig,
+    expected_identity: &ViewProjectorIdentity,
+) -> error::Result<()> {
+    let filters_match = normalized_base_filters(existing) == normalized_filters(expected_config);
+    let is_unmarked = !existing
+        .metadata
+        .contains_key(VIEW_PROJECTOR_ID_METADATA_KEY)
+        && !existing
+            .metadata
+            .contains_key(VIEW_PROJECTOR_VERSION_METADATA_KEY);
+
+    if is_unmarked && filters_match {
+        Ok(())
+    } else {
+        validate_view_consumer(durable, existing, expected_config, expected_identity)
+    }
 }
 
 fn identity_label(identity: &ViewProjectorIdentity) -> String {
@@ -519,9 +557,9 @@ mod tests {
     use async_nats::jetstream::consumer::{AckPolicy, DeliverPolicy};
 
     use super::{
-        effective_ack_wait, validate_view_consumer, view_consumer_config, NatsStoreOptions,
-        NatsStreamReplicas, DEFAULT_ACK_WAIT, VIEW_PROJECTOR_ID_METADATA_KEY,
-        VIEW_PROJECTOR_VERSION_METADATA_KEY,
+        effective_ack_wait, validate_view_consumer, validate_view_consumer_for_update,
+        view_consumer_config, NatsStoreOptions, NatsStreamReplicas, DEFAULT_ACK_WAIT,
+        VIEW_PROJECTOR_ID_METADATA_KEY, VIEW_PROJECTOR_VERSION_METADATA_KEY,
     };
     use crate::event::event_model::ViewProjectorIdentity;
 
@@ -605,7 +643,7 @@ mod tests {
     }
 
     #[test]
-    fn view_identity_validation_adopts_only_fully_unmarked_matching_consumers() {
+    fn view_identity_validation_rejects_unmarked_and_conflicting_consumers() {
         let identity = ViewProjectorIdentity::new("orders-summary", 2);
         let expected = view_consumer_config(
             ConsumerConfig::default(),
@@ -642,8 +680,15 @@ mod tests {
             ..Default::default()
         };
         assert!(
-            validate_view_consumer("view-name", &unmarked_matching, &expected, &identity).is_ok()
+            validate_view_consumer("view-name", &unmarked_matching, &expected, &identity).is_err()
         );
+        assert!(validate_view_consumer_for_update(
+            "view-name",
+            &unmarked_matching,
+            &expected,
+            &identity
+        )
+        .is_ok());
 
         let mut partial_metadata = unmarked_matching.clone();
         partial_metadata.metadata.insert(
@@ -669,6 +714,13 @@ mod tests {
             ..Default::default()
         };
         assert!(validate_view_consumer(
+            "view-name",
+            &unmarked_different_filters,
+            &expected,
+            &identity
+        )
+        .is_err());
+        assert!(validate_view_consumer_for_update(
             "view-name",
             &unmarked_different_filters,
             &expected,

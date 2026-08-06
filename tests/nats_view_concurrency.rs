@@ -1,5 +1,6 @@
 #![cfg(feature = "nats")]
 
+use std::collections::HashMap;
 use std::env;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -15,7 +16,7 @@ use esrc::version::{DeserializeVersion, SerializeVersion};
 use esrc::{Envelope, Event};
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
-use tokio::sync::Notify;
+use tokio::sync::{Barrier, Notify};
 use tokio::task::JoinHandle;
 use uuid::Uuid;
 
@@ -467,6 +468,101 @@ async fn different_projector_identity_or_version_cannot_share_one_view_durable()
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires NATS_URL, NATS_USER, and NATS_PASSWORD for an isolated JetStream test cluster"]
+async fn incompatible_projectors_atomically_claim_one_missing_view_durable() -> Result<()> {
+    let context = connect().await?;
+    let prefix = leaked_prefix("MILESTONE0021ATOMIC");
+    let durable = format!("view-atomic-{}", Uuid::now_v7().simple());
+    let first_store = NatsStore::try_new(context.clone(), prefix).await?;
+    let second_store = NatsStore::try_new(context.clone(), prefix).await?;
+    let state = Arc::new(ProbeState::default());
+    let barrier = Arc::new(Barrier::new(3));
+
+    let first_barrier = barrier.clone();
+    let first_durable = durable.clone();
+    let first_state = state.clone();
+    let mut first = tokio::spawn(async move {
+        first_barrier.wait().await;
+        first_store
+            .start_view_automation_with_identity(
+                ConflictingProjector { state: first_state },
+                &first_durable,
+                ViewProjectorIdentity::new("atomic-projector-a", 1),
+            )
+            .await
+    });
+
+    let second_barrier = barrier.clone();
+    let second_durable = durable.clone();
+    let mut second = tokio::spawn(async move {
+        second_barrier.wait().await;
+        second_store
+            .start_view_automation_with_identity(
+                ConflictingProjector { state },
+                &second_durable,
+                ViewProjectorIdentity::new("atomic-projector-b", 1),
+            )
+            .await
+    });
+
+    barrier.wait().await;
+    wait_for_consumer(&context, prefix, &durable).await?;
+    let first_result = tokio::time::timeout(Duration::from_millis(500), &mut first).await;
+    let second_result = tokio::time::timeout(Duration::from_millis(500), &mut second).await;
+    let first_rejected = matches!(&first_result, Ok(Ok(Err(_))));
+    let second_rejected = matches!(&second_result, Ok(Ok(Err(_))));
+    let first_active = first_result.is_err();
+    let second_active = second_result.is_err();
+
+    let mut consumer = context
+        .get_stream(prefix)
+        .await?
+        .get_consumer::<ConsumerConfig>(&durable)
+        .await
+        .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+    let info = consumer.info().await?;
+    let stored_id = info
+        .config
+        .metadata
+        .get("esrc-view-projector-id")
+        .map(String::as_str);
+    let expected_winner = if first_active {
+        "atomic-projector-a"
+    } else {
+        "atomic-projector-b"
+    };
+
+    if first_active {
+        first.abort();
+        let _ = first.await;
+    }
+    if second_active {
+        second.abort();
+        let _ = second.await;
+    }
+    context.delete_stream(prefix).await?;
+    println!(
+        "starters=2 incompatible_identities=2 active={} rejected={} stored_winner_matches={} cleanup=PASS",
+        usize::from(first_active) + usize::from(second_active),
+        usize::from(first_rejected) + usize::from(second_rejected),
+        stored_id == Some(expected_winner)
+    );
+    anyhow::ensure!(
+        first_active ^ second_active,
+        "expected exactly one active projector, got first_active={first_active} second_active={second_active}"
+    );
+    anyhow::ensure!(
+        first_rejected ^ second_rejected,
+        "expected exactly one rejected projector, got first_rejected={first_rejected} second_rejected={second_rejected}"
+    );
+    anyhow::ensure!(
+        stored_id == Some(expected_winner),
+        "stored identity {stored_id:?} did not match active projector {expected_winner}"
+    );
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires NATS_URL, NATS_USER, and NATS_PASSWORD for an isolated JetStream test cluster"]
 async fn different_rust_types_can_share_one_explicit_logical_identity() -> Result<()> {
     let context = connect().await?;
     let prefix = leaked_prefix("MILESTONE0016LEGACY");
@@ -531,7 +627,7 @@ async fn different_rust_types_can_share_one_explicit_logical_identity() -> Resul
 #[ignore = "requires NATS_URL, NATS_USER, and NATS_PASSWORD for an isolated JetStream test cluster"]
 async fn matching_unmarked_view_durable_is_adopted_without_losing_progress() -> Result<()> {
     let context = connect().await?;
-    let prefix = leaked_prefix("MILESTONE0020ADOPTION");
+    let prefix = leaked_prefix("MILESTONE0023UNMARKED");
     let durable = format!("view-adoption-{}", Uuid::now_v7().simple());
     let store = NatsStore::try_new(context.clone(), prefix).await?;
     let stream = context.get_stream(prefix).await?;
@@ -544,6 +640,10 @@ async fn matching_unmarked_view_durable_is_adopted_without_losing_progress() -> 
             max_deliver: -1,
             max_ack_pending: 1,
             filter_subjects: vec![format!("{prefix}.{}.*", ViewEvent::name())],
+            metadata: HashMap::from([(
+                "legacy-consumer-metadata".to_owned(),
+                "preserved".to_owned(),
+            )]),
             ..Default::default()
         })
         .await?;
@@ -593,7 +693,28 @@ async fn matching_unmarked_view_durable_is_adopted_without_losing_progress() -> 
         .metadata
         .get("esrc-view-projector-version")
         .cloned();
+    let legacy_metadata = adopted_info
+        .config
+        .metadata
+        .get("legacy-consumer-metadata")
+        .cloned();
     let ack_floor_after_adoption = adopted_info.ack_floor.consumer_sequence;
+    let claim_name = format!("ESRC_VIEW_CLAIM_{durable}");
+    let claim_absent = stream
+        .get_consumer::<ConsumerConfig>(&claim_name)
+        .await
+        .is_err();
+    let incompatible_rejection = tokio::time::timeout(
+        Duration::from_millis(500),
+        store.start_view_automation_with_identity(
+            ConflictingProjector {
+                state: state.clone(),
+            },
+            &durable,
+            ViewProjectorIdentity::new("incompatible-after-migration", 1),
+        ),
+    )
+    .await;
 
     publisher
         .publish_to_automation(Uuid::now_v7(), ViewEvent::Applied(2))
@@ -605,10 +726,13 @@ async fn matching_unmarked_view_durable_is_adopted_without_losing_progress() -> 
     stop_views([runner]).await;
     context.delete_stream(prefix).await?;
     println!(
-        "unmarked_adopted={} version_matches={} ack_floor_before=1 ack_floor_after_adoption={ack_floor_after_adoption} post_adoption_effects={} cleanup=PASS",
+        "single_writer_start=true unmarked_adopted={} version_matches={} legacy_metadata_preserved={} ack_floor_before_adoption=1 ack_floor_after_adoption={ack_floor_after_adoption} incompatible_after_adoption_rejected={} post_adoption_effects={} claim_absent={} cleanup=PASS",
         marker_id.as_deref() == Some(durable.as_str()),
         marker_version.as_deref() == Some("1"),
-        applied.len()
+        legacy_metadata.as_deref() == Some("preserved"),
+        matches!(&incompatible_rejection, Ok(Err(_))),
+        applied.len(),
+        claim_absent
     );
     anyhow::ensure!(
         marker_id.as_deref() == Some(durable.as_str()),
@@ -619,6 +743,14 @@ async fn matching_unmarked_view_durable_is_adopted_without_losing_progress() -> 
         "unmarked durable did not receive projector version 1"
     );
     anyhow::ensure!(
+        legacy_metadata.as_deref() == Some("preserved"),
+        "adoption discarded existing consumer metadata"
+    );
+    anyhow::ensure!(
+        matches!(&incompatible_rejection, Ok(Err(_))),
+        "incompatible identity bound after migration"
+    );
+    anyhow::ensure!(
         ack_floor_after_adoption == 1,
         "consumer progress changed while installing projector metadata"
     );
@@ -626,6 +758,7 @@ async fn matching_unmarked_view_durable_is_adopted_without_losing_progress() -> 
         applied == [(2, 2)],
         "post-adoption processing replayed or skipped an event: {applied:?}"
     );
+    anyhow::ensure!(claim_absent, "migration claim consumer leaked");
     Ok(())
 }
 

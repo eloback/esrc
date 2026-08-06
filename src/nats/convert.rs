@@ -3,7 +3,9 @@ use async_nats::jetstream::consumer::StreamError;
 use async_nats::jetstream::context::{
     CreateStreamError, GetStreamError, PublishError, PublishErrorKind,
 };
-use async_nats::jetstream::stream::{ConsumerError, PurgeError};
+use async_nats::jetstream::stream::{
+    ConsumerCreateStrictError, ConsumerError, ConsumerUpdateError, PurgeError,
+};
 
 use crate::error::Error;
 
@@ -27,7 +29,9 @@ macro_rules! impl_from {
 }
 
 impl_from!(CreateStreamError, Internal);
+impl_from!(ConsumerCreateStrictError, Internal);
 impl_from!(ConsumerError, Internal);
+impl_from!(ConsumerUpdateError, Internal);
 impl_from!(GetStreamError, Internal);
 impl_from!(MessagesError, Internal);
 impl_from!(OrderedError, Internal);

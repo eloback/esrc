@@ -89,10 +89,13 @@ pub trait ViewAutomation: Automation {
         &self,
         projector: P,
         feature_name: &str,
-        identity: ViewProjectorIdentity,
+        _identity: ViewProjectorIdentity,
     ) -> error::Result<()>
     where
-        P: Project + 'static;
+        P: Project + 'static,
+    {
+        self.start_view_automation(projector, feature_name)
+    }
 }
 
 /// Special type of Automation that is executed by external events.
@@ -102,4 +105,95 @@ pub trait Translation: Automation {
     async fn publish_to_automation<E>(&mut self, id: uuid::Uuid, event: E) -> error::Result<()>
     where
         E: super::Event + crate::version::SerializeVersion;
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::SystemTime;
+
+    use futures::{stream, Stream};
+    use uuid::Uuid;
+
+    use super::{Automation, EventGroup, ViewAutomation};
+    use crate::envelope::Envelope;
+    use crate::event::{Event, Sequence};
+    use crate::project::Project;
+    use crate::version::DeserializeVersion;
+
+    struct CompatibilityEnvelope;
+
+    impl Envelope for CompatibilityEnvelope {
+        fn id(&self) -> Uuid {
+            Uuid::nil()
+        }
+
+        fn sequence(&self) -> Sequence {
+            Sequence::default()
+        }
+
+        fn timestamp(&self) -> SystemTime {
+            SystemTime::UNIX_EPOCH
+        }
+
+        fn name(&self) -> &str {
+            "compatibility"
+        }
+
+        fn get_metadata(&self, _key: &str) -> Option<&str> {
+            None
+        }
+
+        fn deserialize<E>(&self) -> crate::error::Result<E>
+        where
+            E: DeserializeVersion + Event,
+        {
+            Err(crate::error::Error::Invalid)
+        }
+    }
+
+    struct HistoricalViewAutomation;
+
+    impl Automation for HistoricalViewAutomation {
+        type Envelope = CompatibilityEnvelope;
+
+        async fn durable_subscribe<G: EventGroup>(
+            &self,
+            _unique_name: &str,
+        ) -> crate::error::Result<impl Stream<Item = crate::error::Result<Self::Envelope>> + Send>
+        {
+            Ok(stream::empty())
+        }
+
+        async fn start_automation<P>(
+            &self,
+            _projector: P,
+            _feature_name: &str,
+            _max_concurrency: impl Into<Option<usize>> + Send,
+        ) -> crate::error::Result<()>
+        where
+            P: Project + 'static,
+        {
+            Ok(())
+        }
+    }
+
+    impl ViewAutomation for HistoricalViewAutomation {
+        async fn start_view_automation<P>(
+            &self,
+            _projector: P,
+            _feature_name: &str,
+        ) -> crate::error::Result<()>
+        where
+            P: Project + 'static,
+        {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn historical_view_automation_impl_inherits_identity_method() {
+        fn assert_compatible<T: ViewAutomation>() {}
+
+        assert_compatible::<HistoricalViewAutomation>();
+    }
 }
