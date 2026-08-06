@@ -5,6 +5,40 @@ use crate::envelope;
 use crate::error::{self};
 use crate::project::Project;
 
+/// Default schema version for a view projector using [`ViewAutomation::start_view_automation`].
+pub const DEFAULT_VIEW_PROJECTOR_VERSION: u32 = 1;
+
+/// Stable logical identity stored on a durable view consumer.
+///
+/// The identifier describes the read model independently of its Rust module or type name. The
+/// version should change only when resuming the same durable requires an explicit compatibility
+/// or migration decision.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ViewProjectorIdentity {
+    id: String,
+    version: u32,
+}
+
+impl ViewProjectorIdentity {
+    /// Create a stable logical projector identity.
+    pub fn new(id: impl Into<String>, version: u32) -> Self {
+        Self {
+            id: id.into(),
+            version,
+        }
+    }
+
+    /// Return the stable logical projector identifier.
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    /// Return the projector schema/behavior version.
+    pub const fn version(&self) -> u32 {
+        self.version
+    }
+}
+
 /// View trait to help declare Read Models
 pub mod view;
 
@@ -47,6 +81,16 @@ pub trait ViewAutomation: Automation {
     /// Events published to any stream identified by the EventGroup type
     /// parameter will be included.
     async fn start_view_automation<P>(&self, projector: P, feature_name: &str) -> error::Result<()>
+    where
+        P: Project + 'static;
+
+    /// Subscribe using an explicit stable logical projector identity and version.
+    async fn start_view_automation_with_identity<P>(
+        &self,
+        projector: P,
+        feature_name: &str,
+        identity: ViewProjectorIdentity,
+    ) -> error::Result<()>
     where
         P: Project + 'static;
 }

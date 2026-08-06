@@ -1,5 +1,6 @@
 use std::time::SystemTime;
 
+use async_nats::jetstream::AckKind;
 use async_nats::{jetstream, HeaderMap};
 use serde_json::Deserializer;
 use tracing::instrument;
@@ -140,6 +141,17 @@ impl NatsEnvelope {
     pub async fn ack(self) -> error::Result<()> {
         match self.message {
             NatsMessage::Delivery(message) => message.double_ack().await.map_err(Error::Internal),
+            NatsMessage::Stored(_) => Err(Error::Invalid),
+        }
+    }
+
+    /// Tell the durable consumer that projection work is still in progress.
+    pub(crate) async fn in_progress(&self) -> error::Result<()> {
+        match &self.message {
+            NatsMessage::Delivery(message) => message
+                .ack_with(AckKind::Progress)
+                .await
+                .map_err(Error::Internal),
             NatsMessage::Stored(_) => Err(Error::Invalid),
         }
     }
